@@ -138,7 +138,12 @@ enum DataSubjectRequestStatus {
 model User {
   id              String     @id @default(cuid())
   email           String     @unique
-  passwordHash    String
+  // Nullable since ADR-033 (Google sign-in) — an OAuth-only account never
+  // has one. Password-based login (AuthService) rejects a null hash the
+  // same way it rejects a wrong one (SECURITY.md §1: never reveal which
+  // failure reason applied), so this can't be used to distinguish an
+  // OAuth-only account from a wrong password.
+  passwordHash    String?
   firstName       String?
   lastName        String?
   phone           String?
@@ -153,6 +158,7 @@ model User {
 
   addresses                Address[]
   sessions                 Session[]
+  oauthAccounts            OAuthAccount[]
   roles                    UserRole[]
   cart                     Cart?
   orders                   Order[]
@@ -228,6 +234,30 @@ model Session {
 
   @@index([userId])
   @@index([expiresAt])
+}
+
+// One row per external identity linked to a User (ADR-033) — a dedicated
+// table rather than a `googleId` column directly on `User`, mirroring how
+// Session/OrderStatusToken are their own tables rather than columns on the
+// row they belong to: `provider` is a plain string, not an enum (like
+// Notification.type), so a second provider later needs no migration.
+// `provider`+`providerAccountId` (Google's `sub` claim, never the email —
+// a Google account's email can change) is the real identity key; a User
+// can have more than one linked provider, and (in principle) the same
+// provider account could be re-linked to a different User only by first
+// unlinking, though no unlink path exists yet (not needed until more than
+// one provider does).
+model OAuthAccount {
+  id                String   @id @default(cuid())
+  userId            String
+  provider          String
+  providerAccountId String
+  createdAt         DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([provider, providerAccountId])
+  @@index([userId])
 }
 
 model Address {
@@ -633,9 +663,9 @@ model Order {
   confirmedAt DateTime?
   canceledAt  DateTime?
 
-  user           User?          @relation(fields: [userId], references: [id], onDelete: SetNull)
-  discount       Discount?      @relation(fields: [discountId], references: [id], onDelete: SetNull)
-  shippingMethod ShippingMethod @relation(fields: [shippingMethodId], references: [id], onDelete: Restrict)
+  user           User?             @relation(fields: [userId], references: [id], onDelete: SetNull)
+  discount       Discount?         @relation(fields: [discountId], references: [id], onDelete: SetNull)
+  shippingMethod ShippingMethod    @relation(fields: [shippingMethodId], references: [id], onDelete: Restrict)
   items          OrderItem[]
   payments       Payment[]
   shipments      Shipment[]

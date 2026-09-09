@@ -29,6 +29,11 @@ function makePrismaMock(overrides: Record<string, unknown> = {}) {
       findUnique: vi.fn().mockResolvedValue(USER),
       findUniqueOrThrow: vi.fn().mockResolvedValue(USER),
       update: vi.fn().mockResolvedValue(USER),
+      create: vi.fn(),
+    },
+    oAuthAccount: {
+      findUnique: vi.fn().mockResolvedValue(null),
+      upsert: vi.fn().mockResolvedValue({}),
     },
     ...overrides,
   } as unknown as PrismaService & {
@@ -36,6 +41,11 @@ function makePrismaMock(overrides: Record<string, unknown> = {}) {
       findUnique: ReturnType<typeof vi.fn>;
       findUniqueOrThrow: ReturnType<typeof vi.fn>;
       update: ReturnType<typeof vi.fn>;
+      create: ReturnType<typeof vi.fn>;
+    };
+    oAuthAccount: {
+      findUnique: ReturnType<typeof vi.fn>;
+      upsert: ReturnType<typeof vi.fn>;
     };
   };
 }
@@ -209,5 +219,88 @@ describe("AuthService.getSafeUser", () => {
       permissions: ["orders.fulfill"],
     });
     expect(result).not.toHaveProperty("passwordHash");
+  });
+});
+
+const GOOGLE_PROFILE = {
+  sub: "google-sub-1",
+  email: "customer@example.com",
+  emailVerified: true,
+  givenName: "Test",
+  familyName: "Testsson",
+};
+
+describe("AuthService.loginWithGoogle", () => {
+  let prisma: ReturnType<typeof makePrismaMock>;
+  let sessions: ReturnType<typeof makeSessionsMock>;
+  let service: AuthService;
+
+  beforeEach(() => {
+    prisma = makePrismaMock();
+    sessions = makeSessionsMock();
+    service = new AuthService(prisma, makePasswordsMock(), sessions);
+  });
+
+  it("rejects an unverified Google email, without ever touching the database", async () => {
+    await expect(service.loginWithGoogle({ ...GOOGLE_PROFILE, emailVerified: false }, {})).rejects.toMatchObject({
+      response: { error: "EmailNotVerified" },
+    });
+    expect(prisma.oAuthAccount.findUnique).not.toHaveBeenCalled();
+  });
+
+  it("logs straight in via an existing OAuthAccount, without touching User.findUnique/create at all", async () => {
+    prisma.oAuthAccount.findUnique.mockResolvedValue({ user: USER });
+
+    const result = await service.loginWithGoogle(GOOGLE_PROFILE, {});
+
+    expect(prisma.user.findUnique).not.toHaveBeenCalled();
+    expect(prisma.user.create).not.toHaveBeenCalled();
+    expect(prisma.oAuthAccount.upsert).not.toHaveBeenCalled(); // already linked — nothing new to link
+    expect(result.user.email).toBe("customer@example.com");
+  });
+
+  it("links to an existing User matched by email on first-time Google sign-in", async () => {
+    prisma.oAuthAccount.findUnique.mockResolvedValue(null);
+    prisma.user.findUnique.mockResolvedValue(USER);
+
+    await service.loginWithGoogle(GOOGLE_PROFILE, {});
+
+    expect(prisma.user.create).not.toHaveBeenCalled();
+    expect(prisma.oAuthAccount.upsert).toHaveBeenCalledWith({
+      where: { provider_providerAccountId: { provider: "google", providerAccountId: "google-sub-1" } },
+      create: { userId: "user-1", provider: "google", providerAccountId: "google-sub-1" },
+      update: {},
+    });
+  });
+
+  it("auto-creates a new User with no passwordHash when no account or email match exists", async () => {
+    prisma.oAuthAccount.findUnique.mockResolvedValue(null);
+    prisma.user.findUnique.mockResolvedValue(null);
+    prisma.user.create.mockResolvedValue({ ...USER, id: "user-new", passwordHash: null });
+
+    await service.loginWithGoogle(GOOGLE_PROFILE, {});
+
+    expect(prisma.user.create).toHaveBeenCalledWith({
+      data: {
+        email: "customer@example.com",
+        passwordHash: null,
+        firstName: "Test",
+        lastName: "Testsson",
+        emailVerifiedAt: expect.any(Date),
+      },
+    });
+    expect(prisma.oAuthAccount.upsert).toHaveBeenCalledWith(
+      expect.objectContaining({ create: { userId: "user-new", provider: "google", providerAccountId: "google-sub-1" } }),
+    );
+    expect(sessions.createSession).toHaveBeenCalledWith(expect.objectContaining({ userId: "user-new" }));
+  });
+
+  it("rejects a DISABLED account reached via an existing Google link, with the same generic error as password login", async () => {
+    prisma.oAuthAccount.findUnique.mockResolvedValue({ user: { ...USER, status: UserStatus.DISABLED } });
+
+    await expect(service.loginWithGoogle(GOOGLE_PROFILE, {})).rejects.toMatchObject({
+      response: { error: "InvalidCredentials" },
+    });
+    expect(sessions.createSession).not.toHaveBeenCalled();
   });
 });

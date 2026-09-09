@@ -3,11 +3,12 @@ import { Test } from "@nestjs/testing";
 import type { INestApplication } from "@nestjs/common";
 import { APP_GUARD } from "@nestjs/core";
 import { ConfigService } from "@nestjs/config";
-import { UnauthorizedException } from "@nestjs/common";
+import { ServiceUnavailableException, UnauthorizedException } from "@nestjs/common";
 import cookieParser from "cookie-parser";
 import supertest from "supertest";
 import { AuthController } from "./auth.controller.ts";
 import { AuthService } from "./auth.service.ts";
+import { GOOGLE_OAUTH_PROVIDER } from "./google-oauth.provider.ts";
 import { InventoryController } from "../inventory/inventory.controller.ts";
 import { InventoryService } from "../inventory/inventory.service.ts";
 import { SessionService } from "./session.service.ts";
@@ -24,6 +25,7 @@ const CONFIG_VALUES: Record<string, unknown> = {
   SESSION_COOKIE_NAME: "ame_session",
   CSRF_COOKIE_NAME: "ame_csrf",
   NODE_ENV: "development",
+  STOREFRONT_BASE_URL: "http://localhost:3001",
 };
 
 const AUTH: AuthContext = {
@@ -47,25 +49,44 @@ interface BootOptions {
   login?: ReturnType<typeof vi.fn>;
   logout?: ReturnType<typeof vi.fn>;
   getSafeUser?: ReturnType<typeof vi.fn>;
+  loginWithGoogle?: ReturnType<typeof vi.fn>;
   list?: ReturnType<typeof vi.fn>;
   configOverrides?: Record<string, unknown>;
+  googleOAuthProvider?: { createAuthorizationRequest: ReturnType<typeof vi.fn>; exchangeCodeForProfile: ReturnType<typeof vi.fn> };
+}
+
+// A never-configured PendingOAuthProvider stand-in by default — matches
+// what a real boot looks like whenever GOOGLE_*/STOREFRONT_BASE_URL are
+// unset, without needing every unrelated test in this file (login/logout/
+// session) to know Google sign-in exists at all.
+function makePendingGoogleProviderMock() {
+  const notConfigured = () => {
+    throw new ServiceUnavailableException({ error: "OAuthNotConfigured", message: "Google sign-in is not configured" });
+  };
+  return {
+    createAuthorizationRequest: vi.fn(notConfigured),
+    exchangeCodeForProfile: vi.fn(notConfigured),
+  };
 }
 
 async function bootApp(options: BootOptions = {}) {
   const login = options.login ?? vi.fn();
   const logout = options.logout ?? vi.fn().mockResolvedValue(undefined);
   const getSafeUser = options.getSafeUser ?? vi.fn().mockResolvedValue(SAFE_USER);
+  const loginWithGoogle = options.loginWithGoogle ?? vi.fn();
   const list = options.list ?? vi.fn().mockResolvedValue({ items: [], total: 0 });
   const validateSession = options.validateSession ?? (async () => null);
+  const googleOAuthProvider = options.googleOAuthProvider ?? makePendingGoogleProviderMock();
   const configValues = { ...CONFIG_VALUES, ...options.configOverrides };
 
   const moduleRef = await Test.createTestingModule({
     controllers: [AuthController, InventoryController],
     providers: [
-      { provide: AuthService, useValue: { login, logout, getSafeUser } },
+      { provide: AuthService, useValue: { login, logout, getSafeUser, loginWithGoogle } },
       { provide: InventoryService, useValue: { list } },
       { provide: SessionService, useValue: { validateSession } },
       { provide: ConfigService, useValue: { get: (key: string) => configValues[key] } },
+      { provide: GOOGLE_OAUTH_PROVIDER, useValue: googleOAuthProvider },
       { provide: APP_GUARD, useClass: SessionAuthGuard },
       { provide: APP_GUARD, useClass: PermissionsGuard },
       { provide: APP_GUARD, useClass: CsrfGuard },
@@ -78,7 +99,7 @@ async function bootApp(options: BootOptions = {}) {
   app.use(cookieParser());
   app.useGlobalFilters(new AllExceptionsFilter());
   await app.init();
-  return { app, login, logout, getSafeUser, list };
+  return { app, login, logout, getSafeUser, loginWithGoogle, list, googleOAuthProvider };
 }
 
 describe("POST /auth/login", () => {
@@ -313,5 +334,185 @@ describe("existing admin authorization still works with an AuthController-issued
 
     expect(response.status).toBe(401);
     expect(booted.list).not.toHaveBeenCalled();
+  });
+});
+
+describe("GET /auth/google", () => {
+  let app: INestApplication | undefined;
+  afterEach(async () => {
+    await app?.close();
+    app = undefined;
+  });
+
+  it("redirects to Google's authorization URL and sets httpOnly state/PKCE cookies", async () => {
+    const googleOAuthProvider = {
+      createAuthorizationRequest: vi
+        .fn()
+        .mockReturnValue({ url: "https://accounts.google.com/o/oauth2/v2/auth?x=1", state: "s1", codeVerifier: "v1" }),
+      exchangeCodeForProfile: vi.fn(),
+    };
+    const booted = await bootApp({ googleOAuthProvider });
+    app = booted.app;
+
+    const response = await supertest(app.getHttpServer()).get("/auth/google");
+
+    expect(response.status).toBe(302);
+    expect(response.headers.location).toBe("https://accounts.google.com/o/oauth2/v2/auth?x=1");
+
+    const setCookie = response.headers["set-cookie"] as unknown as string[];
+    const stateCookie = setCookie.find((c) => c.startsWith("ame_oauth_state="));
+    const pkceCookie = setCookie.find((c) => c.startsWith("ame_oauth_pkce="));
+    expect(stateCookie).toContain("HttpOnly");
+    expect(pkceCookie).toContain("HttpOnly");
+    expect(stateCookie).toContain("s1");
+    expect(pkceCookie).toContain("v1");
+  });
+
+  it("returns 503 without setting any cookie when STOREFRONT_BASE_URL is unset", async () => {
+    const booted = await bootApp({ configOverrides: { STOREFRONT_BASE_URL: undefined } });
+    app = booted.app;
+
+    const response = await supertest(app.getHttpServer()).get("/auth/google");
+
+    expect(response.status).toBe(503);
+    expect(response.headers["set-cookie"]).toBeUndefined();
+  });
+
+  it("returns 503 when Google itself isn't configured (PendingOAuthProvider)", async () => {
+    const booted = await bootApp(); // default googleOAuthProvider mock throws, matching PendingOAuthProvider
+    app = booted.app;
+
+    const response = await supertest(app.getHttpServer()).get("/auth/google");
+
+    expect(response.status).toBe(503);
+  });
+});
+
+describe("GET /auth/google/callback", () => {
+  let app: INestApplication | undefined;
+  afterEach(async () => {
+    await app?.close();
+    app = undefined;
+  });
+
+  function cookies(...pairs: string[]): string {
+    return pairs.join("; ");
+  }
+
+  it("on success: exchanges the code, logs in, sets session cookies, clears the flow cookies, and redirects to the storefront with no query", async () => {
+    const googleOAuthProvider = {
+      createAuthorizationRequest: vi.fn(),
+      exchangeCodeForProfile: vi.fn().mockResolvedValue({
+        sub: "sub-1",
+        email: "customer@example.com",
+        emailVerified: true,
+        givenName: "Test",
+        familyName: null,
+      }),
+    };
+    const loginWithGoogle = vi.fn().mockResolvedValue({
+      token: "new-session-token",
+      csrfToken: "new-csrf-token",
+      expiresAt: new Date(Date.now() + 60 * 60 * 1000),
+      user: SAFE_USER,
+    });
+    const booted = await bootApp({ googleOAuthProvider, loginWithGoogle });
+    app = booted.app;
+
+    const response = await supertest(app.getHttpServer())
+      .get("/auth/google/callback?code=auth-code&state=matching-state")
+      .set("Cookie", cookies("ame_oauth_state=matching-state", "ame_oauth_pkce=verifier-1"));
+
+    expect(response.status).toBe(302);
+    expect(response.headers.location).toBe("http://localhost:3001");
+    expect(googleOAuthProvider.exchangeCodeForProfile).toHaveBeenCalledWith("auth-code", "verifier-1");
+    expect(loginWithGoogle).toHaveBeenCalled();
+
+    const setCookie = response.headers["set-cookie"] as unknown as string[];
+    expect(setCookie.some((c) => c.startsWith("ame_session=new-session-token"))).toBe(true);
+    expect(setCookie.some((c) => c.startsWith("ame_csrf=new-csrf-token"))).toBe(true);
+    // Flow cookies cleared (expired), never left behind.
+    expect(setCookie.filter((c) => c.startsWith("ame_oauth_state=")).every((c) => c.includes("Expires="))).toBe(
+      true,
+    );
+  });
+
+  it("redirects with authError=google_denied when Google itself reports an error, without calling the provider", async () => {
+    const googleOAuthProvider = { createAuthorizationRequest: vi.fn(), exchangeCodeForProfile: vi.fn() };
+    const booted = await bootApp({ googleOAuthProvider });
+    app = booted.app;
+
+    const response = await supertest(app.getHttpServer())
+      .get("/auth/google/callback?error=access_denied")
+      .set("Cookie", cookies("ame_oauth_state=s", "ame_oauth_pkce=v"));
+
+    expect(response.status).toBe(302);
+    expect(response.headers.location).toBe("http://localhost:3001?authError=google_denied");
+    expect(googleOAuthProvider.exchangeCodeForProfile).not.toHaveBeenCalled();
+  });
+
+  it("redirects with authError=invalid_request when the state/PKCE cookies are missing", async () => {
+    const booted = await bootApp();
+    app = booted.app;
+
+    const response = await supertest(app.getHttpServer()).get("/auth/google/callback?code=x&state=y");
+
+    expect(response.status).toBe(302);
+    expect(response.headers.location).toBe("http://localhost:3001?authError=invalid_request");
+  });
+
+  it("redirects with authError=state_mismatch and never calls the provider when the state doesn't match the cookie", async () => {
+    const googleOAuthProvider = { createAuthorizationRequest: vi.fn(), exchangeCodeForProfile: vi.fn() };
+    const booted = await bootApp({ googleOAuthProvider });
+    app = booted.app;
+
+    const response = await supertest(app.getHttpServer())
+      .get("/auth/google/callback?code=x&state=attacker-supplied")
+      .set("Cookie", cookies("ame_oauth_state=real-state", "ame_oauth_pkce=v"));
+
+    expect(response.status).toBe(302);
+    expect(response.headers.location).toBe("http://localhost:3001?authError=state_mismatch");
+    expect(googleOAuthProvider.exchangeCodeForProfile).not.toHaveBeenCalled();
+  });
+
+  it("redirects with authError=oauth_failed when the code exchange throws, setting no session cookie", async () => {
+    const googleOAuthProvider = {
+      createAuthorizationRequest: vi.fn(),
+      exchangeCodeForProfile: vi.fn().mockRejectedValue(new Error("Google is down")),
+    };
+    const booted = await bootApp({ googleOAuthProvider });
+    app = booted.app;
+
+    const response = await supertest(app.getHttpServer())
+      .get("/auth/google/callback?code=x&state=s")
+      .set("Cookie", cookies("ame_oauth_state=s", "ame_oauth_pkce=v"));
+
+    expect(response.status).toBe(302);
+    expect(response.headers.location).toBe("http://localhost:3001?authError=oauth_failed");
+    const setCookie = response.headers["set-cookie"] as unknown as string[];
+    expect(setCookie.some((c) => c.startsWith("ame_session=new"))).toBe(false);
+  });
+
+  it("redirects with authError=oauth_failed (never a distinct message) when AuthService rejects the profile, e.g. unverified email", async () => {
+    const googleOAuthProvider = {
+      createAuthorizationRequest: vi.fn(),
+      exchangeCodeForProfile: vi.fn().mockResolvedValue({
+        sub: "sub-1",
+        email: "x@example.com",
+        emailVerified: false,
+        givenName: null,
+        familyName: null,
+      }),
+    };
+    const loginWithGoogle = vi.fn().mockRejectedValue(new Error("Google account email is not verified"));
+    const booted = await bootApp({ googleOAuthProvider, loginWithGoogle });
+    app = booted.app;
+
+    const response = await supertest(app.getHttpServer())
+      .get("/auth/google/callback?code=x&state=s")
+      .set("Cookie", cookies("ame_oauth_state=s", "ame_oauth_pkce=v"));
+
+    expect(response.status).toBe(302);
+    expect(response.headers.location).toBe("http://localhost:3001?authError=oauth_failed");
   });
 });

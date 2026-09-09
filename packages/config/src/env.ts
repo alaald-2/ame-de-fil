@@ -90,6 +90,25 @@ export const envSchema = z.object({
   ),
   SMTP_FROM: optionalSecret(),
 
+  // Google sign-in (DECISIONS.md ADR-033) — optional at the schema level:
+  // unset (any of the three) means IdentityModule falls back to
+  // PendingOAuthProvider, same "disclosed rather than faked" posture as
+  // Stripe/SMTP above. All three are required together in practice,
+  // checked in IdentityModule's factory rather than enforced here, mirroring
+  // STRIPE_SECRET_KEY/STRIPE_WEBHOOK_SECRET's existing pattern exactly.
+  GOOGLE_CLIENT_ID: optionalSecret(),
+  GOOGLE_CLIENT_SECRET: optionalSecret(),
+  GOOGLE_OAUTH_REDIRECT_URI: z.url().optional(),
+  // Where a browser is sent after the Google round-trip completes (success
+  // or failure) — a fixed, server-configured destination only, never a
+  // client-supplied redirect target (that would be an open-redirect
+  // vulnerability). No default: unlike a structural knob (a port, a TTL),
+  // this is a real per-environment value in the same category
+  // CORS_ALLOWED_ORIGINS already is, and a wrong default silently sending
+  // a real user's session cookie to the wrong host in production is worse
+  // than failing to boot the feature at all.
+  STOREFRONT_BASE_URL: z.url().optional(),
+
   LOG_LEVEL: z.enum(["fatal", "error", "warn", "info", "debug", "trace"]).default("info"),
 
   RATE_LIMIT_WINDOW_MS: z.coerce.number().int().positive().default(60_000),

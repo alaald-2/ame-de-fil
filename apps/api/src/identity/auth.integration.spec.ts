@@ -98,3 +98,95 @@ describe("AuthService — real Postgres", () => {
     await expect(sessions.validateSession(result.token)).resolves.toBeNull();
   });
 });
+
+// DECISIONS.md ADR-033 — real Postgres, exercising the actual @@unique
+// constraint on OAuthAccount(provider, providerAccountId) and the real
+// nullable-passwordHash column, neither of which a mocked Prisma client
+// can prove actually exists as migrated.
+describe("AuthService.loginWithGoogle — real Postgres", () => {
+  let db: TestDatabase;
+  let auth: AuthService;
+
+  beforeAll(async () => {
+    db = await startTestDatabase();
+    auth = new AuthService(db.prisma, new PasswordService(), new SessionService(db.prisma, fakeConfig()));
+  }, 120_000);
+
+  afterAll(async () => {
+    await stopTestDatabase(db);
+  });
+
+  function googleProfile(overrides: Partial<Parameters<AuthService["loginWithGoogle"]>[0]> = {}) {
+    return {
+      sub: `sub-${Math.random().toString(36).slice(2)}`,
+      email: `google-${Math.random().toString(36).slice(2)}@example.com`,
+      emailVerified: true,
+      givenName: "Ada",
+      familyName: "Lovelace",
+      ...overrides,
+    };
+  }
+
+  it("creates a real User with no passwordHash and a linked OAuthAccount on first sign-in", async () => {
+    const profile = googleProfile();
+
+    const result = await auth.loginWithGoogle(profile, {});
+
+    const user = await db.prisma.user.findUniqueOrThrow({ where: { id: result.user.id } });
+    expect(user.email).toBe(profile.email);
+    expect(user.passwordHash).toBeNull();
+    expect(user.emailVerifiedAt).not.toBeNull();
+
+    const account = await db.prisma.oAuthAccount.findUniqueOrThrow({
+      where: { provider_providerAccountId: { provider: "google", providerAccountId: profile.sub } },
+    });
+    expect(account.userId).toBe(user.id);
+  });
+
+  it("the second sign-in with the same Google sub logs into the same User, creating no duplicate", async () => {
+    const profile = googleProfile();
+
+    const first = await auth.loginWithGoogle(profile, {});
+    const second = await auth.loginWithGoogle(profile, {});
+
+    expect(second.user.id).toBe(first.user.id);
+    const accountCount = await db.prisma.oAuthAccount.count({
+      where: { provider: "google", providerAccountId: profile.sub },
+    });
+    expect(accountCount).toBe(1);
+  });
+
+  it("links to a real pre-existing password-based User matched by email, not a new row", async () => {
+    const fixture = await seedUserWithPermissions(db.prisma, ["orders.fulfill"]);
+    const profile = googleProfile({ email: fixture.email });
+
+    const result = await auth.loginWithGoogle(profile, {});
+
+    expect(result.user.id).toBe(fixture.userId);
+    expect(result.user.permissions).toEqual(["orders.fulfill"]);
+    const user = await db.prisma.user.findUniqueOrThrow({ where: { id: fixture.userId } });
+    expect(user.passwordHash).not.toBeNull(); // the original password login path still works too
+
+    const userCount = await db.prisma.user.count({ where: { email: fixture.email } });
+    expect(userCount).toBe(1); // linked, not duplicated
+  });
+
+  it("rejects an unverified Google email without creating any User row", async () => {
+    const profile = googleProfile({ emailVerified: false });
+
+    await expect(auth.loginWithGoogle(profile, {})).rejects.toThrow();
+
+    const userCount = await db.prisma.user.count({ where: { email: profile.email } });
+    expect(userCount).toBe(0);
+  });
+
+  it("rejects sign-in for a real DISABLED account reached via Google", async () => {
+    const fixture = await seedUserWithPermissions(db.prisma, ["orders.fulfill"], { status: "DISABLED" });
+    const profile = googleProfile({ email: fixture.email });
+
+    await expect(auth.loginWithGoogle(profile, {})).rejects.toThrow();
+
+    const sessionCount = await db.prisma.session.count({ where: { userId: fixture.userId } });
+    expect(sessionCount).toBe(0);
+  });
+});

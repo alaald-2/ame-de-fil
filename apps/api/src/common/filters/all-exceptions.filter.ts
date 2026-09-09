@@ -7,6 +7,7 @@ import {
   Logger,
 } from "@nestjs/common";
 import type { Request, Response } from "express";
+import { redactSensitiveQueryParams } from "../sanitize-url.ts";
 
 interface ErrorResponseBody {
   statusCode: number;
@@ -34,6 +35,13 @@ export class AllExceptionsFilter implements ExceptionFilter {
     const request = ctx.getRequest<Request>();
 
     const { statusCode, error, message, extra } = this.resolve(exception);
+    // Never the raw request.url: this is a hand-constructed log
+    // line/response field, entirely separate from (and not covered by)
+    // pino-http's own auto-logged request line and its redact config
+    // (common/pino-redact.ts) — a sensitive query param (e.g. Google's
+    // OAuth `code`, DECISIONS.md ADR-033) would otherwise reach both the
+    // log and the JSON error body verbatim from here.
+    const path = redactSensitiveQueryParams(request.url);
 
     const body: ErrorResponseBody = {
       ...extra,
@@ -42,12 +50,12 @@ export class AllExceptionsFilter implements ExceptionFilter {
       message,
       correlationId: request.id,
       timestamp: new Date().toISOString(),
-      path: request.url,
+      path,
     };
 
     if (statusCode >= HttpStatus.INTERNAL_SERVER_ERROR) {
       this.logger.error(
-        `Unhandled exception on ${request.method} ${request.url}`,
+        `Unhandled exception on ${request.method} ${path}`,
         exception instanceof Error ? exception.stack : String(exception),
       );
     }

@@ -7,6 +7,7 @@ import { randomUUID } from "node:crypto";
 import type { IncomingMessage, ServerResponse } from "node:http";
 import { validate } from "./config/configuration.js";
 import { AllExceptionsFilter } from "./common/filters/all-exceptions.filter.js";
+import { PINO_REDACT_PATHS, pinoRedactCensor } from "./common/pino-redact.ts";
 import { SessionAuthGuard } from "./common/guards/session-auth.guard.js";
 import { PermissionsGuard } from "./common/guards/permissions.guard.js";
 import { CsrfGuard } from "./common/csrf/csrf.guard.js";
@@ -52,26 +53,14 @@ const CORRELATION_ID_HEADER = "x-correlation-id";
         // process.env is read directly here since Nest's ConfigService isn't
         // constructed yet at this point in module registration.
         level: process.env["LOG_LEVEL"] ?? "info",
-        // The session/CSRF cookies travel in the `cookie` request header on
-        // every authenticated request, a fresh session token rides out in
-        // `set-cookie` on every login response, and the CSRF double-submit
-        // value travels as its own `x-csrf-token` request header on every
-        // state-changing one (DECISIONS.md ADR-032) — pino-http's default
-        // request/response serializers log headers verbatim, so without
-        // this, a session token is one log line away from being as good as
-        // a stolen cookie (SECURITY.md §1/§7: no credentials or session
-        // tokens in logs). Live-verified: a real logout request's
-        // `x-csrf-token` header showed up unredacted here on the first
-        // pass, before this line was added — caught by actually grepping a
-        // live log, not by inspection alone.
+        // See common/pino-redact.ts for what's redacted and why (cookies,
+        // the CSRF header, and — via a censor function rather than plain
+        // field removal — the OAuth `code` value embedded in `req.url`,
+        // without touching request serialization at all, so
+        // remoteAddress/remotePort are unaffected).
         redact: {
-          paths: [
-            "req.headers.cookie",
-            "req.headers.authorization",
-            "req.headers[\"x-csrf-token\"]",
-            'res.headers["set-cookie"]',
-          ],
-          remove: true,
+          paths: PINO_REDACT_PATHS,
+          censor: pinoRedactCensor,
         },
       },
     }),
