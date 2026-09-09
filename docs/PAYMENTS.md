@@ -94,6 +94,8 @@ stateDiagram-v2
 
 Order and Payment are deliberately **separate** state machines (per the brief) — an order can be `REFUND_REQUESTED` while its payment is still transitioning to `REFUNDED`; they're correlated, not merged, so partial fulfillment/partial refund scenarios (one item refunded, rest shipped) don't force an artificial combined state.
 
+**Admin fulfillment implemented (`DECISIONS.md` ADR-029):** `CONFIRMED → READY_TO_SHIP → SHIPPED → DELIVERED` — three admin-only endpoints (`apps/api/src/orders/admin-orders.controller.ts`, `orders.fulfill` permission), each a guarded conditional transition (illegal-from-state calls reject with `409`, never silently no-op — unlike the webhook/sweep paths, a manual admin action on the wrong order state is a real mistake, not a race to tolerate). `POST .../ship` records `Shipment.carrierName`/`trackingNumber`/`trackingUrl` (all optional free text, ADR-022). **Deliberately not built here:** the `IN_PRODUCTION` branch and `productionTimeDays` tracking for made-to-order items — `CONFIRMED → READY_TO_SHIP` applies uniformly regardless of made-to-order mix for now; that distinction is the separate "made-to-order production-time flow" roadmap item. No admin UI either — `apps/admin` has no order pages yet; that's Phase 5's "order management" scope, which will call these same endpoints.
+
 ## 4. The core rule: webhooks, not redirects
 
 **An order is never marked `CONFIRMED`, and money is never considered received, because the browser was redirected to a "success" URL.** The success-page redirect only ever shows an optimistic "we're confirming your payment" state. The authoritative transition happens exclusively when:

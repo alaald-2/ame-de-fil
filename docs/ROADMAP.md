@@ -39,7 +39,9 @@ Klarna/Swish payment methods via Stripe (ADR-014), shipment tracking via `Manual
 
 **Swish: blocked, not a code gap.** Verified live that this Stripe account's Dashboard has not activated Swish — Stripe's API rejects it outright (`"not activated in your dashboard"`), a bank-linked Swedish payment method likely requiring Stripe's own approval. The code is ready: adding `"swish"` to `ENABLED_PAYMENT_METHOD_TYPES` (`stripe-payment.provider.ts`) is the only change needed once activated — no other code, webhook, or frontend work required, since the same generic Stripe PaymentIntents/webhook/Payment Element path already handles it identically to Klarna.
 
-Shipment tracking, made-to-order production-time flow, transactional email, and abandoned-checkout handling remain unbuilt.
+**Shipment tracking: implemented** (`DECISIONS.md` ADR-029) — admin endpoints for `CONFIRMED → READY_TO_SHIP → SHIPPED → DELIVERED`, with carrier name/tracking number recorded on `Shipment` (`ManualShippingProvider`'s admin-entered model, ADR-022). The `IN_PRODUCTION` branch for made-to-order items is deliberately not built here — see the next item — and there's no admin UI yet (Phase 5's "order management" scope will call these endpoints).
+
+Made-to-order production-time flow, transactional email, and abandoned-checkout handling remain unbuilt.
 
 ## Phase 5 — Admin dashboard
 

@@ -293,3 +293,25 @@ Two spec files, run via a **separate** `pnpm --filter @ame-de-fil/api test:integ
 - `ROADMAP.md` Phase 4 records Klarna as live/verified and Swish as blocked on a real, external, one-line-away Dashboard action — not "not built."
 - No schema migration (the `method` column already existed), no frontend changes.
 - **Verified (not asserted):** `pnpm --filter @ame-de-fil/api test` (269 tests, 5 new), `lint`, `typecheck` all pass. Live: real Klarna checkout end-to-end (above) and a real card-checkout regression check, both against the real local Postgres and Stripe test API.
+
+## ADR-029: Admin fulfillment — `CONFIRMED → READY_TO_SHIP → SHIPPED → DELIVERED` ✅
+
+**Context:** ROADMAP.md Phase 4 lists "shipment tracking via `ManualShippingProvider` (admin-entered, carrier-agnostic — ADR-022)" as a distinct item from "made-to-order production-time flow" and from Phase 5's "order management" admin UI. ADR-022 already fully decided the architecture (no carrier API, admin manually enters free-text carrier name/tracking number); `orders.module.ts`'s own prior comment named this gap explicitly: *"full order lifecycle (detail views, admin fulfillment, refunds) is still a later phase."* This checkpoint builds that admin-fulfillment piece.
+
+**Decision:** three new admin endpoints under `apps/api/src/orders/admin-orders.controller.ts` (`AdminOrdersService`), gated by a new `orders.fulfill` permission (consistent with the existing `checkout.manage`/`inventory.adjust`/`products.create` convention — no seed data added, since no `Permission`/`RolePermission` rows are seeded anywhere in this project yet for *any* permission string, a pre-existing, project-wide gap):
+
+- `POST /admin/orders/:orderId/ready-to-ship` — `CONFIRMED → READY_TO_SHIP`.
+- `POST /admin/orders/:orderId/ship` — `READY_TO_SHIP → SHIPPED`, creates a `Shipment` row (`carrierName`/`trackingNumber`/`trackingUrl`, all optional free text per ADR-022) with `shippedAt`.
+- `POST /admin/orders/:orderId/deliver` — `SHIPPED → DELIVERED`, updates that `Shipment` to `DELIVERED`/`deliveredAt`.
+
+Each is a guarded conditional `updateMany` (`WHERE status = <expected>`) — the same idiom as `ReservationExpiryService`/`PaymentsWebhookService` — but unlike those two, a zero-row match **throws** (`409 ConflictException`) rather than silently no-opping: those exist to tolerate retried webhook/sweep deliveries, whereas a manual admin action invoked against the wrong order state is a real mistake that should surface as an error (`TESTING.md` §2: "illegal transitions must throw"). `Shipment` is `create`d, not `upsert`ed — `Shipment.orderId` is a plain indexed FK, not `@unique` (the schema already allows multiple `Shipment` rows per order for a future partial-shipment case), so there's no unique key an upsert could target; v1's manual flow only ever produces one per order.
+
+**Deliberately deferred, disclosed rather than silently absent:**
+- The `IN_PRODUCTION` branch and `productionTimeDays` tracking for made-to-order items — `CONFIRMED → READY_TO_SHIP` applies uniformly today regardless of made-to-order mix. That's the separate, not-yet-started "made-to-order production-time flow" roadmap item; building it here would be scope creep beyond what was asked.
+- Any admin frontend — `apps/admin` has no order pages at all yet (`orders/page.tsx` is a `ComingSoon` placeholder), and "Orders (detail, ...)" is explicitly `PRODUCT_SPEC.md` §5 / `ROADMAP.md` Phase 5 scope. This checkpoint is the backend capability that UI will call.
+- Customer-facing shipment visibility (tracking info in the guest order-status response, or a shipping-notification email) — `orderStatusResponseSchema` stays deliberately minimal (`DECISIONS.md` ADR-024) and is not touched; a shipping-notification email is Phase 4's separate "transactional email" item.
+
+**Consequences:**
+- No schema migration — `Shipment`/`OrderStatus`/`ShipmentStatus` already existed exactly as needed.
+- `PAYMENTS.md` §3 gets a short implementation note naming the new endpoints and the disclosed `IN_PRODUCTION` deferral (no diagram change — the diagram already showed this exact chain).
+- **Verified (not asserted):** new unit tests (`admin-orders.service.spec.ts`, `admin-orders.controller.spec.ts` — the latter through the real `SessionAuthGuard`/`PermissionsGuard`/`CsrfGuard` chain, mirroring `inventory.controller.spec.ts`) and a new Testcontainers integration test (`admin-orders.integration.spec.ts`) walking a real order through the full chain against real Postgres, plus the two illegal-transition-rejects cases. `pnpm --filter @ame-de-fil/api test` (286 tests, 17 new) and `test:integration` (8 tests, 3 new) pass. Live smoke-tested against the running local API with a real admin session: the full `ready-to-ship → ship → deliver` chain, and confirmed a premature `ship` call on a still-`CONFIRMED` order correctly rejects with `409`.
