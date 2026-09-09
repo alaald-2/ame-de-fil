@@ -47,7 +47,7 @@ Klarna/Swish payment methods via Stripe (ADR-014), shipment tracking via `Manual
 
 Abandoned-checkout handling remains unbuilt.
 
-**Real auth entry point (login, logout, session issuance) remains unbuilt.** `IdentityModule`'s `SessionService`/`PasswordService` (Phase 1's "auth core... skeleton") are the session/password building blocks `SessionAuthGuard`/`PermissionsGuard`/`CsrfGuard` already depend on, but there is no HTTP endpoint that actually creates a session — every admin-only route shipped so far (`admin/products`, `admin/inventory`, `admin/checkout`, `admin/orders`) is consequently unreachable by any real client, only callable in tests that seed a `Session` row directly. This should land before or alongside Phase 5's admin dashboard, since none of that surface is usable by real admin staff without it.
+**Real auth entry point: implemented** (`DECISIONS.md` ADR-032) — `AuthController`/`AuthService` (`POST /auth/login`, `POST /auth/logout`, `GET /auth/session`) built directly on the pre-existing `SessionService`/`PasswordService`/`SessionAuthGuard`/`PermissionsGuard`/`CsrfGuard` (Phase 1's "auth core... skeleton", ADR-015), none of which changed. Every admin-only route shipped so far (`admin/products`, `admin/inventory`, `admin/checkout`, `admin/orders`) is now reachable by a real client with a real session, verified live against the real running API. **Deliberately not built:** registration and password-reset endpoints (there is still no way to create a `User` row outside a direct DB insert), MFA, and any admin UI — RBAC/user administration itself remains Phase 5 scope, untouched here.
 
 ## Phase 5 — Admin dashboard
 

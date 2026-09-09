@@ -2,6 +2,50 @@ import { randomUUID } from "node:crypto";
 import { Locale, ProductStatus, OrderStatus, Currency, PaymentStatus, StockReservationStatus } from "@ame-de-fil/database";
 import type { PrismaService } from "../database/prisma.service.ts";
 import { SHIPPING_TAX_CLASS_CODE } from "../checkout/tax-rates.ts";
+import { PasswordService } from "../identity/password.service.ts";
+
+export interface UserFixture {
+  userId: string;
+  email: string;
+  password: string;
+}
+
+// One real Role + Permission(s) + a User granted that role, all freshly
+// randomized per call — real RBAC data (`DATABASE.md`'s User/Role/
+// Permission/UserRole/RolePermission tables), not a mocked permissions
+// array, so SessionService.validateSession's real roles -> permissions
+// flattening query is what's actually exercised (TESTING.md §3: "RBAC
+// guard behavior against real role/permission data").
+export async function seedUserWithPermissions(
+  prisma: PrismaService,
+  permissionKeys: string[],
+  options: { password?: string; status?: "ACTIVE" | "DISABLED" } = {},
+): Promise<UserFixture> {
+  const id = randomUUID();
+  const password = options.password ?? `Test-Password-${id}`;
+  const passwordHash = await new PasswordService().hash(password);
+
+  const role = await prisma.role.create({ data: { name: `test-role-${id}` } });
+  for (const key of permissionKeys) {
+    const permission = await prisma.permission.upsert({
+      where: { key },
+      create: { key },
+      update: {},
+    });
+    await prisma.rolePermission.create({ data: { roleId: role.id, permissionId: permission.id } });
+  }
+
+  const user = await prisma.user.create({
+    data: {
+      email: `test-${id}@example.com`,
+      passwordHash,
+      status: options.status ?? "ACTIVE",
+      roles: { create: { roleId: role.id } },
+    },
+  });
+
+  return { userId: user.id, email: user.email, password };
+}
 
 export interface ShopFixture {
   taxClassId: string;

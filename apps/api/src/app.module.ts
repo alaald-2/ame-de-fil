@@ -52,6 +52,27 @@ const CORRELATION_ID_HEADER = "x-correlation-id";
         // process.env is read directly here since Nest's ConfigService isn't
         // constructed yet at this point in module registration.
         level: process.env["LOG_LEVEL"] ?? "info",
+        // The session/CSRF cookies travel in the `cookie` request header on
+        // every authenticated request, a fresh session token rides out in
+        // `set-cookie` on every login response, and the CSRF double-submit
+        // value travels as its own `x-csrf-token` request header on every
+        // state-changing one (DECISIONS.md ADR-032) — pino-http's default
+        // request/response serializers log headers verbatim, so without
+        // this, a session token is one log line away from being as good as
+        // a stolen cookie (SECURITY.md §1/§7: no credentials or session
+        // tokens in logs). Live-verified: a real logout request's
+        // `x-csrf-token` header showed up unredacted here on the first
+        // pass, before this line was added — caught by actually grepping a
+        // live log, not by inspection alone.
+        redact: {
+          paths: [
+            "req.headers.cookie",
+            "req.headers.authorization",
+            "req.headers[\"x-csrf-token\"]",
+            'res.headers["set-cookie"]',
+          ],
+          remove: true,
+        },
       },
     }),
     PrismaModule,
