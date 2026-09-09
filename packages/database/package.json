@@ -1,0 +1,30 @@
+{
+  "name": "@ame-de-fil/database",
+  "version": "0.0.0",
+  "private": true,
+  "license": "UNLICENSED",
+  "type": "module",
+  "main": "./src/client.ts",
+  "types": "./src/client.ts",
+  "scripts": {
+    "generate": "prisma generate",
+    "validate": "prisma validate",
+    "format": "prisma format",
+    "typecheck": "tsc --noEmit",
+    "lint": "eslint .",
+    "migrate:dev": "prisma migrate dev",
+    "migrate:deploy": "prisma migrate deploy",
+    "migrate:diff-sql": "prisma migrate diff --from-empty --to-schema prisma/schema.prisma --script"
+  },
+  "devDependencies": {
+    "@ame-de-fil/config": "workspace:*",
+    "@ame-de-fil/eslint-config": "workspace:*",
+    "dotenv": "^17.4.2",
+    "eslint": "^10.10.0",
+    "prisma": "7.10.0",
+    "typescript": "6.0.3"
+  },
+  "dependencies": {
+    "@prisma/client": "7.10.0"
+  }
+}

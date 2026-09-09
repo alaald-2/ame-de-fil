@@ -1,0 +1,61 @@
+/*
+ * Design tokens — DESIGN_SYSTEM.md. Imported by each app's own Tailwind
+ * entry (`@import "@ame-de-fil/ui/tokens.css";`), not built/compiled here —
+ * Tailwind v4 is CSS-first (DECISIONS.md ADR-004) and each app owns its own
+ * Tailwind pipeline.
+ *
+ * PLACEHOLDER PALETTE: DESIGN_SYSTEM.md §3 is explicit that the final accent
+ * color is a brand decision, not an engineering one. The neutral/accent
+ * values below are a working placeholder (warm neutral + terracotta, one of
+ * the doc's own suggested options) so real components can be built and
+ * reviewed now — swap these, not the token names, when the brand decides.
+ */
+@theme {
+  --color-neutral-50: #faf8f5;
+  --color-neutral-100: #f2ede6;
+  --color-neutral-200: #e6dccd;
+  --color-neutral-300: #d3c4ac;
+  --color-neutral-400: #b3a084;
+  --color-neutral-500: #8f7c62;
+  --color-neutral-600: #6b5c47;
+  --color-neutral-700: #4d4234;
+  --color-neutral-800: #332c22;
+  --color-neutral-900: #1f1a14;
+  --color-neutral-950: #14110d;
+
+  --color-accent-50: #fdf1ec;
+  --color-accent-100: #fbe0d3;
+  --color-accent-300: #e8a483;
+  --color-accent-500: #c1603a;
+  --color-accent-600: #a54e2d;
+  --color-accent-700: #833d23;
+
+  --color-success: #4b6b4f;
+  --color-danger: #9b3a34;
+
+  /* Font *files* are loaded per-app via next/font (DESIGN_SYSTEM.md §2 names
+     Fraunces/Inter as reference points); these variables are the contract
+     each app's root layout fulfils by setting them on <html>. */
+  --font-display: var(--font-display-family, ui-serif, Georgia, serif);
+  --font-sans: var(--font-sans-family, ui-sans-serif, system-ui, sans-serif);
+
+  /* Deliberately small, fixed scale (DESIGN_SYSTEM.md §2) — not an
+     unbounded utility scale. */
+  --text-xs: 0.75rem;
+  --text-sm: 0.875rem;
+  --text-base: 1rem;
+  --text-lg: 1.125rem;
+  --text-xl: 1.375rem;
+  --text-2xl: 1.75rem;
+  --text-3xl: 2.25rem;
+  --text-4xl: 3rem;
+
+  /* Capped low — DESIGN_SYSTEM.md §5 explicitly bans shadcn's
+     rounded-2xl-everywhere default, which reads as generic SaaS. */
+  --radius-sm: 0.125rem;
+  --radius-md: 0.25rem;
+  --radius-lg: 0.375rem;
+
+  /* Tailwind v4's default 0.25rem (4px) base spacing unit is already what
+     DESIGN_SYSTEM.md §4 asks for — not overridden here. */
+}

@@ -1,0 +1,13 @@
+{
+  "extends": "@ame-de-fil/config/tsconfig.base.json",
+  "compilerOptions": {
+    "rootDir": "src",
+    "allowImportingTsExtensions": true,
+    // This package is consumed by both browser (client components) and
+    // Node (server components/route handlers) code — DOM lib types
+    // (RequestCredentials, fetch) are needed; the shared base intentionally
+    // omits DOM since most other packages are Node-only.
+    "lib": ["ES2023", "DOM"]
+  },
+  "include": ["src"]
+}

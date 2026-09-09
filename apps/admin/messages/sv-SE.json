@@ -1,0 +1,34 @@
+{
+  "Metadata": {
+    "title": "Âme de Fil — Admin"
+  },
+  "Navigation": {
+    "dashboard": "Översikt",
+    "products": "Produkter",
+    "orders": "Ordrar",
+    "inventory": "Lager",
+    "customers": "Kunder",
+    "content": "Innehåll",
+    "administration": "Administration"
+  },
+  "Login": {
+    "title": "Logga in",
+    "emailLabel": "E-post",
+    "passwordLabel": "Lösenord",
+    "submit": "Logga in",
+    "notImplemented": "Inloggning är inte implementerad ännu — detta är endast en gränssnittsgrund."
+  },
+  "Common": {
+    "loading": "Laddar…",
+    "skipToContent": "Hoppa till innehåll",
+    "comingSoon": "Den här sektionen är inte implementerad ännu."
+  },
+  "Errors": {
+    "notFoundTitle": "Sidan kunde inte hittas",
+    "notFoundBody": "Sidan du letar efter finns inte.",
+    "notFoundCta": "Till översikten",
+    "genericTitle": "Något gick fel",
+    "genericBody": "Ett oväntat fel inträffade. Försök igen.",
+    "retry": "Försök igen"
+  }
+}

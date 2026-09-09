@@ -1,0 +1,25 @@
+{
+  "name": "@ame-de-fil/config",
+  "version": "0.0.0",
+  "private": true,
+  "license": "UNLICENSED",
+  "type": "module",
+  "main": "./src/index.ts",
+  "types": "./src/index.ts",
+  "files": [
+    "tsconfig.base.json",
+    "src"
+  ],
+  "scripts": {
+    "typecheck": "tsc --noEmit",
+    "lint": "eslint ."
+  },
+  "dependencies": {
+    "zod": "4.5.4"
+  },
+  "devDependencies": {
+    "@ame-de-fil/eslint-config": "workspace:*",
+    "eslint": "^10.10.0",
+    "typescript": "6.0.3"
+  }
+}

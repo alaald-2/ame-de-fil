@@ -1,0 +1,34 @@
+{
+  "Metadata": {
+    "title": "Âme de Fil — Admin"
+  },
+  "Navigation": {
+    "dashboard": "Dashboard",
+    "products": "Products",
+    "orders": "Orders",
+    "inventory": "Inventory",
+    "customers": "Customers",
+    "content": "Content",
+    "administration": "Administration"
+  },
+  "Login": {
+    "title": "Sign in",
+    "emailLabel": "Email",
+    "passwordLabel": "Password",
+    "submit": "Sign in",
+    "notImplemented": "Sign-in isn't implemented yet — this is a structural shell only."
+  },
+  "Common": {
+    "loading": "Loading…",
+    "skipToContent": "Skip to content",
+    "comingSoon": "This section isn't implemented yet."
+  },
+  "Errors": {
+    "notFoundTitle": "Page not found",
+    "notFoundBody": "The page you're looking for doesn't exist.",
+    "notFoundCta": "Back to dashboard",
+    "genericTitle": "Something went wrong",
+    "genericBody": "An unexpected error occurred. Please try again.",
+    "retry": "Try again"
+  }
+}

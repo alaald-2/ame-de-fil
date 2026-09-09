@@ -1,0 +1,110 @@
+{
+  "Metadata": {
+    "title": "Âme de Fil",
+    "description": "Handmade crochet garments and homeware, made in Sweden."
+  },
+  "Navigation": {
+    "home": "Home",
+    "shop": "Shop",
+    "collections": "Collections",
+    "about": "About",
+    "cart": "Cart",
+    "account": "My account"
+  },
+  "Footer": {
+    "rights": "All rights reserved.",
+    "customerService": "Customer service",
+    "shipping": "Shipping and returns",
+    "contact": "Contact"
+  },
+  "Home": {
+    "heroTitle": "Handmade with care",
+    "heroSubtitle": "Unique crochet garments and homeware, made in Sweden.",
+    "cta": "Explore the collection"
+  },
+  "Common": {
+    "loading": "Loading…",
+    "skipToContent": "Skip to content",
+    "close": "Close",
+    "menu": "Menu"
+  },
+  "Errors": {
+    "notFoundTitle": "Page not found",
+    "notFoundBody": "The page you're looking for no longer exists or has moved.",
+    "notFoundCta": "Back to home",
+    "genericTitle": "Something went wrong",
+    "genericBody": "An unexpected error occurred. Please try again.",
+    "retry": "Try again"
+  },
+  "Validation": {
+    "required": "This field is required.",
+    "invalidEmail": "Enter a valid email address.",
+    "tooShort": "Must be at least {min} characters.",
+    "tooLong": "Must be at most {max} characters."
+  },
+  "Shop": {
+    "title": "Shop",
+    "empty": "No products found.",
+    "soldOut": "Sold out",
+    "madeToOrder": "Made to order",
+    "productionTime": "Approx. {days} day delivery"
+  },
+  "Product": {
+    "notFoundTitle": "Product not found",
+    "notFoundBody": "The product you're looking for no longer exists or has moved.",
+    "backToShop": "Back to shop",
+    "materials": "Materials",
+    "careInstructions": "Care instructions"
+  },
+  "Category": {
+    "notFoundTitle": "Category not found",
+    "empty": "No products in this category yet."
+  },
+  "Collection": {
+    "notFoundTitle": "Collection not found",
+    "empty": "No products in this collection yet."
+  },
+  "Cart": {
+    "title": "Your cart",
+    "empty": "Your cart is empty.",
+    "continueShopping": "Continue shopping",
+    "quantity": "Quantity",
+    "remove": "Remove",
+    "subtotal": "Subtotal",
+    "addToCart": "Add to cart",
+    "added": "Added",
+    "onlyAvailable": "Only {count} left in stock",
+    "proceedToCheckout": "Proceed to checkout"
+  },
+  "Checkout": {
+    "title": "Checkout",
+    "emptyCartTitle": "Your cart is empty",
+    "emptyCartBody": "Add something to your cart before checking out.",
+    "backToShop": "Back to shop",
+    "orderReview": "Order review",
+    "deliveryInformation": "Delivery information",
+    "email": "Email",
+    "fullName": "Full name",
+    "addressLine1": "Address",
+    "addressLine2": "Address line 2 (optional)",
+    "postalCode": "Postal code",
+    "city": "City",
+    "phone": "Phone (optional)",
+    "country": "Country",
+    "countrySwedenOnly": "Sweden (the only market we currently ship to)",
+    "shippingMethod": "Shipping method",
+    "loadingShippingMethods": "Loading shipping methods…",
+    "noShippingMethods": "No shipping methods are currently available.",
+    "deliveryEstimate": "{min}–{max} business days",
+    "subtotal": "Subtotal",
+    "shipping": "Shipping",
+    "tax": "of which VAT",
+    "total": "Total",
+    "placeOrder": "Place order",
+    "placingOrder": "Placing order…",
+    "orderConfirmedTitle": "Order received",
+    "orderNumber": "Order number",
+    "reservationNotice": "Your items are reserved until {time}. Payment isn't available yet in this preview — a completed checkout flow will follow in the next phase.",
+    "backToShopAfterOrder": "Continue shopping"
+  }
+}

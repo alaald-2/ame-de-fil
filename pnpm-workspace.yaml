@@ -1,0 +1,15 @@
+packages:
+  - "apps/*"
+  - "packages/*"
+allowBuilds:
+  # Next.js's native file-watcher binding — required for `next dev` hot reload.
+  "@parcel/watcher": true
+  "@prisma/engines": true
+  # Telemetry-only postinstall (swagger-ui-dist -> scarf.sh download ping) — not
+  # required for Swagger UI to function, deliberately left disabled.
+  "@scarf/scarf": false
+  # Next.js's Rust compiler — required for Next.js to build/run at all.
+  "@swc/core": true
+  # Native crypto binding — required for password hashing to actually work.
+  argon2: true
+  prisma: true

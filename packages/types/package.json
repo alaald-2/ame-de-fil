@@ -1,0 +1,24 @@
+{
+  "name": "@ame-de-fil/types",
+  "version": "0.0.0",
+  "private": true,
+  "license": "UNLICENSED",
+  "type": "module",
+  "main": "./src/index.ts",
+  "types": "./src/index.ts",
+  "scripts": {
+    "typecheck": "tsc --noEmit",
+    "lint": "eslint .",
+    "generate": "openapi-typescript ../../apps/api/openapi.json -o src/generated/api-schema.ts"
+  },
+  "devDependencies": {
+    "@ame-de-fil/config": "workspace:*",
+    "@ame-de-fil/eslint-config": "workspace:*",
+    "eslint": "^10.10.0",
+    "openapi-typescript": "7.13.0",
+    "typescript": "6.0.3"
+  },
+  "dependencies": {
+    "openapi-fetch": "0.17.0"
+  }
+}

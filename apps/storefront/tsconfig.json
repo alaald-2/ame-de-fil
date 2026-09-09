@@ -1,0 +1,20 @@
+{
+  "extends": "@ame-de-fil/config/tsconfig.base.json",
+  "compilerOptions": {
+    "lib": ["ES2023", "DOM", "DOM.Iterable"],
+    "jsx": "preserve",
+    "module": "ESNext",
+    "moduleResolution": "bundler",
+    "verbatimModuleSyntax": false,
+    // Needed whenever a tier-2 dependency (packages/types, packages/validation
+    // — DECISIONS.md ADR-023) is in the module graph, independent of this
+    // app's own "bundler" resolution mode.
+    "allowImportingTsExtensions": true,
+    "allowJs": true,
+    "incremental": true,
+    "noEmit": true,
+    "plugins": [{ "name": "next" }]
+  },
+  "include": ["next-env.d.ts", "**/*.ts", "**/*.tsx", ".next/types/**/*.ts"],
+  "exclude": ["node_modules"]
+}

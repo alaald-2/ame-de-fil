@@ -1,0 +1,110 @@
+{
+  "Metadata": {
+    "title": "Âme de Fil",
+    "description": "Handgjorda virkade plagg och inredning, tillverkade i Sverige."
+  },
+  "Navigation": {
+    "home": "Hem",
+    "shop": "Butik",
+    "collections": "Kollektioner",
+    "about": "Om oss",
+    "cart": "Varukorg",
+    "account": "Mitt konto"
+  },
+  "Footer": {
+    "rights": "Alla rättigheter förbehållna.",
+    "customerService": "Kundservice",
+    "shipping": "Frakt och retur",
+    "contact": "Kontakt"
+  },
+  "Home": {
+    "heroTitle": "Handgjort med omsorg",
+    "heroSubtitle": "Unika virkade plagg och inredning, tillverkade i Sverige.",
+    "cta": "Utforska kollektionen"
+  },
+  "Common": {
+    "loading": "Laddar…",
+    "skipToContent": "Hoppa till innehåll",
+    "close": "Stäng",
+    "menu": "Meny"
+  },
+  "Errors": {
+    "notFoundTitle": "Sidan kunde inte hittas",
+    "notFoundBody": "Sidan du letar efter finns inte längre eller har flyttats.",
+    "notFoundCta": "Till startsidan",
+    "genericTitle": "Något gick fel",
+    "genericBody": "Ett oväntat fel inträffade. Försök igen.",
+    "retry": "Försök igen"
+  },
+  "Validation": {
+    "required": "Det här fältet är obligatoriskt.",
+    "invalidEmail": "Ange en giltig e-postadress.",
+    "tooShort": "Måste vara minst {min} tecken.",
+    "tooLong": "Får vara högst {max} tecken."
+  },
+  "Shop": {
+    "title": "Butik",
+    "empty": "Inga produkter hittades.",
+    "soldOut": "Slutsåld",
+    "madeToOrder": "Tillverkas på beställning",
+    "productionTime": "Leveranstid ca {days} dagar"
+  },
+  "Product": {
+    "notFoundTitle": "Produkten hittades inte",
+    "notFoundBody": "Produkten du letar efter finns inte längre eller har flyttats.",
+    "backToShop": "Till butiken",
+    "materials": "Material",
+    "careInstructions": "Skötselråd"
+  },
+  "Category": {
+    "notFoundTitle": "Kategorin hittades inte",
+    "empty": "Inga produkter i den här kategorin ännu."
+  },
+  "Collection": {
+    "notFoundTitle": "Kollektionen hittades inte",
+    "empty": "Inga produkter i den här kollektionen ännu."
+  },
+  "Cart": {
+    "title": "Din varukorg",
+    "empty": "Din varukorg är tom.",
+    "continueShopping": "Fortsätt handla",
+    "quantity": "Antal",
+    "remove": "Ta bort",
+    "subtotal": "Delsumma",
+    "addToCart": "Lägg i varukorg",
+    "added": "Tillagd",
+    "onlyAvailable": "Endast {count} kvar i lager",
+    "proceedToCheckout": "Gå till kassan"
+  },
+  "Checkout": {
+    "title": "Kassa",
+    "emptyCartTitle": "Din varukorg är tom",
+    "emptyCartBody": "Lägg till något i varukorgen innan du går till kassan.",
+    "backToShop": "Till butiken",
+    "orderReview": "Din beställning",
+    "deliveryInformation": "Leveransuppgifter",
+    "email": "E-post",
+    "fullName": "Fullständigt namn",
+    "addressLine1": "Adress",
+    "addressLine2": "Adressrad 2 (valfritt)",
+    "postalCode": "Postnummer",
+    "city": "Ort",
+    "phone": "Telefon (valfritt)",
+    "country": "Land",
+    "countrySwedenOnly": "Sverige (den enda marknad vi levererar till just nu)",
+    "shippingMethod": "Fraktsätt",
+    "loadingShippingMethods": "Laddar fraktsätt…",
+    "noShippingMethods": "Inga fraktsätt är tillgängliga just nu.",
+    "deliveryEstimate": "{min}–{max} vardagar",
+    "subtotal": "Delsumma",
+    "shipping": "Frakt",
+    "tax": "varav moms",
+    "total": "Totalt",
+    "placeOrder": "Slutför beställning",
+    "placingOrder": "Skickar beställning…",
+    "orderConfirmedTitle": "Beställning mottagen",
+    "orderNumber": "Ordernummer",
+    "reservationNotice": "Dina varor är reserverade till {time}. Betalning är inte tillgänglig ännu i den här förhandsversionen — ett fullständigt betalningsflöde kommer i nästa fas.",
+    "backToShopAfterOrder": "Fortsätt handla"
+  }
+}

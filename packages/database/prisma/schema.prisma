@@ -1,0 +1,940 @@
+// Prisma schema — Âme de Fil
+// Conceptual design: docs/DATABASE.md. Decisions: docs/DECISIONS.md ADR-009 (Prisma 7),
+// ADR-021 (Sweden-only / sv-SE+en / SEK-only), ADR-022 (ShippingProvider abstraction).
+
+generator client {
+  provider = "prisma-client"
+  output   = "../generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+// ─────────────────────────────────────────────────────────────────────────
+// Enums
+// ─────────────────────────────────────────────────────────────────────────
+
+enum Locale {
+  sv_SE @map("sv-SE")
+  en
+}
+
+// SEK-only for v1 (ADR-021). A single-value enum, not a plain string, so a
+// future currency addition is a deliberate migration, not a silent typo.
+enum Currency {
+  SEK
+}
+
+enum UserStatus {
+  ACTIVE
+  DISABLED
+}
+
+enum ProductStatus {
+  DRAFT
+  PUBLISHED
+  ARCHIVED
+}
+
+// InventoryMovement.type — every stock change is auditable through this log
+// (DATABASE.md §4); never a raw UPDATE to onHand.
+enum InventoryMovementType {
+  SALE
+  RETURN
+  CANCELLATION
+  RESTOCK
+  ADJUSTMENT
+}
+
+enum StockReservationStatus {
+  PENDING
+  CONSUMED
+  EXPIRED
+}
+
+// PAYMENTS.md §2. DISPUTED added beyond the brief for chargeback handling.
+enum PaymentStatus {
+  PENDING
+  AUTHORIZED
+  PAID
+  FAILED
+  CANCELED
+  REFUNDED
+  PARTIALLY_REFUNDED
+  DISPUTED
+}
+
+enum RefundStatus {
+  PENDING
+  SUCCEEDED
+  FAILED
+}
+
+// PAYMENTS.md §3, plus PAYMENT_SUCCEEDED_STOCK_LOST from DATABASE.md §4's
+// admin-alert state for the reservation-expired-before-webhook race.
+enum OrderStatus {
+  DRAFT
+  PENDING_PAYMENT
+  CONFIRMED
+  PAYMENT_SUCCEEDED_STOCK_LOST
+  IN_PRODUCTION
+  READY_TO_SHIP
+  SHIPPED
+  DELIVERED
+  COMPLETED
+  CANCELED
+  REFUND_REQUESTED
+  REFUNDED
+  PARTIALLY_REFUNDED
+}
+
+// ADR-022 — ManualShippingProvider drives this for v1; no carrier webhook exists yet.
+enum ShipmentStatus {
+  PENDING
+  BOOKED
+  IN_TRANSIT
+  DELIVERED
+  FAILED
+}
+
+enum DiscountType {
+  PERCENTAGE
+  FIXED_AMOUNT
+}
+
+enum ReviewStatus {
+  PENDING
+  APPROVED
+  REJECTED
+}
+
+enum NotificationChannel {
+  EMAIL
+}
+
+enum NotificationStatus {
+  PENDING
+  SENT
+  FAILED
+}
+
+enum DataSubjectRequestType {
+  EXPORT
+  ERASURE
+}
+
+enum DataSubjectRequestStatus {
+  PENDING
+  IN_PROGRESS
+  COMPLETED
+  REJECTED
+}
+
+// ─────────────────────────────────────────────────────────────────────────
+// Identity, RBAC, sessions — SECURITY.md §1-2, DECISIONS.md ADR-015
+// ─────────────────────────────────────────────────────────────────────────
+
+model User {
+  id              String     @id @default(cuid())
+  email           String     @unique
+  passwordHash    String
+  firstName       String?
+  lastName        String?
+  phone           String?
+  locale          Locale     @default(sv_SE)
+  status          UserStatus @default(ACTIVE)
+  // MFA-readiness only — unused until MFA ships (ADR-015).
+  totpSecret      String?
+  emailVerifiedAt DateTime?
+  lastLoginAt     DateTime?
+  createdAt       DateTime   @default(now())
+  updatedAt       DateTime   @updatedAt
+
+  addresses                Address[]
+  sessions                 Session[]
+  roles                    UserRole[]
+  cart                     Cart?
+  orders                   Order[]
+  reviews                  Review[]
+  wishlist                 Wishlist[]
+  refundsInitiated         Refund[]                  @relation("RefundInitiatedBy")
+  auditLogEntries          AuditLog[]
+  consentRecords           ConsentRecord[]
+  dataSubjectRequests      DataSubjectRequest[]
+  inventoryMovements       InventoryMovement[]
+  backInStockSubscriptions BackInStockSubscription[]
+  notifications            Notification[]
+  notesAboutMe             CustomerNote[]            @relation("CustomerNoteSubject")
+  notesAuthored            CustomerNote[]            @relation("CustomerNoteAuthor")
+
+  @@index([status])
+}
+
+model Role {
+  id          String   @id @default(cuid())
+  name        String   @unique
+  description String?
+  createdAt   DateTime @default(now())
+
+  users       UserRole[]
+  permissions RolePermission[]
+}
+
+model Permission {
+  id          String  @id @default(cuid())
+  key         String  @unique
+  description String?
+
+  roles RolePermission[]
+}
+
+model RolePermission {
+  roleId       String
+  permissionId String
+
+  role       Role       @relation(fields: [roleId], references: [id], onDelete: Cascade)
+  permission Permission @relation(fields: [permissionId], references: [id], onDelete: Cascade)
+
+  @@id([roleId, permissionId])
+}
+
+model UserRole {
+  userId String
+  roleId String
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  role Role @relation(fields: [roleId], references: [id], onDelete: Cascade)
+
+  @@id([userId, roleId])
+}
+
+// Opaque token as primary key (ADR-015) — revocable, not a stateless JWT.
+model Session {
+  id        String    @id
+  userId    String
+  // Double-submit CSRF token (SECURITY.md §3), generated alongside the
+  // session and compared against the client-echoed X-CSRF-Token header on
+  // mutating requests — added during the Phase 1 API checkpoint when the
+  // CSRF guard exposed that the original schema had nowhere to persist it.
+  csrfToken String
+  userAgent String?
+  ipAddress String?
+  createdAt DateTime  @default(now())
+  expiresAt DateTime
+  revokedAt DateTime?
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([expiresAt])
+}
+
+model Address {
+  id         String   @id @default(cuid())
+  userId     String
+  label      String?
+  name       String
+  line1      String
+  line2      String?
+  postalCode String
+  city       String
+  country    String   @default("SE")
+  phone      String?
+  isDefault  Boolean  @default(false)
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+}
+
+// ─────────────────────────────────────────────────────────────────────────
+// Catalog — DATABASE.md §1-2
+// ─────────────────────────────────────────────────────────────────────────
+
+model Product {
+  id          String        @id @default(cuid())
+  status      ProductStatus @default(DRAFT)
+  publishedAt DateTime?
+  createdAt   DateTime      @default(now())
+  updatedAt   DateTime      @updatedAt
+
+  translations ProductTranslation[]
+  images       ProductImage[]
+  options      ProductOption[]
+  variants     ProductVariant[]
+  categories   ProductCategory[]
+  collections  ProductCollection[]
+  reviews      Review[]
+
+  @@index([status])
+}
+
+// Product name/story/care-instructions/SEO metadata are content, not UI
+// strings — next-intl only covers UI copy (DECISIONS.md ADR-007).
+model ProductTranslation {
+  id               String  @id @default(cuid())
+  productId        String
+  locale           Locale
+  name             String
+  slug             String
+  description      String?
+  story            String?
+  careInstructions String?
+  materials        String?
+  metaTitle        String?
+  metaDescription  String?
+
+  product Product @relation(fields: [productId], references: [id], onDelete: Cascade)
+
+  @@unique([productId, locale])
+  @@unique([locale, slug])
+}
+
+model ProductImage {
+  id        String  @id @default(cuid())
+  productId String
+  url       String
+  position  Int     @default(0)
+  altTextSv String?
+  altTextEn String?
+
+  product Product @relation(fields: [productId], references: [id], onDelete: Cascade)
+
+  @@index([productId])
+}
+
+// Option *type* (e.g. "color") is a small closed vocabulary — a UI string
+// (next-intl), not DB content. Only option *values* are catalog content.
+model ProductOption {
+  id        String @id @default(cuid())
+  productId String
+  key       String
+  position  Int    @default(0)
+
+  product      Product                     @relation(fields: [productId], references: [id], onDelete: Cascade)
+  values       ProductOptionValue[]
+  variantLinks ProductVariantOptionValue[]
+
+  @@unique([productId, key])
+}
+
+model ProductOptionValue {
+  id              String @id @default(cuid())
+  productOptionId String
+  value           String
+  labelSv         String
+  labelEn         String
+  position        Int    @default(0)
+
+  option       ProductOption               @relation(fields: [productOptionId], references: [id], onDelete: Cascade)
+  variantLinks ProductVariantOptionValue[]
+
+  @@unique([productOptionId, value])
+}
+
+// ProductVariant is the sellable unit — SKU/price/weight/stock (DATABASE.md §1).
+model ProductVariant {
+  id          String   @id @default(cuid())
+  productId   String
+  sku         String   @unique
+  priceMinor  Int
+  currency    Currency @default(SEK)
+  taxClassId  String
+  weightGrams Int?
+  lengthMm    Int?
+  widthMm     Int?
+  heightMm    Int?
+  isActive    Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  product                  Product                     @relation(fields: [productId], references: [id], onDelete: Restrict)
+  taxClass                 TaxClass                    @relation(fields: [taxClassId], references: [id], onDelete: Restrict)
+  optionValues             ProductVariantOptionValue[]
+  inventoryItem            InventoryItem?
+  cartItems                CartItem[]
+  orderItems               OrderItem[]
+  wishlistedBy             Wishlist[]
+  backInStockSubscriptions BackInStockSubscription[]
+
+  @@index([productId])
+}
+
+// One value per option per variant, enforced by the unique constraint below
+// (keyed on productVariantId + productOptionId, not the value itself).
+model ProductVariantOptionValue {
+  productVariantId     String
+  productOptionId      String
+  productOptionValueId String
+
+  variant     ProductVariant     @relation(fields: [productVariantId], references: [id], onDelete: Cascade)
+  option      ProductOption      @relation(fields: [productOptionId], references: [id], onDelete: Cascade)
+  optionValue ProductOptionValue @relation(fields: [productOptionValueId], references: [id], onDelete: Cascade)
+
+  @@id([productVariantId, productOptionId])
+}
+
+model Category {
+  id        String   @id @default(cuid())
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  translations CategoryTranslation[]
+  products     ProductCategory[]
+}
+
+model CategoryTranslation {
+  id              String  @id @default(cuid())
+  categoryId      String
+  locale          Locale
+  name            String
+  slug            String
+  description     String?
+  metaTitle       String?
+  metaDescription String?
+
+  category Category @relation(fields: [categoryId], references: [id], onDelete: Cascade)
+
+  @@unique([categoryId, locale])
+  @@unique([locale, slug])
+}
+
+model ProductCategory {
+  productId  String
+  categoryId String
+
+  product  Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
+  category Category @relation(fields: [categoryId], references: [id], onDelete: Cascade)
+
+  @@id([productId, categoryId])
+}
+
+model Collection {
+  id        String   @id @default(cuid())
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  translations CollectionTranslation[]
+  products     ProductCollection[]
+}
+
+model CollectionTranslation {
+  id              String  @id @default(cuid())
+  collectionId    String
+  locale          Locale
+  name            String
+  slug            String
+  description     String?
+  metaTitle       String?
+  metaDescription String?
+
+  collection Collection @relation(fields: [collectionId], references: [id], onDelete: Cascade)
+
+  @@unique([collectionId, locale])
+  @@unique([locale, slug])
+}
+
+model ProductCollection {
+  productId    String
+  collectionId String
+
+  product    Product    @relation(fields: [productId], references: [id], onDelete: Cascade)
+  collection Collection @relation(fields: [collectionId], references: [id], onDelete: Cascade)
+
+  @@id([productId, collectionId])
+}
+
+// ─────────────────────────────────────────────────────────────────────────
+// Tax — DATABASE.md §2 (Swedish moms only, no cross-border OSS — ADR-021)
+// ─────────────────────────────────────────────────────────────────────────
+
+model TaxClass {
+  id   String @id @default(cuid())
+  code String @unique
+  name String
+
+  rates    TaxRate[]
+  variants ProductVariant[]
+}
+
+model TaxRate {
+  id          String    @id @default(cuid())
+  taxClassId  String
+  ratePercent Decimal   @db.Decimal(5, 2)
+  validFrom   DateTime  @default(now())
+  validTo     DateTime?
+
+  taxClass TaxClass @relation(fields: [taxClassId], references: [id], onDelete: Cascade)
+
+  @@index([taxClassId, validFrom, validTo])
+}
+
+// ─────────────────────────────────────────────────────────────────────────
+// Inventory & concurrency — DATABASE.md §4 (the highest-risk part of the schema)
+// ─────────────────────────────────────────────────────────────────────────
+
+model InventoryItem {
+  id                 String   @id @default(cuid())
+  productVariantId   String   @unique
+  onHand             Int      @default(0)
+  reserved           Int      @default(0)
+  tracksStock        Boolean  @default(true)
+  productionTimeDays Int?
+  isLimitedEdition   Boolean  @default(false)
+  lowStockThreshold  Int?
+  createdAt          DateTime @default(now())
+  updatedAt          DateTime @updatedAt
+
+  variant      ProductVariant      @relation(fields: [productVariantId], references: [id], onDelete: Cascade)
+  movements    InventoryMovement[]
+  reservations StockReservation[]
+}
+
+model InventoryMovement {
+  id                 String                @id @default(cuid())
+  inventoryItemId    String
+  type               InventoryMovementType
+  quantity           Int
+  reason             String?
+  relatedOrderItemId String?
+  createdByUserId    String?
+  createdAt          DateTime              @default(now())
+
+  inventoryItem    InventoryItem @relation(fields: [inventoryItemId], references: [id], onDelete: Cascade)
+  relatedOrderItem OrderItem?    @relation(fields: [relatedOrderItemId], references: [id], onDelete: SetNull)
+  createdBy        User?         @relation(fields: [createdByUserId], references: [id], onDelete: SetNull)
+
+  @@index([inventoryItemId])
+}
+
+// Created at checkout-start (not add-to-cart), 15-minute TTL, released by a
+// BullMQ job on expiry, consumed on a verified payment webhook (DATABASE.md §4).
+// Linked to OrderItem, not CartItem: by checkout-start the Order already
+// exists (PAYMENTS.md §3, DRAFT → PENDING_PAYMENT) and is the durable record —
+// a clarification of the Phase 0 ERD, noted in DATABASE.md.
+model StockReservation {
+  id              String                 @id @default(cuid())
+  orderItemId     String                 @unique
+  inventoryItemId String
+  quantity        Int
+  status          StockReservationStatus @default(PENDING)
+  expiresAt       DateTime
+  createdAt       DateTime               @default(now())
+
+  orderItem     OrderItem     @relation(fields: [orderItemId], references: [id], onDelete: Cascade)
+  inventoryItem InventoryItem @relation(fields: [inventoryItemId], references: [id], onDelete: Cascade)
+
+  @@index([status, expiresAt])
+}
+
+// ─────────────────────────────────────────────────────────────────────────
+// Cart & wishlist
+// ─────────────────────────────────────────────────────────────────────────
+
+model Cart {
+  id         String   @id @default(cuid())
+  userId     String?  @unique
+  guestToken String?  @unique
+  currency   Currency @default(SEK)
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  user  User?      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  items CartItem[]
+}
+
+model CartItem {
+  id               String   @id @default(cuid())
+  cartId           String
+  productVariantId String
+  quantity         Int
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+
+  cart    Cart           @relation(fields: [cartId], references: [id], onDelete: Cascade)
+  variant ProductVariant @relation(fields: [productVariantId], references: [id], onDelete: Restrict)
+
+  @@unique([cartId, productVariantId])
+}
+
+model Wishlist {
+  id               String   @id @default(cuid())
+  userId           String
+  productVariantId String
+  createdAt        DateTime @default(now())
+
+  user    User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+  variant ProductVariant @relation(fields: [productVariantId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, productVariantId])
+}
+
+// "Sold out" is a normal, frequent state for limited editions (PRODUCT_SPEC.md §3).
+model BackInStockSubscription {
+  id               String    @id @default(cuid())
+  productVariantId String
+  email            String
+  userId           String?
+  notifiedAt       DateTime?
+  createdAt        DateTime  @default(now())
+
+  variant ProductVariant @relation(fields: [productVariantId], references: [id], onDelete: Cascade)
+  user    User?          @relation(fields: [userId], references: [id], onDelete: SetNull)
+
+  @@unique([productVariantId, email])
+}
+
+// ─────────────────────────────────────────────────────────────────────────
+// Orders — PAYMENTS.md §3-4, DATABASE.md §4-5
+// ─────────────────────────────────────────────────────────────────────────
+
+model Order {
+  id          String      @id @default(cuid())
+  orderNumber String      @unique
+  userId      String?
+  guestEmail  String?
+  locale      Locale
+  status      OrderStatus @default(DRAFT)
+  currency    Currency    @default(SEK)
+
+  // Server-computed snapshots (DATABASE.md §5) — never trusted from the client.
+  subtotalMinor Int
+  discountMinor Int @default(0)
+  shippingMinor Int @default(0)
+  taxMinor      Int
+  totalMinor    Int
+
+  discountId       String?
+  shippingMethodId String
+
+  // Immutable address snapshots at order time — never a live FK to the
+  // customer's editable address book (DATABASE.md §5 immutability principle
+  // applied to addresses, not just money).
+  shippingName       String
+  shippingLine1      String
+  shippingLine2      String?
+  shippingPostalCode String
+  shippingCity       String
+  shippingCountry    String  @default("SE")
+  shippingPhone      String?
+  billingName        String
+  billingLine1       String
+  billingLine2       String?
+  billingPostalCode  String
+  billingCity        String
+  billingCountry     String  @default("SE")
+  billingPhone       String?
+
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+  confirmedAt DateTime?
+  canceledAt  DateTime?
+
+  user           User?          @relation(fields: [userId], references: [id], onDelete: SetNull)
+  discount       Discount?      @relation(fields: [discountId], references: [id], onDelete: SetNull)
+  shippingMethod ShippingMethod @relation(fields: [shippingMethodId], references: [id], onDelete: Restrict)
+  items          OrderItem[]
+  payments       Payment[]
+  shipments      Shipment[]
+  notes          CustomerNote[]
+
+  @@index([status])
+  @@index([userId])
+}
+
+model OrderItem {
+  id               String @id @default(cuid())
+  orderId          String
+  productVariantId String
+
+  // Snapshots — a later price/name/tax-rate change must never alter history.
+  productNameSnapshot  String
+  variantLabelSnapshot String
+  skuSnapshot          String
+  unitPriceMinor       Int
+  quantity             Int
+  taxRatePercent       Decimal @db.Decimal(5, 2)
+  lineSubtotalMinor    Int
+  lineTotalMinor       Int
+
+  createdAt DateTime @default(now())
+
+  order              Order               @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  variant            ProductVariant      @relation(fields: [productVariantId], references: [id], onDelete: Restrict)
+  reservation        StockReservation?
+  inventoryMovements InventoryMovement[]
+
+  @@index([orderId])
+}
+
+// ─────────────────────────────────────────────────────────────────────────
+// Payments — PAYMENTS.md (Stripe-unified for v1, ADR-014)
+// ─────────────────────────────────────────────────────────────────────────
+
+model Payment {
+  id                      String        @id @default(cuid())
+  orderId                 String
+  provider                String        @default("stripe")
+  providerPaymentIntentId String?       @unique
+  method                  String?
+  status                  PaymentStatus @default(PENDING)
+  amountMinor             Int
+  currency                Currency      @default(SEK)
+  createdAt               DateTime      @default(now())
+  updatedAt               DateTime      @updatedAt
+
+  order    Order            @relation(fields: [orderId], references: [id], onDelete: Restrict)
+  attempts PaymentAttempt[]
+  refunds  Refund[]
+
+  @@index([orderId])
+  @@index([status])
+}
+
+model PaymentAttempt {
+  id              String        @id @default(cuid())
+  paymentId       String
+  status          PaymentStatus
+  providerEventId String?
+  rawPayload      Json?
+  createdAt       DateTime      @default(now())
+
+  payment Payment @relation(fields: [paymentId], references: [id], onDelete: Cascade)
+
+  @@index([paymentId])
+}
+
+model Refund {
+  id                String       @id @default(cuid())
+  paymentId         String
+  amountMinor       Int
+  currency          Currency     @default(SEK)
+  reason            String?
+  status            RefundStatus @default(PENDING)
+  providerRefundId  String?
+  initiatedByUserId String?
+  createdAt         DateTime     @default(now())
+  processedAt       DateTime?
+
+  payment     Payment @relation(fields: [paymentId], references: [id], onDelete: Restrict)
+  initiatedBy User?   @relation("RefundInitiatedBy", fields: [initiatedByUserId], references: [id], onDelete: SetNull)
+
+  @@index([paymentId])
+}
+
+// ─────────────────────────────────────────────────────────────────────────
+// Shipping — ADR-022 (ShippingProvider abstraction, carrier deliberately
+// not chosen; ManualShippingProvider for v1)
+// ─────────────────────────────────────────────────────────────────────────
+
+model ShippingMethod {
+  id              String   @id @default(cuid())
+  code            String   @unique
+  nameSv          String
+  nameEn          String
+  priceMinor      Int
+  currency        Currency @default(SEK)
+  minDeliveryDays Int
+  maxDeliveryDays Int
+  isActive        Boolean  @default(true)
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  orders Order[]
+}
+
+// No carrier-specific fields or foreign keys (ADR-022) — carrierName and
+// trackingNumber are free text, entered by admin via ManualShippingProvider.
+model Shipment {
+  id             String         @id @default(cuid())
+  orderId        String
+  status         ShipmentStatus @default(PENDING)
+  carrierName    String?
+  trackingNumber String?
+  trackingUrl    String?
+  shippedAt      DateTime?
+  deliveredAt    DateTime?
+  createdAt      DateTime       @default(now())
+  updatedAt      DateTime       @updatedAt
+
+  order Order @relation(fields: [orderId], references: [id], onDelete: Restrict)
+
+  @@index([orderId])
+}
+
+// ─────────────────────────────────────────────────────────────────────────
+// Discounts
+// ─────────────────────────────────────────────────────────────────────────
+
+model Discount {
+  id               String       @id @default(cuid())
+  name             String
+  type             DiscountType
+  // PERCENTAGE: 0-100. FIXED_AMOUNT: minor units in `currency` (enforced in
+  // application logic, not a DB constraint — TESTING.md §2 covers this).
+  value            Int
+  currency         Currency?
+  minSubtotalMinor Int?
+  startsAt         DateTime?
+  endsAt           DateTime?
+  isActive         Boolean      @default(true)
+  createdAt        DateTime     @default(now())
+  updatedAt        DateTime     @updatedAt
+
+  coupons Coupon[]
+  orders  Order[]
+}
+
+model Coupon {
+  id              String   @id @default(cuid())
+  discountId      String
+  code            String   @unique
+  maxRedemptions  Int?
+  redemptionCount Int      @default(0)
+  createdAt       DateTime @default(now())
+
+  discount Discount @relation(fields: [discountId], references: [id], onDelete: Cascade)
+
+  @@index([discountId])
+}
+
+// ─────────────────────────────────────────────────────────────────────────
+// Reviews & customer notes
+// ─────────────────────────────────────────────────────────────────────────
+
+model Review {
+  id        String       @id @default(cuid())
+  productId String
+  userId    String
+  orderId   String?
+  rating    Int
+  title     String?
+  body      String
+  status    ReviewStatus @default(PENDING)
+  createdAt DateTime     @default(now())
+  updatedAt DateTime     @updatedAt
+
+  product Product @relation(fields: [productId], references: [id], onDelete: Cascade)
+  user    User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([productId, status])
+}
+
+model CustomerNote {
+  id           String   @id @default(cuid())
+  userId       String
+  authorUserId String
+  orderId      String?
+  body         String
+  createdAt    DateTime @default(now())
+
+  user   User   @relation("CustomerNoteSubject", fields: [userId], references: [id], onDelete: Cascade)
+  author User   @relation("CustomerNoteAuthor", fields: [authorUserId], references: [id], onDelete: Restrict)
+  order  Order? @relation(fields: [orderId], references: [id], onDelete: SetNull)
+
+  @@index([userId])
+}
+
+// ─────────────────────────────────────────────────────────────────────────
+// Notifications & audit — SECURITY.md §9
+// ─────────────────────────────────────────────────────────────────────────
+
+model Notification {
+  id        String              @id @default(cuid())
+  userId    String?
+  type      String
+  channel   NotificationChannel @default(EMAIL)
+  payload   Json
+  status    NotificationStatus  @default(PENDING)
+  createdAt DateTime            @default(now())
+  sentAt    DateTime?
+
+  user User? @relation(fields: [userId], references: [id], onDelete: SetNull)
+
+  @@index([status])
+}
+
+// Append-only — no update/delete path is exposed at the application layer
+// (SECURITY.md §9), even though Prisma cannot enforce that at the schema level.
+model AuditLog {
+  id          String   @id @default(cuid())
+  actorUserId String?
+  action      String
+  entityType  String
+  entityId    String
+  before      Json?
+  after       Json?
+  ipAddress   String?
+  createdAt   DateTime @default(now())
+
+  actor User? @relation(fields: [actorUserId], references: [id], onDelete: SetNull)
+
+  @@index([entityType, entityId])
+  @@index([createdAt])
+}
+
+// ─────────────────────────────────────────────────────────────────────────
+// GDPR — SECURITY.md §10
+// ─────────────────────────────────────────────────────────────────────────
+
+model ConsentRecord {
+  id            String   @id @default(cuid())
+  userId        String?
+  anonymousId   String?
+  consentType   String
+  granted       Boolean
+  policyVersion String
+  createdAt     DateTime @default(now())
+
+  user User? @relation(fields: [userId], references: [id], onDelete: SetNull)
+
+  @@index([userId])
+  @@index([anonymousId])
+}
+
+model DataSubjectRequest {
+  id          String                   @id @default(cuid())
+  userId      String
+  type        DataSubjectRequestType
+  status      DataSubjectRequestStatus @default(PENDING)
+  requestedAt DateTime                 @default(now())
+  completedAt DateTime?
+  notes       String?
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+}
+
+// ─────────────────────────────────────────────────────────────────────────
+// Payment idempotency — PAYMENTS.md §5
+// ─────────────────────────────────────────────────────────────────────────
+
+// Primary key is the provider's own event ID — a duplicate webhook delivery
+// (Stripe explicitly retries) is a no-op, not a double-processed payment.
+model WebhookEvent {
+  id          String    @id
+  provider    String    @default("stripe")
+  eventType   String
+  payload     Json
+  receivedAt  DateTime  @default(now())
+  processedAt DateTime?
+
+  @@index([provider, processedAt])
+}
+
+// Client-supplied idempotency keys on order/payment-creation endpoints —
+// independent of Stripe's own webhook-delivery idempotency above.
+model IdempotencyKey {
+  key              String   @id
+  scope            String
+  requestHash      String?
+  responseSnapshot Json?
+  createdAt        DateTime @default(now())
+  expiresAt        DateTime
+
+  @@index([expiresAt])
+}

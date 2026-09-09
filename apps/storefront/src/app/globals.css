@@ -1,0 +1,24 @@
+@import "tailwindcss";
+@import "@ame-de-fil/ui/tokens.css";
+
+/* Ensures Tailwind's class scanner reaches packages/ui's source (a
+   pnpm-symlinked workspace package) rather than relying only on automatic
+   detection, which isn't guaranteed to traverse into node_modules. */
+@source "../../../../packages/ui/src";
+
+@layer base {
+  * {
+    box-sizing: border-box;
+  }
+
+  html {
+    -webkit-font-smoothing: antialiased;
+    text-rendering: optimizeLegibility;
+  }
+
+  body {
+    margin: 0;
+    background-color: var(--color-neutral-50);
+    color: var(--color-neutral-900);
+  }
+}

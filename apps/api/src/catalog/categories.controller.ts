@@ -1,0 +1,47 @@
+import { Controller, Get, Param, Query } from "@nestjs/common";
+import { ApiOkResponse, ApiOperation, ApiTags } from "@nestjs/swagger";
+import { Public } from "../common/decorators/public.decorator.ts";
+import { ZodValidationPipe } from "../common/pipes/zod-validation.pipe.ts";
+import { ApiZodParam, ApiZodQuery, toOpenApiSchema } from "../common/zod-openapi.ts";
+import { CategoriesService } from "./categories.service.ts";
+import {
+  localeQuerySchema,
+  slugParamSchema,
+  type LocaleQuery,
+  type SlugParam,
+} from "./dto/common.schemas.ts";
+import {
+  detailWithProductsQuerySchema,
+  type DetailWithProductsQuery,
+} from "./dto/list-collection-query.ts";
+import { categoryResponseSchema, categoryWithProductsResponseSchema } from "./dto/responses.ts";
+import { z } from "zod";
+
+@ApiTags("catalog")
+@Controller("categories")
+@Public()
+export class CategoriesController {
+  constructor(private readonly categories: CategoriesService) {}
+
+  @Get()
+  @ApiOperation({ summary: "List all categories" })
+  @ApiZodQuery(localeQuerySchema)
+  @ApiOkResponse({ schema: toOpenApiSchema(z.array(categoryResponseSchema)) })
+  async list(@Query(new ZodValidationPipe(localeQuerySchema)) query: LocaleQuery) {
+    return this.categories.list(query.locale);
+  }
+
+  @Get(":slug")
+  @ApiOperation({
+    summary: "Get a category by its locale-specific slug, with its published products",
+  })
+  @ApiZodParam(slugParamSchema)
+  @ApiZodQuery(detailWithProductsQuerySchema)
+  @ApiOkResponse({ schema: toOpenApiSchema(categoryWithProductsResponseSchema) })
+  async getBySlug(
+    @Param(new ZodValidationPipe(slugParamSchema)) params: SlugParam,
+    @Query(new ZodValidationPipe(detailWithProductsQuerySchema)) query: DetailWithProductsQuery,
+  ) {
+    return this.categories.getBySlug(params.slug, query.locale, query.page, query.pageSize);
+  }
+}

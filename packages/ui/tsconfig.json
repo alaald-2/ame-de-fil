@@ -1,0 +1,18 @@
+{
+  "extends": "@ame-de-fil/config/tsconfig.base.json",
+  "compilerOptions": {
+    "rootDir": "src",
+    "lib": ["ES2023", "DOM", "DOM.Iterable"],
+    "jsx": "react-jsx",
+    // Overrides the shared base's NodeNext resolution deliberately: this
+    // package is consumed only by Next.js apps via their bundler
+    // (Turbopack/webpack + transpilePackages), never via raw Node ESM
+    // resolution — "bundler" is the mode Next.js itself is built around,
+    // and next/link's package exports aren't structured for NodeNext's
+    // stricter resolution. See DECISIONS.md ADR-023's refinement.
+    "module": "ESNext",
+    "moduleResolution": "bundler",
+    "verbatimModuleSyntax": false
+  },
+  "include": ["src"]
+}
