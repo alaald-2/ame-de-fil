@@ -12,6 +12,7 @@
     "typecheck": "tsc --noEmit",
     "lint": "eslint .",
     "test": "vitest run",
+    "test:integration": "vitest run --config vitest.integration.config.ts",
     "export-openapi": "node dist/export-openapi.js"
   },
   "dependencies": {
@@ -43,6 +44,7 @@
     "@nestjs/cli": "12.0.0",
     "@nestjs/schematics": "12.0.0",
     "@nestjs/testing": "12.0.1",
+    "@testcontainers/postgresql": "^12.1.0",
     "@types/cookie-parser": "1.4.10",
     "@types/express": "5.0.0",
     "@types/node": "24.0.0",

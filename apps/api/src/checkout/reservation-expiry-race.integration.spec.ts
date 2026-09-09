@@ -1,0 +1,177 @@
+// Integration tests (TESTING.md §3 — Vitest + Testcontainers, real Postgres,
+// no mocked Prisma client). This is "the single highest-value test this
+// feature doesn't have yet" flagged in ROADMAP.md's Phase 3 section: the
+// webhook-vs-reservation-expiry race, and webhook/reservation-release
+// idempotency, exercised against a real database and the project's real,
+// unmocked service classes — exactly the layer where the lineTaxMinor and
+// P2002-adapter-shape defects (fixed in this same checkpoint) were only
+// ever actually reachable.
+import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
+import { OrderStatus, PaymentStatus, StockReservationStatus } from "@ame-de-fil/database";
+import { PaymentsWebhookService } from "../payments/payments-webhook.service.ts";
+import { ReservationExpiryService } from "./reservation-expiry.service.ts";
+import type { VerifiedWebhookEvent } from "../payments/payment-provider.ts";
+import { startTestDatabase, stopTestDatabase, type TestDatabase } from "../test/testcontainers-postgres.ts";
+import { seedShopFixture, seedVariant, seedPendingOrder, type ShopFixture, type VariantFixture } from "../test/fixtures.ts";
+
+function succeededEvent(providerPaymentIntentId: string, eventId: string): VerifiedWebhookEvent {
+  return {
+    providerEventId: eventId,
+    eventType: "payment_intent.succeeded",
+    providerPaymentIntentId,
+    outcome: "succeeded",
+    raw: { id: eventId },
+  };
+}
+
+describe("reservation expiry vs. payment-success — real Postgres", () => {
+  let db: TestDatabase;
+  let shop: ShopFixture;
+  let variant: VariantFixture;
+  let reservationExpiry: ReservationExpiryService;
+  let webhook: PaymentsWebhookService;
+
+  beforeAll(async () => {
+    db = await startTestDatabase();
+    shop = await seedShopFixture(db.prisma);
+    reservationExpiry = new ReservationExpiryService(db.prisma);
+    webhook = new PaymentsWebhookService(db.prisma);
+  }, 120_000);
+
+  afterAll(async () => {
+    await stopTestDatabase(db);
+  });
+
+  beforeEach(async () => {
+    // A fresh InventoryItem per test — onHand/reserved must never carry
+    // over between tests sharing this file's one container/shop fixture.
+    variant = await seedVariant(db.prisma, shop.taxClassId);
+  });
+
+  it("releases an expired reservation exactly once under repeated calls (idempotent, no double-release)", async () => {
+    const order = await seedPendingOrder(db.prisma, shop, variant, {
+      reservationExpiresAt: new Date(Date.now() - 60_000),
+    });
+
+    const first = await reservationExpiry.releaseExpiredReservations();
+    const second = await reservationExpiry.releaseExpiredReservations();
+
+    expect(first).toEqual({ releasedReservations: 1, canceledOrders: 1 });
+    expect(second).toEqual({ releasedReservations: 0, canceledOrders: 0 });
+
+    const inventory = await db.prisma.inventoryItem.findUniqueOrThrow({
+      where: { id: order.inventoryItemId },
+    });
+    expect(inventory.reserved).toBe(0); // decremented once, not twice
+
+    const reservation = await db.prisma.stockReservation.findUniqueOrThrow({
+      where: { id: order.stockReservationId },
+    });
+    expect(reservation.status).toBe(StockReservationStatus.EXPIRED);
+
+    const orderRow = await db.prisma.order.findUniqueOrThrow({ where: { id: order.orderId } });
+    expect(orderRow.status).toBe(OrderStatus.CANCELED);
+  });
+
+  it("processes the same webhook event ID exactly once (idempotent replay, real P2002 shape)", async () => {
+    const order = await seedPendingOrder(db.prisma, shop, variant, {
+      reservationExpiresAt: new Date(Date.now() + 15 * 60_000), // not expired
+    });
+    const event = succeededEvent(order.providerPaymentIntentId, `evt_replay_${order.orderId}`);
+
+    await webhook.handle(event);
+    await webhook.handle(event); // real duplicate delivery — must no-op, not throw
+
+    const payment = await db.prisma.payment.findUniqueOrThrow({ where: { id: order.paymentId } });
+    expect(payment.status).toBe(PaymentStatus.PAID);
+
+    const attempts = await db.prisma.paymentAttempt.count({ where: { paymentId: order.paymentId } });
+    expect(attempts).toBe(1); // not 2
+
+    const movements = await db.prisma.inventoryMovement.count({
+      where: { relatedOrderItemId: order.orderItemId },
+    });
+    expect(movements).toBe(1); // not 2
+
+    const inventory = await db.prisma.inventoryItem.findUniqueOrThrow({
+      where: { id: order.inventoryItemId },
+    });
+    expect(inventory.onHand).toBe(99); // decremented exactly once
+  });
+
+  it("sweep-then-late-webhook: order ends on PAYMENT_SUCCEEDED_STOCK_LOST, not stuck CANCELED under a PAID payment", async () => {
+    const order = await seedPendingOrder(db.prisma, shop, variant, {
+      reservationExpiresAt: new Date(Date.now() - 60_000),
+    });
+
+    // The sweep wins the race first — exactly the scenario reproduced live
+    // against a real database in this checkpoint.
+    await reservationExpiry.releaseExpiredReservations();
+    const canceledOrder = await db.prisma.order.findUniqueOrThrow({ where: { id: order.orderId } });
+    expect(canceledOrder.status).toBe(OrderStatus.CANCELED);
+
+    // The customer's payment succeeds anyway, and the real webhook arrives late.
+    await webhook.handle(succeededEvent(order.providerPaymentIntentId, `evt_stocklost_${order.orderId}`));
+
+    const finalOrder = await db.prisma.order.findUniqueOrThrow({ where: { id: order.orderId } });
+    expect(finalOrder.status).toBe(OrderStatus.PAYMENT_SUCCEEDED_STOCK_LOST);
+    expect(finalOrder.canceledAt).toBeNull(); // cleared — the order didn't actually end up canceled
+
+    const payment = await db.prisma.payment.findUniqueOrThrow({ where: { id: order.paymentId } });
+    expect(payment.status).toBe(PaymentStatus.PAID);
+
+    const reservation = await db.prisma.stockReservation.findUniqueOrThrow({
+      where: { id: order.stockReservationId },
+    });
+    expect(reservation.status).toBe(StockReservationStatus.EXPIRED); // never CONSUMED
+
+    const movements = await db.prisma.inventoryMovement.count({
+      where: { relatedOrderItemId: order.orderItemId },
+    });
+    expect(movements).toBe(0); // never oversell
+
+    const inventory = await db.prisma.inventoryItem.findUniqueOrThrow({
+      where: { id: order.inventoryItemId },
+    });
+    expect(inventory.onHand).toBe(100); // untouched
+  });
+
+  it("genuinely concurrent sweep and success webhook (Promise.all, real transactions) reach the same consistent outcome with no double side effect, regardless of which wins", async () => {
+    const order = await seedPendingOrder(db.prisma, shop, variant, {
+      reservationExpiresAt: new Date(Date.now() - 60_000),
+    });
+
+    // Both real code paths fired at once against the real database — which
+    // one's transaction commits first is genuinely up to Postgres, not
+    // controlled by this test (the point of the test).
+    await Promise.all([
+      reservationExpiry.releaseExpiredReservations(),
+      webhook.handle(succeededEvent(order.providerPaymentIntentId, `evt_concurrent_${order.orderId}`)),
+    ]);
+
+    const finalOrder = await db.prisma.order.findUniqueOrThrow({ where: { id: order.orderId } });
+    // Whichever side won, the end state must be the same: payment succeeded
+    // and stock was lost, so it's always PAYMENT_SUCCEEDED_STOCK_LOST — never
+    // left CANCELED (if the sweep's cancel committed after the webhook's own
+    // guard already ran) and never wrongly CONFIRMED (overselling stock that
+    // was actually released).
+    expect(finalOrder.status).toBe(OrderStatus.PAYMENT_SUCCEEDED_STOCK_LOST);
+
+    const payment = await db.prisma.payment.findUniqueOrThrow({ where: { id: order.paymentId } });
+    expect(payment.status).toBe(PaymentStatus.PAID);
+
+    const attempts = await db.prisma.paymentAttempt.count({ where: { paymentId: order.paymentId } });
+    expect(attempts).toBe(1);
+
+    const movements = await db.prisma.inventoryMovement.count({
+      where: { relatedOrderItemId: order.orderItemId },
+    });
+    expect(movements).toBe(0);
+
+    const inventory = await db.prisma.inventoryItem.findUniqueOrThrow({
+      where: { id: order.inventoryItemId },
+    });
+    expect(inventory.onHand).toBe(100);
+    expect(inventory.reserved).toBe(0);
+  });
+});

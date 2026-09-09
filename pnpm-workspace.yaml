@@ -13,3 +13,10 @@ allowBuilds:
   # Native crypto binding — required for password hashing to actually work.
   argon2: true
   prisma: true
+  # Transitive deps of @testcontainers/postgresql's optional remote-Docker
+  # (SSH-tunnel) support — unused for local-Docker-socket usage, which this
+  # project's Testcontainers integration suite relies on exclusively
+  # (verified working without these native builds, DECISIONS.md ADR-027).
+  cpu-features: false
+  protobufjs: false
+  ssh2: false

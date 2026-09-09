@@ -14,7 +14,7 @@ Monorepo scaffold (pnpm + Turborepo, per `ARCHITECTURE.md` §2), shared tooling 
 
 Product/variant/category/collection CRUD (API + admin minimal), storefront browse/search/filter/detail pages, `next-intl` locale routing live, SEO plumbing (`SEO.md`) wired from the start rather than retrofitted.
 
-## Phase 3 — Cart & checkout (card payments) 🟡 implemented, verification pending
+## Phase 3 — Cart & checkout (card payments) ✅ complete
 
 Cart, inventory reservation flow (`DATABASE.md` §4), Stripe card Payment Intents integration, order creation, order/payment state machines, webhook handling + idempotency (`PAYMENTS.md`).
 
@@ -22,12 +22,12 @@ Cart, inventory reservation flow (`DATABASE.md` §4), Stripe card Payment Intent
 
 **Also implemented and committed since** (`DECISIONS.md` ADR-025): `ReservationExpiryScheduler`, an `@nestjs/schedule`-backed periodic sweep (default every 60s, `RESERVATION_EXPIRY_SWEEP_INTERVAL_MS`) that automatically calls the already-idempotent `ReservationExpiryService.releaseExpiredReservations()` — closing the "reservation expiry has no scheduler" gap this section previously listed. 257 API unit tests pass (5 new, covering interval registration, tick-driven sweeps under fake timers, and failure isolation).
 
-**Not yet verified — this phase is not being marked complete until these pass:**
+**Verified and committed since (`2658b6a`, `DECISIONS.md` ADR-026):** the WSL/Docker environment gap (`DEPLOYMENT.md` §1) was resolved, and the full checkout → PaymentIntent → webhook → state-transition flow was run live against a real local Postgres and real Stripe test-mode credentials — surfacing and fixing two defects invisible under mocks (a Prisma create-payload/schema field mismatch; a P2002-duplicate-key detection helper written against the wrong Prisma query-engine's error shape) before finding and fixing a third, the reservation-expiry-vs-payment-success race (`PAYMENTS.md` §4a). This closed all four items previously listed here as blocking:
 
-- No live Stripe test-mode E2E run — no Stripe test credentials were available in the implementation environment (`PendingPaymentProvider` fallback is what was actually exercised).
-- The `OrderStatusToken` migration has not been applied against a live Postgres instance — none was reachable in that environment either (`DEPLOYMENT.md` §1's pre-existing Docker/WSL gap).
-- No Testcontainers integration tests for the webhook-vs-reservation-expiry race (the single highest-value test this feature doesn't have yet), same environment gap.
-- The scheduler's actual sweep behavior against a live database at its configured interval has not been observed end-to-end (only its registration/tick-triggering/error-isolation logic was verified with mocked dependencies and fake timers) — same Postgres gap.
+- ~~No live Stripe test-mode E2E run~~ — done: successful/failed/canceled payments, server-authoritative amounts, signature verification and rejection, replay idempotency (including under genuine concurrent duplicate delivery), and guest order-status token authorization all verified live.
+- ~~`OrderStatusToken` migration not applied against a live Postgres~~ — done: `prisma migrate deploy` run against a real local instance (`docker-compose.yml`).
+- ~~No Testcontainers integration tests for the webhook-vs-reservation-expiry race~~ — done: `apps/api/src/checkout/reservation-expiry-race.integration.spec.ts` and `checkout-flow.integration.spec.ts` (new `pnpm --filter @ame-de-fil/api test:integration`, `TESTING.md` §3) cover idempotent reservation release, webhook replay idempotency, the sweep-vs-late-webhook race (sequential and genuinely concurrent via `Promise.all`), and a full real-Postgres `CheckoutService.initiate()` run — the last of these is a standing regression test for the schema-mismatch defect found here, since it would have caught it automatically.
+- ~~Scheduler's sweep behavior against a live database not observed end-to-end~~ — done: observed live, including the reservation-expiry-vs-payment-success race actually occurring in real time.
 
 Klarna/Swish (ADR-014's eventual scope for this same Stripe integration) remain unbuilt — Phase 4.
 
