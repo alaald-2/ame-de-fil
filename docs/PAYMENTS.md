@@ -71,6 +71,8 @@ stateDiagram-v2
     DRAFT --> PENDING_PAYMENT: checkout started, stock reserved
     PENDING_PAYMENT --> CONFIRMED: payment webhook verified PAID
     PENDING_PAYMENT --> CANCELED: reservation expired / abandoned
+    PENDING_PAYMENT --> PAYMENT_SUCCEEDED_STOCK_LOST: payment succeeded, reservation already expired
+    CANCELED --> PAYMENT_SUCCEEDED_STOCK_LOST: late payment succeeds after expiry-sweep cancellation (§4a)
     CONFIRMED --> IN_PRODUCTION: made-to-order items present
     CONFIRMED --> READY_TO_SHIP: ready-to-ship only
     IN_PRODUCTION --> READY_TO_SHIP
@@ -101,6 +103,19 @@ Order and Payment are deliberately **separate** state machines (per the brief) �
 
 The frontend never trusts `stripe.confirmPayment()`'s own resolution as "the order is confirmed" — it only uses that to decide when to start polling `GET /api/v1/orders/:orderId/status` (§9), which reflects DB state, not Stripe state, and is the only thing that ever renders a "confirmed" UI.
 
+## 4a. The reservation-expiry vs. payment-success race (`DECISIONS.md` ADR-026)
+
+`ReservationExpiryScheduler` (§7) and this webhook handler act on the same `Order`/`StockReservation` rows independently and asynchronously — the sweep on a fixed interval, the webhook whenever Stripe's customer-facing payment confirmation actually completes. Nothing prevents a slow customer's payment from confirming *after* their reservation's TTL has already expired. This is a real, reachable race — not a hypothetical — verified live against a real database and the real Stripe test API:
+
+1. A reservation's `expiresAt` passes while its order's `PaymentIntent` is still `PENDING` — the customer hasn't finished confirming payment yet.
+2. `ReservationExpiryService.releaseExpiredReservations()` (§7) releases the reservation (`StockReservation → EXPIRED`, `InventoryItem.reserved` decremented) and, in the same transaction, cancels the order (`Order.status → CANCELED`) — because as far as the sweep can tell, this order was simply abandoned.
+3. **The order must retain an explicit, distinguishable status here** — not because `CANCELED` is wrong at the moment the sweep writes it (it's the correct guess given what's known then), but because a *later* payment success must still be recognized as "stock lost," not silently absorbed into an ordinary cancellation. This is why `PAYMENT_SUCCEEDED_STOCK_LOST` exists as its own `OrderStatus` value rather than being inferred after the fact from `CANCELED` + `Payment.status`: the order's own status is the single source of truth an admin queue filters on, and it must be able to say "this one needs you" on its own.
+4. The customer's payment then succeeds anyway (3DS delay, slow network, a retried card entry) and the real, signature-verified `payment_intent.succeeded` webhook arrives. `PaymentsWebhookService.confirmOrderOrFlagStockLost` locks the order's reservations (`order-reservation-lock.ts`, race-safe against a concurrent sweep — `DATABASE.md` §4), finds at least one no longer `PENDING`, and writes: `Payment.status → PAID` (already true by this point — the payment update happens earlier in `handleSucceeded`) and `Order.status → PAYMENT_SUCCEEDED_STOCK_LOST`. The guard matches the order in **either** `PENDING_PAYMENT` (the sweep hasn't run yet) **or** `CANCELED` (the sweep already won the race) — both are valid predecessors for this exact transition, and `canceledAt` is cleared in the `CANCELED` case, since the order didn't actually end up canceled.
+5. **No inventory decrement and no `InventoryMovement` row are created for this order** — the reservation stays `EXPIRED`, exactly as the sweep left it; the stock-lost branch never touches `InventoryItem` or writes a `SALE` movement (`DATABASE.md` §4 step 3). Never oversell, and never pretend the stock is still there.
+6. If instead the payment definitively **fails or is canceled** (Stripe tells us so, not a redirect), the order simply becomes `CANCELED` as normal (§4, "a deliberate extension...") — there is no money captured, so there is nothing to flag; ordinary abandonment and definitive payment failure both land on the same terminal state, correctly.
+7. **An ordinary `CANCELED` order is never reclassified by an unrelated `payment_intent.succeeded` webhook.** The stock-lost branch only runs for the specific `Payment` row a given event's `providerPaymentIntentId` resolves to, and in the current implementation `CANCELED` has exactly two sources: this sweep, and a definitive Stripe failure/cancellation on that *same* PaymentIntent (`handleFailedOrCanceled`). The second source is unreachable by the time a `succeeded` event for that PaymentIntent could arrive — `handleSucceeded`'s own `Payment.status = PENDING` guard (checked earlier, independently) already rejects it, since a failed/canceled webhook already moved `Payment.status` away from `PENDING`. So an order found `CANCELED` at this point can only be this exact race, never a different cancellation being incorrectly reopened by a stray event.
+8. **Why this matters:** without step 4's broadened guard, the sweep winning the race left `Payment.status = PAID` sitting under `Order.status = CANCELED` forever — money genuinely captured, but the order looking like an ordinary abandoned cart, with no admin-visible signal that anything needs attention. `PAYMENT_SUCCEEDED_STOCK_LOST` existing as a real, always-reachable terminal state (regardless of which side of the race won) is what turns "silently keep the money for nothing" into a state an admin queue can actually query for.
+
 ## 5. Idempotency, retries, reconciliation
 
 - **Client-side idempotency:** checkout submission carries a client-generated `Idempotency-Key` header; `apps/api` stores it against the resulting order/payment so a retried submit (double-click, flaky network) never creates a duplicate order.
@@ -116,7 +131,7 @@ Full and partial refunds are issued through the provider (`refund()`), recorded 
 
 ## 7. Abandoned checkout
 
-`PENDING_PAYMENT` orders whose reservation expires without a `PAID` webhook transition to `CANCELED` automatically — **implemented** via `ReservationExpiryScheduler` (`apps/api/src/checkout/reservation-expiry.scheduler.ts`), not a BullMQ job as originally sketched (see `DECISIONS.md` for why). A separate, lower-priority "abandoned cart" email job (distinct from checkout abandonment) may re-engage customers who left items in `Cart` without ever starting checkout — product decision, not built in v1 unless confirmed.
+`PENDING_PAYMENT` orders whose reservation expires without a `PAID` webhook transition to `CANCELED` automatically — **implemented** via `ReservationExpiryScheduler` (`apps/api/src/checkout/reservation-expiry.scheduler.ts`), not a BullMQ job as originally sketched (see `DECISIONS.md` for why). If a payment succeeds anyway *after* this cancellation already ran, the order does not stay `CANCELED` — see §4a for that race and why it resolves to `PAYMENT_SUCCEEDED_STOCK_LOST` instead. A separate, lower-priority "abandoned cart" email job (distinct from checkout abandonment) may re-engage customers who left items in `Cart` without ever starting checkout — product decision, not built in v1 unless confirmed.
 
 ## 8. Security notes (cross-ref `SECURITY.md`)
 

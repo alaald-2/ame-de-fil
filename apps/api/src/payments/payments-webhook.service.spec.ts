@@ -70,7 +70,33 @@ describe("PaymentsWebhookService.handle", () => {
     service = new PaymentsWebhookService(prisma);
   });
 
-  it("no-ops on a duplicate webhook event ID without opening a transaction", async () => {
+  // Regression test for a real Stripe webhook replay: confirmed live against
+  // a real Postgres instance via @prisma/adapter-pg (Prisma 7, ADR-009),
+  // resending the exact same event ID produced this shape, not the classic
+  // `meta.target` shape the test used to assert — the old assertion passed
+  // against a shape the real driver never actually produces, masking a 500
+  // on every genuine webhook retry (isUniqueConstraintViolation always
+  // returned false, so this fell through to `throw error` instead of
+  // no-opping).
+  it("no-ops on a duplicate webhook event ID (real @prisma/adapter-pg P2002 shape) without opening a transaction", async () => {
+    const p2002 = new Prisma.PrismaClientKnownRequestError("duplicate key value violates unique constraint", {
+      code: "P2002",
+      clientVersion: "7.10.0",
+      meta: {
+        modelName: "WebhookEvent",
+        driverAdapterError: {
+          cause: { constraint: { index: "WebhookEvent_pkey" }, table: "WebhookEvent" },
+        },
+      },
+    });
+    prisma.webhookEvent.create.mockRejectedValue(p2002);
+
+    await service.handle(SUCCEEDED);
+
+    expect(prisma.$transaction).not.toHaveBeenCalled();
+  });
+
+  it("no-ops on a duplicate webhook event ID (classic meta.target shape) without opening a transaction", async () => {
     const p2002 = new Prisma.PrismaClientKnownRequestError("duplicate", {
       code: "P2002",
       clientVersion: "test",
@@ -210,9 +236,17 @@ describe("PaymentsWebhookService.handle", () => {
       expect(tx.stockReservation.update).not.toHaveBeenCalled();
       expect(tx.inventoryItem.update).not.toHaveBeenCalled();
       expect(tx.inventoryMovement.create).not.toHaveBeenCalled();
+      // Regression for the reservation-expiry/stock-lost race: matches
+      // CANCELED as well as PENDING_PAYMENT, and clears canceledAt. Without
+      // this, an order the reservation-expiry sweep already canceled (the
+      // sweep releases the expired reservation and cancels the order in
+      // the same transaction, racing this exact webhook) would never
+      // transition here at all — the guard would silently match zero rows,
+      // leaving Payment PAID but Order stuck CANCELED forever (confirmed
+      // live against a real database before this fix).
       expect(tx.order.updateMany).toHaveBeenCalledWith({
-        where: { id: "order-1", status: OrderStatus.PENDING_PAYMENT },
-        data: { status: OrderStatus.PAYMENT_SUCCEEDED_STOCK_LOST },
+        where: { id: "order-1", status: { in: [OrderStatus.PENDING_PAYMENT, OrderStatus.CANCELED] } },
+        data: { status: OrderStatus.PAYMENT_SUCCEEDED_STOCK_LOST, canceledAt: null },
       });
     });
   });

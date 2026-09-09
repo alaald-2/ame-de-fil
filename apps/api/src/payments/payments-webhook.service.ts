@@ -69,7 +69,7 @@ export class PaymentsWebhookService {
       });
       return true;
     } catch (error) {
-      if (isUniqueConstraintViolation(error, "id")) return false;
+      if (isUniqueConstraintViolation(error, "WebhookEvent", "id")) return false;
       throw error;
     }
   }
@@ -130,9 +130,23 @@ export class PaymentsWebhookService {
       // every reservation exactly as locked-and-read (no consumption, no
       // inventory movement for *any* line of this order, even the ones
       // still PENDING) and surface it for manual admin resolution instead.
+      // Also matches an order the reservation-expiry sweep already moved to
+      // CANCELED: the sweep and this webhook race on the exact same
+      // "reservation expired before payment confirmed" situation
+      // (ReservationExpiryService cancels PENDING_PAYMENT orders in the
+      // same transaction it releases their expired reservations), and
+      // either can win. Money is only ever confirmed PAID once we reach
+      // this point, so regardless of which side won, the order must end up
+      // here — never left CANCELED with a paid order underneath it, which
+      // is exactly the "silently keep the money for nothing" outcome this
+      // whole branch exists to prevent. canceledAt is cleared since the
+      // order didn't actually end up canceled.
       await tx.order.updateMany({
-        where: { id: orderId, status: OrderStatus.PENDING_PAYMENT },
-        data: { status: OrderStatus.PAYMENT_SUCCEEDED_STOCK_LOST },
+        where: {
+          id: orderId,
+          status: { in: [OrderStatus.PENDING_PAYMENT, OrderStatus.CANCELED] },
+        },
+        data: { status: OrderStatus.PAYMENT_SUCCEEDED_STOCK_LOST, canceledAt: null },
       });
       return;
     }

@@ -19,6 +19,29 @@ function decimal(value: number) {
   return { toNumber: () => value };
 }
 
+// The real OrderItem scalar columns (schema.prisma) — kept in sync by hand
+// deliberately, not derived from the Prisma client, so this test fails
+// loudly on drift rather than silently importing whatever the schema
+// currently says. Used by the orderItem.create mock below to reject any
+// key Prisma itself would reject with PrismaClientValidationError (e.g.
+// lineTaxMinor — an intermediate pricing value from priceLine()/
+// buildOrderItemSnapshot() that has no matching column and was previously
+// spread straight into this call, breaking every real checkout).
+const ORDER_ITEM_SCALAR_COLUMNS = new Set([
+  "id",
+  "orderId",
+  "productVariantId",
+  "productNameSnapshot",
+  "variantLabelSnapshot",
+  "skuSnapshot",
+  "unitPriceMinor",
+  "quantity",
+  "taxRatePercent",
+  "lineSubtotalMinor",
+  "lineTotalMinor",
+  "createdAt",
+]);
+
 const SHIPPING_QUOTE: ShippingQuote = {
   shippingMethodId: "ship-1",
   code: "STANDARD",
@@ -121,11 +144,21 @@ function makeService(fixture: Fixture) {
   }));
   const txOrderItemCreate = vi
     .fn()
-    .mockImplementation((args: { data: Record<string, unknown> }) => ({
-      id: `oi-${txOrderItemCreate.mock.calls.length + 1}`,
-      ...args.data,
-      taxRatePercent: decimal(args.data["taxRatePercent"] as number),
-    }));
+    .mockImplementation((args: { data: Record<string, unknown> }) => {
+      // Mirrors Prisma's own runtime validation: reject any key that isn't
+      // a real OrderItem column, instead of permissively accepting
+      // whatever the caller spreads in.
+      for (const key of Object.keys(args.data)) {
+        if (!ORDER_ITEM_SCALAR_COLUMNS.has(key)) {
+          throw new Error(`Unknown argument \`${key}\` — not a real OrderItem column`);
+        }
+      }
+      return {
+        id: `oi-${txOrderItemCreate.mock.calls.length + 1}`,
+        ...args.data,
+        taxRatePercent: decimal(args.data["taxRatePercent"] as number),
+      };
+    });
   const txInventoryItemUpdate = vi.fn().mockResolvedValue({});
   const txStockReservationCreate = vi.fn().mockResolvedValue({});
   const txCartItemDeleteMany = vi.fn().mockResolvedValue({ count: fixture.cartItems.length });
@@ -254,6 +287,30 @@ describe("CheckoutService.initiate — successful checkout", () => {
     // subtotal = 29900*2 + 199900*1 = 259700; total = subtotal + shipping (4900)
     expect(result.subtotal.amountMinor).toBe(259700);
     expect(result.total.amountMinor).toBe(264600);
+  });
+
+  // Regression test for the lineTaxMinor defect: buildOrderItemSnapshot()
+  // returns lineTaxMinor (needed by computeOrderTotals for Order.taxMinor)
+  // but OrderItem has no such column — spreading the whole snapshot into
+  // orderItem.create() throws PrismaClientValidationError against a real
+  // database, even though a permissive mock would accept it silently. The
+  // orderItem.create mock above enforces the real column set for exactly
+  // this reason.
+  it("never passes lineTaxMinor (or any other non-column field) to orderItem.create", async () => {
+    const fixture = makeService({
+      cartItems: [stockCartItem()],
+      lockedRows: [{ id: "inv-1", onHand: 10, reserved: 2 }],
+      taxRateRows: [{ taxClassId: "tc-standard", ratePercent: decimal(25) }],
+      shippingProvider: makeShippingProvider(),
+      paymentProvider: makePaymentProvider(),
+    });
+
+    await fixture.service.initiate(IDENTITY, undefined, "key-1", VALID_INPUT);
+
+    expect(fixture.txOrderItemCreate).toHaveBeenCalledTimes(1);
+    const { data } = fixture.txOrderItemCreate.mock.calls[0]![0] as { data: Record<string, unknown> };
+    expect(data).not.toHaveProperty("lineTaxMinor");
+    expect(Object.keys(data).every((key) => ORDER_ITEM_SCALAR_COLUMNS.has(key))).toBe(true);
   });
 
   it("issues a fresh order-status token, persisting only its hash and returning only the plaintext", async () => {

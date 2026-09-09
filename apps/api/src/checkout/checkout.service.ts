@@ -71,11 +71,11 @@ export class CheckoutService {
           orderNumber,
         );
       } catch (error) {
-        if (isUniqueConstraintViolation(error, "orderNumber")) {
+        if (isUniqueConstraintViolation(error, "Order", "orderNumber")) {
           lastError = error;
           continue; // collided with another order's number — try a fresh one
         }
-        if (isUniqueConstraintViolation(error, "key")) {
+        if (isUniqueConstraintViolation(error, "IdempotencyKey", "key")) {
           // Lost a genuine concurrent race for this exact Idempotency-Key:
           // another request with the identical key committed first. Replay
           // its result rather than surfacing a raw constraint error — this
@@ -252,8 +252,14 @@ export class CheckoutService {
 
       const createdItems: OrderItem[] = [];
       for (const plan of linePlans) {
+        // lineTaxMinor is an intermediate value consumed by
+        // computeOrderTotals above (rolled up into Order.taxMinor) — it has
+        // no matching OrderItem column (schema.prisma only persists
+        // lineSubtotalMinor/lineTotalMinor per line) and must not be spread
+        // into the create payload.
+        const { lineTaxMinor: _lineTaxMinor, ...orderItemData } = plan.snapshot;
         const orderItem = await tx.orderItem.create({
-          data: { orderId: order.id, ...plan.snapshot },
+          data: { orderId: order.id, ...orderItemData },
         });
         createdItems.push(orderItem);
 
