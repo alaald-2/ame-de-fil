@@ -37,8 +37,9 @@ Because auth is cookie-based, state-changing requests need CSRF protection beyon
 
 ## 6. Webhook security
 
-- Every inbound Stripe webhook is verified via HMAC signature (`stripe.webhooks.constructEvent` with the endpoint's signing secret) before any processing — an unsigned or mis-signed payload is rejected with no side effects.
-- Idempotent processing via the `WebhookEvent` ledger (`DATABASE.md` §2, `PAYMENTS.md` §5).
+- **Implemented** (`apps/api/src/payments/`): every inbound Stripe webhook is verified via HMAC signature (`stripe.webhooks.constructEvent` with the endpoint's signing secret, against the raw untouched request body — `main.ts`'s `rawBody: true`) before any processing. A missing signature header or a failed verification returns `400` with no side effects, no `WebhookEvent` row written.
+- `POST /api/v1/payments/webhooks/stripe` is `@Public()` + `@SkipCsrf()` (not cookie-authenticated, verified by signature instead, per §3) and carries no `@RequirePermissions` (there is no caller identity to hold one) and deliberately no rate limit (Stripe's own delivery cadence governs volume; per-IP throttling here risks dropping genuine retries during a delivery burst).
+- Idempotent processing via the `WebhookEvent` ledger (`DATABASE.md` §2, `PAYMENTS.md` §5) — implemented, verified by unit tests covering duplicate-event-ID and already-terminal-Payment replay, not yet verified against real concurrent load (no live Postgres available in the checkpoint that built this — `DEPLOYMENT.md` §1).
 
 ## 7. Secrets management
 
@@ -49,8 +50,8 @@ Because auth is cookie-based, state-changing requests need CSRF protection beyon
 
 ## 8. Transport & headers
 
-- HTTPS enforced everywhere (HSTS). Security headers (CSP, `X-Content-Type-Options: nosniff`, `Referrer-Policy`, `Permissions-Policy`) set via Next.js middleware/`next.config` headers for `storefront`/`admin`, and Helmet for `apps/api`.
-- CSP is the one that needs care given Stripe.js/Payment Element requires specific `script-src`/`frame-src` allowances — documented precisely at implementation time, not loosened generically.
+- HTTPS enforced everywhere (HSTS). Security headers (CSP, `X-Content-Type-Options: nosniff`, `Referrer-Policy`, `Permissions-Policy`) set via Next.js middleware/`next.config` headers for `storefront`/`admin`, and Helmet for `apps/api`. **Implemented so far: `apps/storefront`'s CSP only** (`next.config.ts`, `headers()`), added alongside the Stripe integration since that's what first needed it — `apps/admin`'s headers and `apps/api`'s Helmet CSP (still explicitly disabled in `main.ts`) remain open gaps, unrelated to Stripe (the API serves JSON/Swagger, never renders Stripe.js).
+- **`apps/storefront`'s CSP, as implemented:** `script-src 'self' 'unsafe-inline' https://js.stripe.com`, `frame-src https://js.stripe.com https://hooks.stripe.com`, `connect-src 'self' https://api.stripe.com <API origin>`, `style-src 'self' 'unsafe-inline'`. The `'unsafe-inline'` on `script-src` is a disclosed, verified-necessary trade-off, not a generic loosening: Next.js's own App Router injects unnonced inline hydration/RSC bootstrap scripts, and omitting it broke the app's own JS at runtime (checked live via Playwright, not assumed) — a stricter nonce-based CSP would avoid this but needs per-request middleware plumbing out of scope for the checkpoint that added this.
 - CORS on `apps/api` is an explicit allow-list of the known `storefront`/`admin` origins — never a wildcard.
 
 ## 9. Audit logging

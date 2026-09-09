@@ -102,9 +102,24 @@
     "total": "Totalt",
     "placeOrder": "Slutför beställning",
     "placingOrder": "Skickar beställning…",
-    "orderConfirmedTitle": "Beställning mottagen",
+    "orderConfirmedTitle": "Beställning bekräftad",
+    "orderReceivedTitle": "Beställning mottagen",
     "orderNumber": "Ordernummer",
-    "reservationNotice": "Dina varor är reserverade till {time}. Betalning är inte tillgänglig ännu i den här förhandsversionen — ett fullständigt betalningsflöde kommer i nästa fas.",
-    "backToShopAfterOrder": "Fortsätt handla"
+    "reservationNotice": "Dina varor är reserverade till {time}.",
+    "backToShopAfterOrder": "Fortsätt handla",
+    "paymentHeading": "Betalning",
+    "payButton": "Betala {amount}",
+    "payingButton": "Behandlar betalning…",
+    "paymentError": "Betalningen misslyckades. Kontrollera dina uppgifter och försök igen.",
+    "paymentSkippedNotice": "Betalning är inte konfigurerad i den här miljön — din beställning skapades men ingen betalning har dragits.",
+    "confirmingTitle": "Bekräftar din beställning…",
+    "confirmingBody": "Det brukar ta några sekunder. Stäng inte sidan.",
+    "stillConfirmingTitle": "Bekräftar fortfarande",
+    "stillConfirmingBody": "Vi bekräftar fortfarande din betalning. Du meddelas när det är klart — du behöver inte försöka igen.",
+    "stockLostTitle": "Vi kunde inte bekräfta hela din beställning",
+    "stockLostBody": "Din betalning gick igenom, men en eller flera varor blev slutsålda innan vi hann reservera dem. Vårt team kontaktar dig inom kort för återbetalning eller ersättning.",
+    "orderCanceledTitle": "Betalningen gick inte igenom",
+    "orderCanceledBody": "Din beställning avbröts och dina varor släpptes. Du kan försöka gå till kassan igen.",
+    "retryCheckout": "Försök igen"
   }
 }

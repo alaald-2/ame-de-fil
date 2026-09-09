@@ -640,9 +640,35 @@ model Order {
   payments       Payment[]
   shipments      Shipment[]
   notes          CustomerNote[]
+  statusToken    OrderStatusToken?
 
   @@index([status])
   @@index([userId])
+}
+
+// Guest-checkout authorization credential for the unauthenticated order-status
+// polling endpoint (PAYMENTS.md §4's "poll the order status endpoint" rule —
+// never the browser redirect). Issued once, in checkout's own transaction
+// (DECISIONS.md ADR-024): a cryptographically random 256-bit token is
+// returned to the client exactly once in the checkout response, and only its
+// SHA-256 hash is ever persisted here — deliberately diverging from
+// Session.id's plaintext-token convention, since this is a bearer credential
+// with no session/cookie mechanism behind it. One token per order (orderId
+// unique — not rotatable in v1), time-limited via expiresAt
+// (ORDER_STATUS_TOKEN_TTL_HOURS) but reusable until expiry, since the
+// storefront's polling loop calls the status endpoint repeatedly by design.
+// An authenticated caller is authorized by Order.userId ownership instead —
+// this table is the guest-only path.
+model OrderStatusToken {
+  id        String   @id @default(cuid())
+  orderId   String   @unique
+  tokenHash String   @unique
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+
+  order Order @relation(fields: [orderId], references: [id], onDelete: Cascade)
+
+  @@index([expiresAt])
 }
 
 model OrderItem {

@@ -8,6 +8,7 @@ import {
   Prisma,
 } from "@ame-de-fil/database";
 import { CheckoutService } from "./checkout.service.ts";
+import { hashOrderStatusToken } from "../common/order-status-token.ts";
 import type { PrismaService } from "../database/prisma.service.ts";
 import type { ShippingProvider, ShippingQuote } from "../shipping/shipping-provider.ts";
 import type { PaymentProvider, PaymentRecord } from "../payments/payment-provider.ts";
@@ -130,6 +131,7 @@ function makeService(fixture: Fixture) {
   const txCartItemDeleteMany = vi.fn().mockResolvedValue({ count: fixture.cartItems.length });
   const txIdempotencyKeyCreate = vi.fn().mockResolvedValue({});
   const txOrderUpdateMany = vi.fn().mockResolvedValue({ count: 1 });
+  const txOrderStatusTokenCreate = vi.fn().mockResolvedValue({});
 
   const tx = {
     cart: {
@@ -145,6 +147,7 @@ function makeService(fixture: Fixture) {
     payment: {},
     cartItem: { deleteMany: txCartItemDeleteMany },
     idempotencyKey: { create: txIdempotencyKeyCreate },
+    orderStatusToken: { create: txOrderStatusTokenCreate },
   };
 
   const prisma = {
@@ -158,6 +161,7 @@ function makeService(fixture: Fixture) {
     get: (key: string) => {
       if (key === "CHECKOUT_RESERVATION_TTL_MINUTES") return 15;
       if (key === "CHECKOUT_IDEMPOTENCY_TTL_HOURS") return 24;
+      if (key === "ORDER_STATUS_TOKEN_TTL_HOURS") return 2;
       return undefined;
     },
   } as never;
@@ -179,6 +183,7 @@ function makeService(fixture: Fixture) {
     txStockReservationCreate,
     txCartItemDeleteMany,
     txIdempotencyKeyCreate,
+    txOrderStatusTokenCreate,
   };
 }
 
@@ -190,7 +195,10 @@ function makeShippingProvider(quote: ShippingQuote | null = SHIPPING_QUOTE): Shi
 }
 
 function makePaymentProvider(record: PaymentRecord = PAYMENT_RECORD): PaymentProvider {
-  return { createPayment: vi.fn().mockResolvedValue(record) };
+  return {
+    createPayment: vi.fn().mockResolvedValue(record),
+    verifyWebhookSignature: vi.fn(),
+  };
 }
 
 const IDENTITY = { guestToken: "guest-token" };
@@ -246,6 +254,30 @@ describe("CheckoutService.initiate — successful checkout", () => {
     // subtotal = 29900*2 + 199900*1 = 259700; total = subtotal + shipping (4900)
     expect(result.subtotal.amountMinor).toBe(259700);
     expect(result.total.amountMinor).toBe(264600);
+  });
+
+  it("issues a fresh order-status token, persisting only its hash and returning only the plaintext", async () => {
+    const fixture = makeService({
+      cartItems: [madeToOrderCartItem()],
+      lockedRows: [],
+      taxRateRows: [{ taxClassId: "tc-standard", ratePercent: decimal(25) }],
+      shippingProvider: makeShippingProvider(),
+      paymentProvider: makePaymentProvider(),
+    });
+
+    const result = await fixture.service.initiate(IDENTITY, undefined, "key-1", VALID_INPUT);
+
+    expect(typeof result.orderStatusToken).toBe("string");
+    expect(result.orderStatusToken.length).toBeGreaterThan(0);
+    expect(fixture.txOrderStatusTokenCreate).toHaveBeenCalledTimes(1);
+
+    const createCall = fixture.txOrderStatusTokenCreate.mock.calls[0]![0] as {
+      data: { orderId: string; tokenHash: string; expiresAt: Date };
+    };
+    expect(createCall.data.orderId).toBe("order-1");
+    // The persisted row never contains the plaintext token — only its hash.
+    expect(createCall.data.tokenHash).toBe(hashOrderStatusToken(result.orderStatusToken));
+    expect(createCall.data.tokenHash).not.toBe(result.orderStatusToken);
   });
 
   it("sets reservationExpiresAt to null for an all-made-to-order cart", async () => {

@@ -1,5 +1,18 @@
 import { z } from "zod";
 
+// `KEY=` (present, empty) is a common, deliberate ".env.example placeholder
+// left blank" pattern (see apps/api/.env.example) — distinct from KEY being
+// absent entirely, but a plain `.optional()` only tolerates the latter
+// (`undefined`), not an empty string, which still fails `.min(1)`. This
+// normalizes both to "not configured" before the min-length check runs, so
+// a genuinely blank placeholder boots cleanly instead of hard-failing.
+function optionalSecret() {
+  return z.preprocess(
+    (value) => (value === "" ? undefined : value),
+    z.string().min(1).optional(),
+  );
+}
+
 // Structural defaults only (ports, TTLs, log level) — never a secret or a
 // production value (SECURITY.md §7). DATABASE_URL and CORS origins have no
 // default: they must be explicitly set, even in development.
@@ -38,6 +51,22 @@ export const envSchema = z.object({
   // network, a user re-submitting after a page reload) without keeping the
   // table growing forever.
   CHECKOUT_IDEMPOTENCY_TTL_HOURS: z.coerce.number().int().positive().default(24),
+
+  // Guest order-status polling credential lifetime (PAYMENTS.md §4,
+  // DECISIONS.md ADR-024) — long enough to cover a slow redirect-based 3DS
+  // confirmation plus a reasonable polling/retry window, short enough to
+  // meaningfully limit exposure of a bearer token versus "forever".
+  ORDER_STATUS_TOKEN_TTL_HOURS: z.coerce.number().int().positive().default(2),
+
+  // Stripe (PAYMENTS.md, DECISIONS.md ADR-014/ADR-024) — both optional at
+  // the schema level: unset means PaymentsModule falls back to
+  // PendingPaymentProvider (no real processor), matching this project's
+  // existing "disclosed rather than faked" posture for infra gaps (Docker,
+  // reservation-expiry scheduling). Required together in practice — a
+  // secret key with no webhook secret can create charges but can never
+  // confirm them, which PaymentsModule's factory validates at boot.
+  STRIPE_SECRET_KEY: optionalSecret(),
+  STRIPE_WEBHOOK_SECRET: optionalSecret(),
 
   LOG_LEVEL: z.enum(["fatal", "error", "warn", "info", "debug", "trace"]).default("info"),
 

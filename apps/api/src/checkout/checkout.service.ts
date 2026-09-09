@@ -12,6 +12,7 @@ import type { Env } from "@ame-de-fil/config";
 import { PrismaService } from "../database/prisma.service.ts";
 import { cartIdentityWhere, type CartIdentity } from "../common/cart-identity.ts";
 import { toPrismaLocale } from "../common/locale.ts";
+import { generateOrderStatusToken, hashOrderStatusToken } from "../common/order-status-token.ts";
 import type { AuthContext } from "../common/types/auth-context.ts";
 import { SHIPPING_PROVIDER, type ShippingProvider } from "../shipping/shipping-provider.ts";
 import { PAYMENT_PROVIDER, type PaymentProvider } from "../payments/payment-provider.ts";
@@ -286,6 +287,24 @@ export class CheckoutService {
       // 10. The cart that was just checked out is now spent.
       await tx.cartItem.deleteMany({ where: { cartId: cart.id } });
 
+      // 10.5. Guest order-status polling credential (PAYMENTS.md §4,
+      // DECISIONS.md ADR-024) — issued once, here, alongside the order it's
+      // scoped to. Only the SHA-256 hash is persisted; the plaintext token
+      // is returned in the response below and never retrievable again.
+      // Authenticated callers are authorized via Order.userId ownership
+      // instead (orders.service.ts) but still receive this uniformly.
+      const orderStatusToken = generateOrderStatusToken();
+      const orderStatusTokenTtlHours = this.config.get("ORDER_STATUS_TOKEN_TTL_HOURS", {
+        infer: true,
+      });
+      await tx.orderStatusToken.create({
+        data: {
+          orderId: order.id,
+          tokenHash: hashOrderStatusToken(orderStatusToken),
+          expiresAt: new Date(now.getTime() + orderStatusTokenTtlHours * 60 * 60 * 1000),
+        },
+      });
+
       const response = mapCheckoutResponse(
         order,
         createdItems,
@@ -293,6 +312,7 @@ export class CheckoutService {
         shippingQuote,
         input.locale,
         reservationExpiresAt,
+        orderStatusToken,
       );
 
       // 11. Idempotency record — a plain `create` (never upsert) so that

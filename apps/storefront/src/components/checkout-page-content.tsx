@@ -8,7 +8,13 @@ import { Link } from "../i18n/navigation";
 import type { AppLocale } from "../lib/locale";
 import { useCart } from "./cart-provider";
 import { CheckoutForm } from "./checkout-form";
-import { OrderConfirmation } from "./order-confirmation";
+import { PaymentStep } from "./payment-step";
+import { OrderStatusPoller } from "./order-status-poller";
+
+type Phase =
+  | { kind: "form" }
+  | { kind: "payment"; order: CheckoutResponse }
+  | { kind: "polling"; order: CheckoutResponse };
 
 export function CheckoutPageContent({
   locale,
@@ -19,10 +25,26 @@ export function CheckoutPageContent({
 }) {
   const t = useTranslations("Checkout");
   const { cart, isLoading, refresh } = useCart();
-  const [confirmedOrder, setConfirmedOrder] = useState<CheckoutResponse | null>(null);
+  const [phase, setPhase] = useState<Phase>({ kind: "form" });
 
-  if (confirmedOrder) {
-    return <OrderConfirmation order={confirmedOrder} locale={locale} />;
+  if (phase.kind === "payment") {
+    // clientSecret is only ever absent on this branch if the checkout
+    // response changed shape after this phase was entered, which can't
+    // happen — the transition into "payment" itself is gated on its
+    // presence below.
+    return (
+      <PaymentStep
+        clientSecret={phase.order.payment.clientSecret ?? ""}
+        amountMinor={phase.order.total.amountMinor}
+        locale={locale}
+        returnUrl={`${window.location.origin}/${locale}/checkout/complete?orderId=${phase.order.orderId}`}
+        onConfirmationSubmitted={() => setPhase({ kind: "polling", order: phase.order })}
+      />
+    );
+  }
+
+  if (phase.kind === "polling") {
+    return <OrderStatusPoller order={phase.order} locale={locale} />;
   }
 
   if (isLoading) {
@@ -50,8 +72,17 @@ export function CheckoutPageContent({
       locale={locale}
       shippingMethods={shippingMethods}
       onSuccess={(order) => {
-        setConfirmedOrder(order);
         void refresh();
+        if (order.payment.clientSecret) {
+          setPhase({ kind: "payment", order });
+        } else {
+          // No processor configured in this environment
+          // (PendingPaymentProvider — payment-provider.ts) — there is
+          // nothing to confirm client-side. Go straight to polling, which
+          // honestly reflects that the order stays PENDING_PAYMENT rather
+          // than claiming a false confirmation (requirement 7).
+          setPhase({ kind: "polling", order });
+        }
       }}
     />
   );

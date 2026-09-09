@@ -38,3 +38,10 @@ describe("PendingPaymentProvider.createPayment", () => {
     });
   });
 });
+
+describe("PendingPaymentProvider.verifyWebhookSignature", () => {
+  it("throws — this provider never has a real processor to verify a webhook against", () => {
+    const provider = new PendingPaymentProvider();
+    expect(() => provider.verifyWebhookSignature()).toThrow(/no processor is configured/i);
+  });
+});

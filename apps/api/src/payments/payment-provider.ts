@@ -20,6 +20,23 @@ export interface PaymentRecord {
   status: PaymentStatus;
   amountMinor: number;
   currency: string;
+  // Only set by a real processor that needs the browser to complete
+  // confirmation client-side (Stripe's Payment Element). Undefined for
+  // PendingPaymentProvider, which has nothing for the browser to confirm.
+  clientSecret?: string;
+}
+
+// The provider-agnostic shape a verified inbound webhook is normalized to
+// before it ever reaches business logic (PaymentsWebhookService) — that
+// service depends only on this, never on a provider SDK's own event type.
+export type VerifiedWebhookOutcome = "succeeded" | "failed" | "canceled" | "irrelevant";
+
+export interface VerifiedWebhookEvent {
+  providerEventId: string;
+  eventType: string;
+  providerPaymentIntentId: string | null;
+  outcome: VerifiedWebhookOutcome;
+  raw: unknown;
 }
 
 export interface PaymentProvider {
@@ -27,6 +44,12 @@ export interface PaymentProvider {
   // client) so the Payment row is created atomically with the Order,
   // OrderItems, and StockReservations — never as a separate, out-of-band write.
   createPayment(tx: Prisma.TransactionClient, input: CreatePaymentInput): Promise<PaymentRecord>;
+
+  // Verifies an inbound webhook's signature and normalizes it to a
+  // VerifiedWebhookEvent. Throws on an invalid/unverifiable signature —
+  // callers must treat that as "reject with no side effects"
+  // (SECURITY.md §6), never as an "irrelevant" outcome.
+  verifyWebhookSignature(rawBody: Buffer, signature: string): VerifiedWebhookEvent;
 }
 
 // v1: records a PENDING payment placeholder and does not call any real
@@ -61,5 +84,15 @@ export class PendingPaymentProvider implements PaymentProvider {
       amountMinor: payment.amountMinor,
       currency: payment.currency,
     };
+  }
+
+  // No processor is contacted by this provider, so there is nothing to
+  // verify a signature against — a webhook should never reach this
+  // provider's binding in the first place (PaymentsModule only routes
+  // webhook requests through PAYMENT_PROVIDER, and this provider is only
+  // ever bound when Stripe isn't configured at all). Throwing here fails
+  // loudly instead of pretending to verify something that can't be real.
+  verifyWebhookSignature(): VerifiedWebhookEvent {
+    throw new Error("PendingPaymentProvider cannot verify webhooks — no processor is configured");
   }
 }

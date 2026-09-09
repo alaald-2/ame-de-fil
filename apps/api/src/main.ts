@@ -10,14 +10,20 @@ import { AppModule } from "./app.module.js";
 import { API_PREFIX, API_PREFIX_EXCLUDE } from "./bootstrap-config.js";
 
 async function bootstrap(): Promise<void> {
-  const app = await NestFactory.create(AppModule, { bufferLogs: true });
+  // rawBody: true — Nest still parses req.body as JSON for every route as
+  // usual, but additionally captures the exact raw bytes onto
+  // req.rawBody. The Stripe webhook controller needs that untouched
+  // buffer (never the re-serialized JSON object) for
+  // stripe.webhooks.constructEvent's signature check (SECURITY.md §6).
+  const app = await NestFactory.create(AppModule, { bufferLogs: true, rawBody: true });
   app.useLogger(app.get(Logger));
 
   const config = app.get(ConfigService<Env, true>);
 
-  // CSP is intentionally not set here yet — Stripe.js/Payment Element need
-  // specific script-src/frame-src allowances (SECURITY.md §8) added when
-  // that integration exists, not a generic loosened default now.
+  // CSP for apps/api itself stays unset — it serves JSON/Swagger, never
+  // renders Stripe.js/Payment Element (that runs in apps/storefront's
+  // browser context; see apps/storefront/next.config.ts). Not the same gap
+  // this comment used to flag.
   app.use(helmet({ contentSecurityPolicy: false }));
   app.use(cookieParser());
 

@@ -7,6 +7,7 @@ import type { ShippingMethod, CheckoutResponse, InitiateCheckoutRequest } from "
 import { api } from "../lib/api-client";
 import { getErrorMessage } from "../lib/error-message";
 import { formatMoney } from "../lib/format-money";
+import { saveCheckoutOrder } from "../lib/checkout-order-storage";
 import type { AppLocale } from "../lib/locale";
 import { useCart } from "./cart-provider";
 
@@ -100,6 +101,11 @@ export function CheckoutForm({ locale, shippingMethods, onSuccess }: CheckoutFor
       return;
     }
 
+    // Persisted before handing off — the payment/polling steps (and a
+    // possible Stripe 3DS redirect landing on /checkout/complete) read it
+    // back from sessionStorage, since a plain React state variable
+    // wouldn't survive a full-page redirect (checkout-order-storage.ts).
+    saveCheckoutOrder(data);
     onSuccess(data);
   }
 

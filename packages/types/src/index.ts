@@ -3,4 +3,5 @@ export * from "./api-client.ts";
 export * from "./catalog.ts";
 export * from "./cart.ts";
 export * from "./checkout.ts";
+export * from "./orders.ts";
 export * from "./shipping.ts";

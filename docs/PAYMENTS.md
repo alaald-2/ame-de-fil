@@ -4,26 +4,44 @@ See `DECISIONS.md` ADR-014 for the rationale (**flagged for your confirmation**)
 
 ## 1. Provider abstraction
 
-The order/payment domain in `apps/api` depends only on an interface — never on the Stripe SDK directly outside the adapter:
+**Implemented** (`apps/api/src/payments/payment-provider.ts`), narrower than the original illustrative sketch — `refund()`/`getStatus()` are deliberately not part of the interface yet (refunds are an admin-phase feature not built; storefront/admin never ask the provider for status, they read DB state instead, §4):
 
 ```ts
-// Illustrative shape only — not implemented in this phase.
+interface PaymentRecord {
+  id: string;
+  provider: string;
+  status: PaymentStatus;
+  amountMinor: number;
+  currency: string;
+  clientSecret?: string; // set only by a provider the browser must confirm against
+}
+
+interface VerifiedWebhookEvent {
+  providerEventId: string;
+  eventType: string;
+  providerPaymentIntentId: string | null;
+  outcome: "succeeded" | "failed" | "canceled" | "irrelevant";
+  raw: unknown;
+}
+
 interface PaymentProvider {
-  createIntent(order: OrderSnapshot): Promise<PaymentIntentRef>;
-  confirmFromWebhook(rawEvent: unknown, signature: string): Promise<PaymentEvent>;
-  refund(paymentId: string, amountMinor?: number): Promise<RefundRef>;
-  getStatus(paymentId: string): Promise<PaymentStatus>;
+  createPayment(tx: Prisma.TransactionClient, input: CreatePaymentInput): Promise<PaymentRecord>;
+  verifyWebhookSignature(rawBody: Buffer, signature: string): VerifiedWebhookEvent;
 }
 ```
 
 ```
 PaymentProvider
-└── StripePaymentProvider     # v1 — handles card, klarna, swish via Stripe Payment Intents
-    (KlarnaPaymentProvider / SwishPaymentProvider as direct-integration
-     implementations are a documented future path, not built in v1 — ADR-014)
+├── StripePaymentProvider      # implemented — card via Stripe Payment Intents, automatic capture
+│   (KlarnaPaymentProvider / SwishPaymentProvider as direct-integration
+│    implementations are a documented future path, not built — ADR-014;
+│    Klarna/Swish-via-Stripe is also not yet wired even though StripePaymentProvider
+│    could route them — v1 scope is card only)
+└── PendingPaymentProvider     # fallback when STRIPE_SECRET_KEY/STRIPE_WEBHOOK_SECRET are unset —
+                                 records a PENDING Payment row, contacts no processor
 ```
 
-`OrderSnapshot` passed into `createIntent` is always **server-computed** (line items, tax, discounts, shipping re-derived from the database at intent-creation time) — the browser never supplies a total that gets charged.
+`CreatePaymentInput` passed into `createPayment` carries only server-computed amounts (`CheckoutService`'s own totals, never a client-supplied number) — the browser never supplies a total that gets charged. `PaymentsModule` selects between the two implementations at boot via a `useFactory` reading `STRIPE_SECRET_KEY`/`STRIPE_WEBHOOK_SECRET` — this is the same "disclosed rather than faked" posture already used elsewhere in this project for the Docker/reservation-expiry-scheduler gaps, so the app boots and checkout still works end-to-end (with a PENDING-only payment) wherever Stripe test keys aren't available.
 
 ## 2. Payment state machine
 
@@ -72,18 +90,25 @@ Order and Payment are deliberately **separate** state machines (per the brief) �
 
 **An order is never marked `CONFIRMED`, and money is never considered received, because the browser was redirected to a "success" URL.** The success-page redirect only ever shows an optimistic "we're confirming your payment" state. The authoritative transition happens exclusively when:
 
-1. A Stripe webhook arrives at a dedicated endpoint.
-2. Its signature is verified against the webhook secret (`stripe.webhooks.constructEvent`).
-3. Its event ID is checked against `WebhookEvent` (idempotency ledger, `DATABASE.md` §2) — if already processed, return 200 and no-op.
-4. Inside a DB transaction, the reservation is converted to a commit and the state machines advance (`DATABASE.md` §4).
+1. A Stripe webhook arrives at `POST /api/v1/payments/webhooks/stripe` (`payments-webhook.controller.ts`) — `@Public()`/`@SkipCsrf()`, not cookie-authenticated, verified by signature instead.
+2. Its signature is verified against the webhook secret (`StripePaymentProvider.verifyWebhookSignature`, `stripe.webhooks.constructEvent` against the raw, untouched request body — `main.ts`'s `rawBody: true`).
+3. Its event ID is checked against `WebhookEvent` (idempotency ledger, `DATABASE.md` §2) — if already processed, return 200 and no-op (`payments-webhook.service.ts`).
+4. Inside a DB transaction, the reservation is converted to a commit and the state machines advance (`DATABASE.md` §4) — see §3's matrix below.
 
-If the webhook hasn't arrived by the time the customer lands on the success page, the frontend polls the order status endpoint (which reflects DB state, not Stripe state) rather than trusting its own redirect.
+**v1 handles a narrower event set than eventually needed**: `payment_intent.succeeded` / `payment_intent.payment_failed` / `payment_intent.canceled` only; every other event type (including `payment_intent.processing`, dispute events) is acknowledged (200) and no-opped, not yet acted on. Automatic capture is used for v1 card payments, so `PaymentStatus.AUTHORIZED` stays unused (reserved for a future manual-capture or Klarna/Swish flow, same posture as `User.totpSecret` under ADR-015).
+
+**On a definitive failure/cancellation, the reservation is released immediately** (not left to the 15-minute TTL) and the order transitions straight to `CANCELED` — a deliberate extension beyond §3's diagram (which only shows expiry-triggered cancellation), reasoned as: once Stripe has told us definitively the payment won't succeed, there's no reason to make the customer wait out the TTL before retrying checkout.
+
+The frontend never trusts `stripe.confirmPayment()`'s own resolution as "the order is confirmed" — it only uses that to decide when to start polling `GET /api/v1/orders/:orderId/status` (§9), which reflects DB state, not Stripe state, and is the only thing that ever renders a "confirmed" UI.
 
 ## 5. Idempotency, retries, reconciliation
 
 - **Client-side idempotency:** checkout submission carries a client-generated `Idempotency-Key` header; `apps/api` stores it against the resulting order/payment so a retried submit (double-click, flaky network) never creates a duplicate order.
-- **Webhook retries:** Stripe retries undelivered/failed webhooks automatically; our handler must be safe to receive the same event N times (`WebhookEvent` ledger) and must return 2xx quickly (heavy work — email dispatch, stock commit — is handed to a BullMQ job, not done synchronously in the webhook handler, to avoid Stripe's delivery timeout causing spurious retries).
-- **Reconciliation:** a scheduled job (nightly) lists Stripe balance transactions/payment intents for the prior period and diffs them against local `Payment` records, alerting on any mismatch (a payment Stripe shows as succeeded that we never recorded, or vice versa) — this is the safety net for any webhook that was somehow missed entirely.
+- **Checkout-transaction-retry idempotency (implemented):** `CheckoutService.initiate` retries its own transaction up to 3 times on an `orderNumber` collision, which could otherwise call `createPayment` more than once for what's logically one checkout attempt. `StripePaymentProvider.createPayment` passes Stripe's own request-level `idempotencyKey` (derived from the order, `checkout-payment-intent:{orderId}`), so a retried call returns the *same* PaymentIntent rather than creating a duplicate.
+- **Webhook retries (implemented):** Stripe retries undelivered/failed webhooks automatically; `PaymentsWebhookService.handle` is safe to receive the same event N times — it claims the event ID in `WebhookEvent` first (a plain `create`, P2002-on-duplicate treated as already-handled) before any business logic runs, and every state-changing write inside is itself a guarded conditional update (`WHERE status = <expected>`), so even a near-simultaneous duplicate that slips past the ledger claim is a no-op past that point.
+  - **Deviation from the original design, disclosed:** heavy work is *not* handed to a BullMQ job — there is no BullMQ/queue infrastructure in this repo at all (a separate, pre-existing gap). Webhook processing runs synchronously in the request handler; at v1's expected volume this stays well under Stripe's delivery timeout, but revisit once background-job infrastructure exists.
+- **Reconciliation: not built.** The nightly Stripe-vs-`Payment` diff job described here remains future work, same as before. It's now also the intended home for detecting **orphaned PaymentIntents** — see the transaction-boundary note below.
+- **Accepted v1 trade-off — orphaned PaymentIntents:** `StripePaymentProvider.createPayment` runs *inside* `CheckoutService`'s existing single checkout transaction (the `PaymentProvider.createPayment(tx, ...)` signature requires it — kept exactly as designed, not redesigned for this checkpoint). If that transaction fails to commit for a reason other than the two retried cases above (rare — an unexpected error after the Stripe call succeeded), an uncharged `PENDING` PaymentIntent can exist at Stripe with no matching local `Order`/`Payment` row. This is deliberately accepted rather than solved with a bigger transactional redesign (e.g. an outbox pattern) — the exposure is an orphaned, harmless Stripe object, not a financial or security issue, and building for it now would be exactly the kind of speculative complexity this project avoids without evidence it's a real problem. Flagged here as a named, intentional gap: the future reconciliation job above should list Stripe PaymentIntents with no matching local `Payment.providerPaymentIntentId` and cancel/alert on them.
 
 ## 6. Refunds
 
@@ -95,6 +120,17 @@ Full and partial refunds are issued through the provider (`refund()`), recorded 
 
 ## 8. Security notes (cross-ref `SECURITY.md`)
 
-- Stripe secret keys and webhook signing secrets live only in `apps/api`'s runtime secrets — never shipped to `storefront`/`admin` (only the publishable key reaches the browser, for Stripe.js/Payment Element).
-- PCI scope is minimized by using Stripe's Payment Element / hosted fields — raw card data never touches our servers.
-- All payment/refund admin actions are written to `AuditLog` (who, when, amount, reason).
+- Stripe secret keys and webhook signing secrets live only in `apps/api`'s runtime secrets (`STRIPE_SECRET_KEY`/`STRIPE_WEBHOOK_SECRET`) — never shipped to `storefront`/`admin`. Only the publishable key (`NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY`, non-secret by Stripe's own design) reaches the browser, for `@stripe/stripe-js`/`@stripe/react-stripe-js`'s Payment Element.
+- PCI scope is minimized by using Stripe's Payment Element / hosted fields — raw card data never touches our servers, and `apps/storefront` never calls the Stripe API directly for anything business-logic-bearing (intent creation, confirmation amounts) — it only ever renders the client-secret-scoped Payment Element apps/api already gave it.
+- `apps/storefront`'s CSP (`next.config.ts`) is scoped to what Stripe.js/Payment Element need: `script-src` allows `https://js.stripe.com`, `frame-src` allows `https://js.stripe.com`/`https://hooks.stripe.com`, `connect-src` allows `https://api.stripe.com`. `script-src`/`style-src` also carry `'unsafe-inline'` — a disclosed trade-off for Next.js's own unnonced inline hydration scripts (verified live: without it, Next's own bootstrap script is blocked), not something loosened for Stripe's sake.
+- All payment/refund admin actions are written to `AuditLog` (who, when, amount, reason) — not yet applicable in practice, since refunds/admin actions aren't built yet (§6).
+
+## 9. Guest order-status polling (`DECISIONS.md` ADR-024)
+
+`GET /api/v1/orders/:orderId/status` (`apps/api/src/orders/`) is what §4's "poll rather than trust the redirect" rule actually calls. Deliberately minimal by design:
+
+- **Response is `{ status, payment: { status } }` only** — no addresses, line items, amounts, or any other order/customer PII. The storefront already holds the full order detail from the original checkout response (kept in `sessionStorage` client-side, `checkout-order-storage.ts`, to survive a possible Stripe 3DS redirect) — this endpoint only ever confirms whether it's safe to trust that already-held data, never re-serves it.
+- **Authenticated caller:** authorized purely by `Order.userId` ownership — no token involved.
+- **Guest caller:** authorized by a dedicated `X-Order-Status-Token` header (never a query parameter, to keep it out of server/proxy access logs) — a 256-bit (`randomBytes(32)`, base64url) token, returned once in the checkout response's `orderStatusToken` field, stored server-side only as its SHA-256 hash (`OrderStatusToken.tokenHash`) — deliberately diverging from `Session.id`'s plaintext-token convention, since this is a bearer credential traveling in a header rather than an httpOnly cookie. Scoped to exactly one order (`orderId` unique on the table), time-limited (`ORDER_STATUS_TOKEN_TTL_HOURS`, default 2h) but reusable within that window (not single-use — the polling loop calls it repeatedly by design).
+- **Identical 404** for a nonexistent order, a wrong/expired/mismatched-order token, or an authenticated non-owner — this endpoint can never be used to enumerate which order IDs exist.
+- Light per-IP rate limit (`@RateLimit`) — hygiene against abuse/scraping, not a brute-force defense (the token's own entropy already handles that).

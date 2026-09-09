@@ -102,9 +102,24 @@
     "total": "Total",
     "placeOrder": "Place order",
     "placingOrder": "Placing order…",
-    "orderConfirmedTitle": "Order received",
+    "orderConfirmedTitle": "Order confirmed",
+    "orderReceivedTitle": "Order received",
     "orderNumber": "Order number",
-    "reservationNotice": "Your items are reserved until {time}. Payment isn't available yet in this preview — a completed checkout flow will follow in the next phase.",
-    "backToShopAfterOrder": "Continue shopping"
+    "reservationNotice": "Your items are reserved until {time}.",
+    "backToShopAfterOrder": "Continue shopping",
+    "paymentHeading": "Payment",
+    "payButton": "Pay {amount}",
+    "payingButton": "Processing payment…",
+    "paymentError": "Payment failed. Please check your details and try again.",
+    "paymentSkippedNotice": "Payment isn't configured in this environment — your order was created but no payment was taken.",
+    "confirmingTitle": "Confirming your order…",
+    "confirmingBody": "This usually takes a few seconds. Please don't close this page.",
+    "stillConfirmingTitle": "Still confirming",
+    "stillConfirmingBody": "We're still confirming your payment. You'll be notified once it's done — no need to try again.",
+    "stockLostTitle": "We couldn't fully confirm your order",
+    "stockLostBody": "Your payment succeeded, but one or more items sold out before we could reserve them. Our team will be in touch shortly to arrange a refund or replacement.",
+    "orderCanceledTitle": "Payment didn't go through",
+    "orderCanceledBody": "Your order was canceled and your items were released. You can try checking out again.",
+    "retryCheckout": "Try again"
   }
 }

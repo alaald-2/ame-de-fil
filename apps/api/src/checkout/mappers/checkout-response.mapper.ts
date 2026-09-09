@@ -15,6 +15,7 @@ export function mapCheckoutResponse(
   shippingQuote: ShippingQuote,
   locale: AppLocale,
   reservationExpiresAt: Date | null,
+  orderStatusToken: string,
 ): CheckoutResponse {
   return {
     orderId: order.id,
@@ -41,8 +42,9 @@ export function mapCheckoutResponse(
       id: shippingQuote.shippingMethodId,
       name: locale === "sv-SE" ? shippingQuote.nameSv : shippingQuote.nameEn,
     },
-    payment: { id: payment.id, status: payment.status },
+    payment: { id: payment.id, status: payment.status, clientSecret: payment.clientSecret },
     reservationExpiresAt: reservationExpiresAt?.toISOString() ?? null,
     createdAt: order.createdAt.toISOString(),
+    orderStatusToken,
   };
 }

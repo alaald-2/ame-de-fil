@@ -19,6 +19,10 @@ out/
 # Testing
 coverage/
 
+# Playwright MCP session/verification scratch output (page snapshots,
+# console logs) — never intended to be committed.
+.playwright-mcp/
+
 # Prisma (generated client)
 packages/database/generated/
 
