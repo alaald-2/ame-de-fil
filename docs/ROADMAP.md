@@ -14,9 +14,20 @@ Monorepo scaffold (pnpm + Turborepo, per `ARCHITECTURE.md` §2), shared tooling 
 
 Product/variant/category/collection CRUD (API + admin minimal), storefront browse/search/filter/detail pages, `next-intl` locale routing live, SEO plumbing (`SEO.md`) wired from the start rather than retrofitted.
 
-## Phase 3 — Cart & checkout (card payments)
+## Phase 3 — Cart & checkout (card payments) 🟡 implemented, verification pending
 
 Cart, inventory reservation flow (`DATABASE.md` §4), Stripe card Payment Intents integration, order creation, order/payment state machines, webhook handling + idempotency (`PAYMENTS.md`).
+
+**Implemented and committed** (`97f13d7`, 2026-09-09): cart and inventory reservation were already in place from an earlier checkpoint; this pass added `StripePaymentProvider` (card, automatic capture), the signed/idempotent `POST /api/v1/payments/webhooks/stripe` handler, the full succeeded/failed/canceled state-transition matrix including the race-safe `PAYMENT_SUCCEEDED_STOCK_LOST` path, and the guest-safe `GET /api/v1/orders/:orderId/status` polling endpoint (`OrderStatusToken` — hashed, order-scoped, time-limited) the storefront uses instead of trusting the browser redirect. 252 API unit tests pass; lint/typecheck/build are clean across all packages with no Stripe credentials present (`DECISIONS.md` ADR-024).
+
+**Not yet verified — this phase is not being marked complete until these pass:**
+
+- No live Stripe test-mode E2E run — no Stripe test credentials were available in the implementation environment (`PendingPaymentProvider` fallback is what was actually exercised).
+- The `OrderStatusToken` migration has not been applied against a live Postgres instance — none was reachable in that environment either (`DEPLOYMENT.md` §1's pre-existing Docker/WSL gap).
+- No Testcontainers integration tests for the webhook-vs-reservation-expiry race (the single highest-value test this feature doesn't have yet), same environment gap.
+- Reservation expiry still has no scheduler (no BullMQ/queue infra anywhere in this repo) — a pre-existing gap, not introduced by this work, but it means `PAYMENT_SUCCEEDED_STOCK_LOST` is currently only reachable via the admin-triggered `POST /admin/checkout/expire-reservations` endpoint, not automatically.
+
+Klarna/Swish (ADR-014's eventual scope for this same Stripe integration) remain unbuilt — Phase 4.
 
 ## Phase 4 — Klarna & Swish, fulfillment lifecycle
 
