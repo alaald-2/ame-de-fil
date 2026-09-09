@@ -1,6 +1,7 @@
 import { Module } from "@nestjs/common";
 import { ConfigModule } from "@nestjs/config";
 import { APP_FILTER, APP_GUARD } from "@nestjs/core";
+import { ScheduleModule } from "@nestjs/schedule";
 import { LoggerModule } from "nestjs-pino";
 import { randomUUID } from "node:crypto";
 import type { IncomingMessage, ServerResponse } from "node:http";
@@ -34,6 +35,10 @@ const CORRELATION_ID_HEADER = "x-correlation-id";
 @Module({
   imports: [
     ConfigModule.forRoot({ isGlobal: true, validate }),
+    // Registered once, globally — required for SchedulerRegistry to be
+    // injectable anywhere (CheckoutModule's ReservationExpiryScheduler is
+    // the only current consumer).
+    ScheduleModule.forRoot(),
     LoggerModule.forRoot({
       pinoHttp: {
         genReqId: (req: IncomingMessage, res: ServerResponse) => {

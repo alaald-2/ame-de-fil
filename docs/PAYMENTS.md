@@ -116,7 +116,7 @@ Full and partial refunds are issued through the provider (`refund()`), recorded 
 
 ## 7. Abandoned checkout
 
-`PENDING_PAYMENT` orders whose reservation expires without a `PAID` webhook transition to `CANCELED` automatically (via the same BullMQ job that releases the stock reservation). A separate, lower-priority "abandoned cart" email job (distinct from checkout abandonment) may re-engage customers who left items in `Cart` without ever starting checkout — product decision, not built in v1 unless confirmed.
+`PENDING_PAYMENT` orders whose reservation expires without a `PAID` webhook transition to `CANCELED` automatically — **implemented** via `ReservationExpiryScheduler` (`apps/api/src/checkout/reservation-expiry.scheduler.ts`), not a BullMQ job as originally sketched (see `DECISIONS.md` for why). A separate, lower-priority "abandoned cart" email job (distinct from checkout abandonment) may re-engage customers who left items in `Cart` without ever starting checkout — product decision, not built in v1 unless confirmed.
 
 ## 8. Security notes (cross-ref `SECURITY.md`)
 

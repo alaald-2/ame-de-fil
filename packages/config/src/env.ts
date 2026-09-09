@@ -58,13 +58,19 @@ export const envSchema = z.object({
   // meaningfully limit exposure of a bearer token versus "forever".
   ORDER_STATUS_TOKEN_TTL_HOURS: z.coerce.number().int().positive().default(2),
 
+  // How often ReservationExpirySchedulerService sweeps for expired
+  // StockReservations (DATABASE.md §4). Default (1 minute) is well under
+  // the 15-minute reservation TTL, bounding how long an already-expired
+  // reservation can sit un-released before the next sweep catches it.
+  RESERVATION_EXPIRY_SWEEP_INTERVAL_MS: z.coerce.number().int().positive().default(60_000),
+
   // Stripe (PAYMENTS.md, DECISIONS.md ADR-014/ADR-024) — both optional at
   // the schema level: unset means PaymentsModule falls back to
   // PendingPaymentProvider (no real processor), matching this project's
-  // existing "disclosed rather than faked" posture for infra gaps (Docker,
-  // reservation-expiry scheduling). Required together in practice — a
-  // secret key with no webhook secret can create charges but can never
-  // confirm them, which PaymentsModule's factory validates at boot.
+  // existing "disclosed rather than faked" posture for infra gaps (Docker/
+  // live Postgres). Required together in practice — a secret key with no
+  // webhook secret can create charges but can never confirm them, which
+  // PaymentsModule's factory validates at boot.
   STRIPE_SECRET_KEY: optionalSecret(),
   STRIPE_WEBHOOK_SECRET: optionalSecret(),
 

@@ -90,7 +90,9 @@ Domain modules in `apps/api` (Nest modules, one per bounded context): `identity`
 
 ## 5. Background processing
 
-Reservation expiry, abandoned-checkout follow-up, webhook-retry backoff, low-stock digest emails, and transactional email dispatch run as BullMQ jobs against Valkey. Workers start as a Nest **standalone application context** inside `apps/api` (`NestFactory.createApplicationContext`) rather than a separate deployable app — this keeps the three-app surface from the brief intact. Revisit (split into `apps/worker`) only if worker load needs to scale independently of the HTTP API.
+Abandoned-checkout follow-up (beyond reservation release), webhook-retry backoff, low-stock digest emails, and transactional email dispatch are planned to run as BullMQ jobs against Valkey. Workers start as a Nest **standalone application context** inside `apps/api` (`NestFactory.createApplicationContext`) rather than a separate deployable app — this keeps the three-app surface from the brief intact. Revisit (split into `apps/worker`) only if worker load needs to scale independently of the HTTP API.
+
+**Reservation expiry is the one exception, implemented differently (`DECISIONS.md` ADR-025):** it runs as an `@nestjs/schedule` in-process interval (`ReservationExpiryScheduler`), not a BullMQ job — the release logic is simple and idempotent enough not to need BullMQ's retry/backoff/dead-letter machinery, and BullMQ requires Valkey, which isn't provisioned in this environment either. Swapping it for a real BullMQ delayed job later doesn't touch `ReservationExpiryService` itself, only its trigger.
 
 ## 6. Open architectural questions
 

@@ -8,13 +8,12 @@ export interface ReservationExpiryResult {
 }
 
 // Reservation lifetime is 15 minutes (checkpoint requirement); this is the
-// release side of that lifecycle. Nothing in this environment schedules it
-// automatically — no queue/scheduler (BullMQ, @nestjs/schedule) is
-// installed or verified against a live instance here, so wiring a real
-// periodic trigger is deployment infra, disclosed rather than faked (same
-// posture as the Postgres/Docker unavailability elsewhere in this project).
-// The logic itself is safe to call from anywhere that eventually exists:
-// a cron job, a queue worker, or an ops-triggered endpoint.
+// release side of that lifecycle. Triggered automatically by
+// ReservationExpiryScheduler (reservation-expiry.scheduler.ts, an
+// @nestjs/schedule-backed periodic sweep) and, for ops/manual use, by
+// POST /admin/checkout/expire-reservations (admin-checkout.controller.ts)
+// — the logic itself doesn't know or care which called it, since it's
+// idempotent and safe to call repeatedly or concurrently from either path.
 @Injectable()
 export class ReservationExpiryService {
   constructor(private readonly prisma: PrismaService) {}

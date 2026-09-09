@@ -4,11 +4,12 @@ import { RequirePermissions } from "../common/decorators/require-permissions.dec
 import { ApiErrorResponses } from "../common/api-error-responses.ts";
 import { ReservationExpiryService } from "./reservation-expiry.service.ts";
 
-// No queue/scheduler is provisioned in this environment (see
-// reservation-expiry.service.ts) — this is the concrete trigger point a
-// real cron job or ops runbook calls periodically until one is. Admin-only,
-// default-deny like every other controller; the logic itself is idempotent
-// so calling it on any schedule, or manually, is always safe.
+// ReservationExpiryScheduler (reservation-expiry.scheduler.ts) already
+// sweeps automatically — this endpoint is the manual/ops-triggered
+// complement, useful for an immediate on-demand run without waiting for
+// the next scheduled tick. Admin-only, default-deny like every other
+// controller; the logic itself is idempotent, so calling it from both
+// paths (or repeatedly, or concurrently) is always safe.
 @ApiTags("admin")
 @ApiCookieAuth("ame_session")
 @Controller("admin/checkout")
