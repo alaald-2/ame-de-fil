@@ -3,6 +3,13 @@ import { ConflictException } from "@nestjs/common";
 import { OrderStatus, ShipmentStatus } from "@ame-de-fil/database";
 import { AdminOrdersService } from "./admin-orders.service.ts";
 import type { PrismaService } from "../database/prisma.service.ts";
+import type { NotificationsService } from "../notifications/notifications.service.ts";
+
+function makeNotificationsMock() {
+  return { sendShippingNotification: vi.fn().mockResolvedValue(undefined) } as unknown as NotificationsService & {
+    sendShippingNotification: ReturnType<typeof vi.fn>;
+  };
+}
 
 const ORDER = { id: "order-1", status: OrderStatus.CONFIRMED };
 const SHIPMENT = {
@@ -55,7 +62,7 @@ function makePrismaMock(overrides: Record<string, unknown> = {}) {
 describe("AdminOrdersService.markReadyToShip", () => {
   it("transitions CONFIRMED -> READY_TO_SHIP", async () => {
     const { prisma, orderUpdateMany } = makePrismaMock();
-    const service = new AdminOrdersService(prisma);
+    const service = new AdminOrdersService(prisma, makeNotificationsMock());
 
     const result = await service.markReadyToShip("order-1");
 
@@ -70,7 +77,7 @@ describe("AdminOrdersService.markReadyToShip", () => {
     const { prisma } = makePrismaMock({
       order: { updateMany: vi.fn().mockResolvedValue({ count: 0 }) },
     });
-    const service = new AdminOrdersService(prisma);
+    const service = new AdminOrdersService(prisma, makeNotificationsMock());
 
     await expect(service.markReadyToShip("order-1")).rejects.toThrow(ConflictException);
   });
@@ -81,7 +88,7 @@ describe("AdminOrdersService.markShipped", () => {
 
   it("transitions READY_TO_SHIP -> SHIPPED and creates a Shipment record", async () => {
     const { prisma, shipmentCreate } = makePrismaMock();
-    const service = new AdminOrdersService(prisma);
+    const service = new AdminOrdersService(prisma, makeNotificationsMock());
 
     await service.markShipped("order-1", INPUT);
 
@@ -98,7 +105,7 @@ describe("AdminOrdersService.markShipped", () => {
 
   it("creates a Shipment even with no carrier/tracking info supplied (all optional)", async () => {
     const { prisma, shipmentCreate } = makePrismaMock();
-    const service = new AdminOrdersService(prisma);
+    const service = new AdminOrdersService(prisma, makeNotificationsMock());
 
     await service.markShipped("order-1", {});
 
@@ -107,24 +114,41 @@ describe("AdminOrdersService.markShipped", () => {
     });
   });
 
-  it("throws when the order is not READY_TO_SHIP, without creating a Shipment", async () => {
+  it("sends the shipping notification only after the transaction has committed (DECISIONS.md ADR-031)", async () => {
+    const { prisma } = makePrismaMock();
+    const notifications = makeNotificationsMock();
+    const service = new AdminOrdersService(prisma, notifications);
+
+    await service.markShipped("order-1", INPUT);
+
+    expect(notifications.sendShippingNotification).toHaveBeenCalledWith("order-1");
+    const transactionOrder = (prisma.$transaction as ReturnType<typeof vi.fn>).mock.invocationCallOrder[0];
+    const notifyOrder = notifications.sendShippingNotification.mock.invocationCallOrder[0];
+    expect(transactionOrder).toBeDefined();
+    expect(notifyOrder).toBeDefined();
+    expect(transactionOrder as number).toBeLessThan(notifyOrder as number);
+  });
+
+  it("throws when the order is not READY_TO_SHIP, without creating a Shipment or sending a notification", async () => {
     const orderUpdateMany = vi.fn().mockResolvedValue({ count: 0 });
     const shipmentCreate = vi.fn();
     const tx = { order: { updateMany: orderUpdateMany }, shipment: { create: shipmentCreate } };
     const prisma = {
       $transaction: vi.fn().mockImplementation((cb: (tx: unknown) => unknown) => cb(tx)),
     } as unknown as PrismaService;
-    const service = new AdminOrdersService(prisma);
+    const notifications = makeNotificationsMock();
+    const service = new AdminOrdersService(prisma, notifications);
 
     await expect(service.markShipped("order-1", INPUT)).rejects.toThrow(ConflictException);
     expect(shipmentCreate).not.toHaveBeenCalled();
+    expect(notifications.sendShippingNotification).not.toHaveBeenCalled();
   });
 });
 
 describe("AdminOrdersService.markDelivered", () => {
   it("transitions SHIPPED -> DELIVERED and updates the most recent Shipment", async () => {
     const { prisma, shipmentFindFirstOrThrow, shipmentUpdate } = makePrismaMock();
-    const service = new AdminOrdersService(prisma);
+    const service = new AdminOrdersService(prisma, makeNotificationsMock());
 
     await service.markDelivered("order-1");
 
@@ -145,7 +169,7 @@ describe("AdminOrdersService.markDelivered", () => {
     const prisma = {
       $transaction: vi.fn().mockImplementation((cb: (tx: unknown) => unknown) => cb(tx)),
     } as unknown as PrismaService;
-    const service = new AdminOrdersService(prisma);
+    const service = new AdminOrdersService(prisma, makeNotificationsMock());
 
     await expect(service.markDelivered("order-1")).rejects.toThrow(ConflictException);
     expect(shipmentFindFirstOrThrow).not.toHaveBeenCalled();

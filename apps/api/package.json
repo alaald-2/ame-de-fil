@@ -17,6 +17,7 @@
   },
   "dependencies": {
     "@ame-de-fil/database": "workspace:*",
+    "@ame-de-fil/email": "workspace:*",
     "@ame-de-fil/validation": "workspace:*",
     "@nestjs/common": "12.0.1",
     "@nestjs/config": "12.0.0",
@@ -29,6 +30,7 @@
     "cookie-parser": "1.4.7",
     "helmet": "8.3.0",
     "nestjs-pino": "5.1.0",
+    "nodemailer": "10.0.1",
     "pg": "8.23.0",
     "pino": "10.3.1",
     "pino-http": "11.0.0",
@@ -48,6 +50,7 @@
     "@types/cookie-parser": "1.4.10",
     "@types/express": "5.0.0",
     "@types/node": "24.0.0",
+    "@types/nodemailer": "8.0.1",
     "@types/pg": "8.23.1",
     "@types/supertest": "7.2.1",
     "eslint": "^10.10.0",

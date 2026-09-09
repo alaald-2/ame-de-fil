@@ -43,7 +43,9 @@ Klarna/Swish payment methods via Stripe (ADR-014), shipment tracking via `Manual
 
 **Made-to-order production-time flow: implemented** (`DECISIONS.md` ADR-030) — orders with made-to-order lines land on `IN_PRODUCTION` instead of `CONFIRMED` at confirmation time (`OrderItem.madeToOrder`/`productionTimeDaysSnapshot`, snapshotted at checkout), and `markReadyToShip` accepts `IN_PRODUCTION` as a predecessor alongside `CONFIRMED`. Verified live end-to-end (real checkout → real webhook → `IN_PRODUCTION` → admin `ready-to-ship`), plus a regression check that ready-to-ship-only orders are unaffected. Not built: an "estimated ready date" computed/surfaced anywhere — a Phase 5 display concern layered on the now-persisted `productionTimeDaysSnapshot`, not state-machine work.
 
-Transactional email and abandoned-checkout handling remain unbuilt.
+**Transactional email: implemented** (`DECISIONS.md` ADR-031) — `packages/email` (bilingual `sv-SE`/`en` React Email templates for order confirmation and shipping notification) and `apps/api/src/notifications` (`NotificationsService`, an `EmailProvider` abstraction resolving to generic SMTP or a `PendingEmailProvider` fallback). Dispatched synchronously, post-commit, from `PaymentsWebhookService` (on `CONFIRMED`/`IN_PRODUCTION`) and `AdminOrdersService.markShipped`. **Real vendor selection remains deferred** — this checkpoint ships a Mailpit local-dev catcher (`docker-compose.yml`) and the generic-SMTP dispatch mechanism, not a chosen production vendor; the DPA `docs/SECURITY.md` §10 already flags for "the email provider" still applies once one is actually chosen. Also not built: durable retry across a process crash between commit and send (no BullMQ/outbox — ADR-031 documents this limitation directly rather than treating synchronous post-commit dispatch as crash-proof).
+
+Abandoned-checkout handling remains unbuilt.
 
 ## Phase 5 — Admin dashboard
 

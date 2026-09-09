@@ -9,6 +9,7 @@ import {
 import { PrismaService } from "../database/prisma.service.ts";
 import { isUniqueConstraintViolation } from "../checkout/prisma-errors.ts";
 import { lockOrderReservationsForUpdate } from "./order-reservation-lock.ts";
+import { NotificationsService } from "../notifications/notifications.service.ts";
 import type { VerifiedWebhookEvent } from "./payment-provider.ts";
 
 // The authoritative payment/order state-transition logic (PAYMENTS.md §4,
@@ -20,7 +21,10 @@ import type { VerifiedWebhookEvent } from "./payment-provider.ts";
 export class PaymentsWebhookService {
   private readonly logger = new Logger(PaymentsWebhookService.name);
 
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly notifications: NotificationsService,
+  ) {}
 
   async handle(event: VerifiedWebhookEvent): Promise<void> {
     const claimed = await this.claimWebhookEvent(event);
@@ -31,10 +35,20 @@ export class PaymentsWebhookService {
       return;
     }
 
-    await this.prisma.$transaction(async (tx) => {
+    // confirmedOrderId is only ever non-null the one time a real
+    // PENDING_PAYMENT -> CONFIRMED/IN_PRODUCTION transition actually
+    // happens for this order (handleSucceeded's own PENDING-payment guard,
+    // then confirmOrderOrFlagStockLost's own guarded update) — a retried
+    // webhook delivery for an already-confirmed order falls through both
+    // guards and this stays null, so the notification below fires at most
+    // once per order without needing its own idempotency check here
+    // (DECISIONS.md ADR-031; NotificationsService still guards separately).
+    const confirmedOrderId = await this.prisma.$transaction(async (tx) => {
       const payment = await tx.payment.findUnique({
         where: { providerPaymentIntentId: event.providerPaymentIntentId! },
       });
+
+      let confirmed: string | null = null;
 
       if (!payment) {
         // Should never happen given PaymentIntents are only ever created by
@@ -44,7 +58,7 @@ export class PaymentsWebhookService {
           `Webhook event ${event.providerEventId} references unknown PaymentIntent "${event.providerPaymentIntentId}"`,
         );
       } else if (event.outcome === "succeeded") {
-        await this.handleSucceeded(tx, payment, event);
+        confirmed = await this.handleSucceeded(tx, payment, event);
       } else if (event.outcome === "paymentMethodRecorded") {
         // Informational only (ADR-028) — never a state transition, so it
         // must not fall into handleFailedOrCanceled below.
@@ -57,7 +71,17 @@ export class PaymentsWebhookService {
         where: { id: event.providerEventId },
         data: { processedAt: new Date() },
       });
+
+      return confirmed;
     });
+
+    // Dispatched only after the transaction above has committed — never
+    // from inside it (DECISIONS.md ADR-031): an SMTP round-trip must never
+    // hold this transaction's locks open, and NotificationsService never
+    // throws, so a slow/failed send can never roll back the order write.
+    if (confirmedOrderId) {
+      await this.notifications.sendOrderConfirmation(confirmedOrderId);
+    }
   }
 
   private async claimWebhookEvent(event: VerifiedWebhookEvent): Promise<boolean> {
@@ -110,16 +134,21 @@ export class PaymentsWebhookService {
   // everything past it — the PaymentAttempt row, the order/stock
   // transition — is skipped, leaving this call a pure no-op past that
   // point. Idempotent by construction, not by a prior read-then-check.
+  // Returns the orderId only when this call actually drove the
+  // PENDING_PAYMENT -> CONFIRMED/IN_PRODUCTION transition (never for the
+  // stock-lost branch, which needs manual admin resolution, not a
+  // customer-facing "confirmed" email) — the caller uses this to decide
+  // whether to trigger the order-confirmation notification.
   private async handleSucceeded(
     tx: Prisma.TransactionClient,
     payment: { id: string; orderId: string },
     event: VerifiedWebhookEvent,
-  ): Promise<void> {
+  ): Promise<string | null> {
     const updated = await tx.payment.updateMany({
       where: { id: payment.id, status: PaymentStatus.PENDING },
       data: { status: PaymentStatus.PAID },
     });
-    if (updated.count === 0) return;
+    if (updated.count === 0) return null;
 
     await tx.paymentAttempt.create({
       data: {
@@ -130,7 +159,8 @@ export class PaymentsWebhookService {
       },
     });
 
-    await this.confirmOrderOrFlagStockLost(tx, payment.orderId);
+    const confirmed = await this.confirmOrderOrFlagStockLost(tx, payment.orderId);
+    return confirmed ? payment.orderId : null;
   }
 
   // DATABASE.md §4 step 3 / PAYMENTS.md: money has been taken (Payment is
@@ -139,10 +169,14 @@ export class PaymentsWebhookService {
   // locked first (order-reservation-lock.ts) specifically so this decision
   // is race-safe against the concurrent reservation-expiry sweep, not a
   // stale read.
+  // Returns true only when the final PENDING_PAYMENT -> CONFIRMED/
+  // IN_PRODUCTION update below actually matched a row — false for the
+  // stock-lost branch and for the (should-be-unreachable) case where the
+  // order was already past PENDING_PAYMENT by the time this ran.
   private async confirmOrderOrFlagStockLost(
     tx: Prisma.TransactionClient,
     orderId: string,
-  ): Promise<void> {
+  ): Promise<boolean> {
     const reservations = await lockOrderReservationsForUpdate(tx, orderId);
     const stockLost = reservations.some((r) => r.status !== StockReservationStatus.PENDING);
 
@@ -171,7 +205,7 @@ export class PaymentsWebhookService {
         },
         data: { status: OrderStatus.PAYMENT_SUCCEEDED_STOCK_LOST, canceledAt: null },
       });
-      return;
+      return false;
     }
 
     for (const reservation of reservations) {
@@ -207,13 +241,14 @@ export class PaymentsWebhookService {
     // all) — so this checks OrderItem.madeToOrder directly instead.
     const hasMadeToOrderItems =
       (await tx.orderItem.count({ where: { orderId, madeToOrder: true } })) > 0;
-    await tx.order.updateMany({
+    const updated = await tx.order.updateMany({
       where: { id: orderId, status: OrderStatus.PENDING_PAYMENT },
       data: {
         status: hasMadeToOrderItems ? OrderStatus.IN_PRODUCTION : OrderStatus.CONFIRMED,
         confirmedAt: new Date(),
       },
     });
+    return updated.count > 0;
   }
 
   private async handleFailedOrCanceled(

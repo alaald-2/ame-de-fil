@@ -74,6 +74,22 @@ export const envSchema = z.object({
   STRIPE_SECRET_KEY: optionalSecret(),
   STRIPE_WEBHOOK_SECRET: optionalSecret(),
 
+  // Transactional email (DECISIONS.md ADR-031) — generic SMTP, not a
+  // vendor-specific integration; real vendor selection remains deferred
+  // (ROADMAP.md Phase 4). Optional at the schema level: unset means
+  // NotificationsModule falls back to PendingEmailProvider (no send
+  // attempted), the same "disclosed rather than faked" posture as
+  // STRIPE_SECRET_KEY/STRIPE_WEBHOOK_SECRET above. SMTP_PORT has no
+  // default — Mailpit (docker-compose.yml) listens on 1025, not the
+  // standard 587, so defaulting would silently point at the wrong port
+  // for the one SMTP server this project actually ships a config for.
+  SMTP_HOST: optionalSecret(),
+  SMTP_PORT: z.preprocess(
+    (value) => (value === "" ? undefined : value),
+    z.coerce.number().int().positive().optional(),
+  ),
+  SMTP_FROM: optionalSecret(),
+
   LOG_LEVEL: z.enum(["fatal", "error", "warn", "info", "debug", "trace"]).default("info"),
 
   RATE_LIMIT_WINDOW_MS: z.coerce.number().int().positive().default(60_000),

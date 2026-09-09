@@ -7,6 +7,8 @@ import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { randomUUID } from "node:crypto";
 import { Currency, Locale, OrderStatus, ShipmentStatus } from "@ame-de-fil/database";
 import { AdminOrdersService } from "./admin-orders.service.ts";
+import { NotificationsService } from "../notifications/notifications.service.ts";
+import { PendingEmailProvider } from "../notifications/email-provider.ts";
 import { startTestDatabase, stopTestDatabase, type TestDatabase } from "../test/testcontainers-postgres.ts";
 import { seedShopFixture, type ShopFixture } from "../test/fixtures.ts";
 
@@ -18,7 +20,10 @@ describe("AdminOrdersService — real Postgres", () => {
   beforeAll(async () => {
     db = await startTestDatabase();
     shop = await seedShopFixture(db.prisma);
-    service = new AdminOrdersService(db.prisma);
+    // PendingEmailProvider — no real SMTP container in this harness
+    // (TESTING.md §3); NotificationsService never throws, so this can't
+    // affect any assertion below about order/shipment state.
+    service = new AdminOrdersService(db.prisma, new NotificationsService(db.prisma, new PendingEmailProvider()));
   }, 120_000);
 
   afterAll(async () => {

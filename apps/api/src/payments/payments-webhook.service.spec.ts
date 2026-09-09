@@ -3,12 +3,17 @@ import { Prisma, PaymentStatus, OrderStatus, StockReservationStatus } from "@ame
 import { PaymentsWebhookService } from "./payments-webhook.service.ts";
 import type { VerifiedWebhookEvent } from "./payment-provider.ts";
 import type { PrismaService } from "../database/prisma.service.ts";
+import type { NotificationsService } from "../notifications/notifications.service.ts";
 
 function makeTxMock(overrides: Record<string, unknown> = {}) {
   return {
     payment: { findUnique: vi.fn(), updateMany: vi.fn(), update: vi.fn() },
     paymentAttempt: { create: vi.fn() },
-    order: { updateMany: vi.fn() },
+    // Defaults to "the guarded update matched" so every existing test that
+    // doesn't care about the count keeps working — the stock-lost test
+    // below doesn't read this return value at all, so its own default is
+    // irrelevant there.
+    order: { updateMany: vi.fn().mockResolvedValue({ count: 1 }) },
     // Defaults to "no made-to-order lines" (DECISIONS.md ADR-030) so every
     // existing PENDING_PAYMENT -> CONFIRMED test keeps asserting CONFIRMED
     // without needing to know about this; tests for the IN_PRODUCTION
@@ -76,12 +81,14 @@ const PAYMENT = { id: "pay-1", orderId: "order-1" };
 describe("PaymentsWebhookService.handle", () => {
   let tx: ReturnType<typeof makeTxMock>;
   let prisma: ReturnType<typeof makePrismaMock>;
+  let notifications: { sendOrderConfirmation: ReturnType<typeof vi.fn> };
   let service: PaymentsWebhookService;
 
   beforeEach(() => {
     tx = makeTxMock();
     prisma = makePrismaMock(tx);
-    service = new PaymentsWebhookService(prisma);
+    notifications = { sendOrderConfirmation: vi.fn().mockResolvedValue(undefined) };
+    service = new PaymentsWebhookService(prisma, notifications as unknown as NotificationsService);
   });
 
   // Regression test for a real Stripe webhook replay: confirmed live against
@@ -167,6 +174,9 @@ describe("PaymentsWebhookService.handle", () => {
       expect(tx.$queryRaw).not.toHaveBeenCalled();
       expect(tx.order.updateMany).not.toHaveBeenCalled();
       expect(tx.webhookEvent.update).toHaveBeenCalled(); // still marked processed
+      // A retried delivery of an already-processed event must never send a
+      // second confirmation email.
+      expect(notifications.sendOrderConfirmation).not.toHaveBeenCalled();
     });
 
     it("confirms the order and commits stock when every reservation is still PENDING", async () => {
@@ -211,6 +221,14 @@ describe("PaymentsWebhookService.handle", () => {
         where: { id: "order-1", status: OrderStatus.PENDING_PAYMENT },
         data: { status: OrderStatus.CONFIRMED, confirmedAt: expect.any(Date) },
       });
+      expect(notifications.sendOrderConfirmation).toHaveBeenCalledWith("order-1");
+      // Dispatched only after the transaction has committed (DECISIONS.md
+      // ADR-031), never from inside it.
+      const transactionOrder = (prisma.$transaction as ReturnType<typeof vi.fn>).mock.invocationCallOrder[0];
+      const notifyOrder = notifications.sendOrderConfirmation.mock.invocationCallOrder[0];
+      expect(transactionOrder).toBeDefined();
+      expect(notifyOrder).toBeDefined();
+      expect(transactionOrder as number).toBeLessThan(notifyOrder as number);
     });
 
     it("lands a made-to-order-only order (zero reservations) on IN_PRODUCTION, not CONFIRMED, with no inventory writes (DECISIONS.md ADR-030)", async () => {
@@ -228,6 +246,7 @@ describe("PaymentsWebhookService.handle", () => {
         where: { id: "order-1", status: OrderStatus.PENDING_PAYMENT },
         data: { status: OrderStatus.IN_PRODUCTION, confirmedAt: expect.any(Date) },
       });
+      expect(notifications.sendOrderConfirmation).toHaveBeenCalledWith("order-1");
     });
 
     it("flags PAYMENT_SUCCEEDED_STOCK_LOST and touches no inventory at all when any reservation already expired", async () => {
@@ -266,6 +285,9 @@ describe("PaymentsWebhookService.handle", () => {
         where: { id: "order-1", status: { in: [OrderStatus.PENDING_PAYMENT, OrderStatus.CANCELED] } },
         data: { status: OrderStatus.PAYMENT_SUCCEEDED_STOCK_LOST, canceledAt: null },
       });
+      // Stock-lost needs manual admin resolution, not a customer-facing
+      // "your order is confirmed" email.
+      expect(notifications.sendOrderConfirmation).not.toHaveBeenCalled();
     });
   });
 

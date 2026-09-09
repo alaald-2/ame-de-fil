@@ -16,5 +16,16 @@ services:
       timeout: 5s
       retries: 10
 
+  # Local SMTP catcher (DECISIONS.md ADR-018/ADR-031) — real vendor
+  # selection remains deferred (ROADMAP.md Phase 4). Point
+  # SMTP_HOST=localhost / SMTP_PORT=1025 at this in apps/api/.env; sent
+  # mail never leaves the box, viewable at http://localhost:8025.
+  mailpit:
+    image: axllent/mailpit:v1.31
+    restart: unless-stopped
+    ports:
+      - "1025:1025"
+      - "8025:8025"
+
 volumes:
   postgres_data:

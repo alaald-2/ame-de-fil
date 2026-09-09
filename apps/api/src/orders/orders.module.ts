@@ -1,4 +1,5 @@
 import { Module } from "@nestjs/common";
+import { NotificationsModule } from "../notifications/notifications.module.ts";
 import { OrdersController } from "./orders.controller.ts";
 import { OrdersService } from "./orders.service.ts";
 import { AdminOrdersController } from "./admin-orders.controller.ts";
@@ -9,6 +10,7 @@ import { AdminOrdersService } from "./admin-orders.service.ts";
 // (CONFIRMED -> READY_TO_SHIP -> SHIPPED -> DELIVERED, DECISIONS.md
 // ADR-029) both live here. Detail views and refunds remain a later phase.
 @Module({
+  imports: [NotificationsModule],
   controllers: [OrdersController, AdminOrdersController],
   providers: [OrdersService, AdminOrdersService],
 })

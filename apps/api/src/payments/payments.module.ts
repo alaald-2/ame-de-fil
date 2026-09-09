@@ -1,6 +1,7 @@
 import { Module } from "@nestjs/common";
 import { ConfigService } from "@nestjs/config";
 import type { Env } from "@ame-de-fil/config";
+import { NotificationsModule } from "../notifications/notifications.module.ts";
 import { PAYMENT_PROVIDER, PendingPaymentProvider, type PaymentProvider } from "./payment-provider.ts";
 import { StripePaymentProvider } from "./stripe-payment.provider.ts";
 import { PaymentsWebhookController } from "./payments-webhook.controller.ts";
@@ -22,6 +23,7 @@ import { PaymentsWebhookService } from "./payments-webhook.service.ts";
 // vars are actually present, is what makes the fallback real rather than
 // theoretical.
 @Module({
+  imports: [NotificationsModule],
   controllers: [PaymentsWebhookController],
   providers: [
     {

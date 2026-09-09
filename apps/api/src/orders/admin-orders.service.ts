@@ -1,6 +1,7 @@
 import { ConflictException, Injectable } from "@nestjs/common";
 import { OrderStatus, ShipmentStatus } from "@ame-de-fil/database";
 import { PrismaService } from "../database/prisma.service.ts";
+import { NotificationsService } from "../notifications/notifications.service.ts";
 import type { MarkShippedInput } from "./dto/mark-shipped.dto.ts";
 import type { FulfillmentResponse } from "./dto/fulfillment-response.ts";
 
@@ -22,7 +23,10 @@ const NOT_IN_EXPECTED_STATE = (from: readonly OrderStatus[], to: OrderStatus) =>
 // that should surface as an error.
 @Injectable()
 export class AdminOrdersService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly notifications: NotificationsService,
+  ) {}
 
   // READY_TO_SHIP has two valid predecessors (PAYMENTS.md §3): CONFIRMED
   // for ready-to-ship-only orders, IN_PRODUCTION once a made-to-order
@@ -75,6 +79,14 @@ export class AdminOrdersService {
         },
       });
     });
+
+    // Dispatched only after the transaction above has committed — never
+    // from inside it (DECISIONS.md ADR-031), for the same reason
+    // PaymentsWebhookService fires its own order-confirmation notification
+    // post-commit: an SMTP round-trip must never hold this transaction's
+    // locks open, and NotificationsService never throws, so a slow/failed
+    // send can never roll back the Order/Shipment write above.
+    await this.notifications.sendShippingNotification(orderId);
 
     return this.toResponse(orderId);
   }

@@ -11,6 +11,8 @@ import { OrderStatus, PaymentStatus, StockReservationStatus } from "@ame-de-fil/
 import { PaymentsWebhookService } from "../payments/payments-webhook.service.ts";
 import { ReservationExpiryService } from "./reservation-expiry.service.ts";
 import type { VerifiedWebhookEvent } from "../payments/payment-provider.ts";
+import { NotificationsService } from "../notifications/notifications.service.ts";
+import { PendingEmailProvider } from "../notifications/email-provider.ts";
 import { startTestDatabase, stopTestDatabase, type TestDatabase } from "../test/testcontainers-postgres.ts";
 import { seedShopFixture, seedVariant, seedPendingOrder, type ShopFixture, type VariantFixture } from "../test/fixtures.ts";
 
@@ -35,7 +37,12 @@ describe("reservation expiry vs. payment-success — real Postgres", () => {
     db = await startTestDatabase();
     shop = await seedShopFixture(db.prisma);
     reservationExpiry = new ReservationExpiryService(db.prisma);
-    webhook = new PaymentsWebhookService(db.prisma);
+    // PendingEmailProvider — no real SMTP container in this integration
+    // harness (TESTING.md §3), same posture as
+    // notifications.integration.spec.ts. NotificationsService never throws,
+    // so this can't affect any assertion in this file about order/
+    // reservation state.
+    webhook = new PaymentsWebhookService(db.prisma, new NotificationsService(db.prisma, new PendingEmailProvider()));
   }, 120_000);
 
   afterAll(async () => {

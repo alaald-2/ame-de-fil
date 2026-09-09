@@ -90,9 +90,12 @@ Domain modules in `apps/api` (Nest modules, one per bounded context): `identity`
 
 ## 5. Background processing
 
-Abandoned-checkout follow-up (beyond reservation release), webhook-retry backoff, low-stock digest emails, and transactional email dispatch are planned to run as BullMQ jobs against Valkey. Workers start as a Nest **standalone application context** inside `apps/api` (`NestFactory.createApplicationContext`) rather than a separate deployable app — this keeps the three-app surface from the brief intact. Revisit (split into `apps/worker`) only if worker load needs to scale independently of the HTTP API.
+Abandoned-checkout follow-up (beyond reservation release), webhook-retry backoff, and low-stock digest emails are planned to run as BullMQ jobs against Valkey. Workers start as a Nest **standalone application context** inside `apps/api` (`NestFactory.createApplicationContext`) rather than a separate deployable app — this keeps the three-app surface from the brief intact. Revisit (split into `apps/worker`) only if worker load needs to scale independently of the HTTP API.
 
-**Reservation expiry is the one exception, implemented differently (`DECISIONS.md` ADR-025):** it runs as an `@nestjs/schedule` in-process interval (`ReservationExpiryScheduler`), not a BullMQ job — the release logic is simple and idempotent enough not to need BullMQ's retry/backoff/dead-letter machinery, and BullMQ requires Valkey, which isn't provisioned in this environment either. Swapping it for a real BullMQ delayed job later doesn't touch `ReservationExpiryService` itself, only its trigger.
+**Reservation expiry and transactional email are two exceptions, both implemented differently:**
+
+- Reservation expiry (`DECISIONS.md` ADR-025) runs as an `@nestjs/schedule` in-process interval (`ReservationExpiryScheduler`), not a BullMQ job — the release logic is simple and idempotent enough not to need BullMQ's retry/backoff/dead-letter machinery, and BullMQ requires Valkey, which isn't provisioned in this environment either. Swapping it for a real BullMQ delayed job later doesn't touch `ReservationExpiryService` itself, only its trigger.
+- Transactional email (`DECISIONS.md` ADR-031) is dispatched **synchronously**, in-process, immediately after the triggering transaction (order confirmation, shipment marked shipped) commits — not queued at all. `NotificationsService` never throws back to its caller, so a slow or failed send can't roll back the order/shipment write it followed, but this also means there is no retry/backoff and no durability across a process crash between commit and send — see ADR-031's own "idempotency and crash/retry behavior" section for exactly what that does and doesn't cover. A real BullMQ-backed outbox is the natural upgrade path if that gap needs closing.
 
 ## 6. Open architectural questions
 
