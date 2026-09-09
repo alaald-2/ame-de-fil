@@ -686,6 +686,15 @@ model OrderItem {
   lineSubtotalMinor    Int
   lineTotalMinor       Int
 
+  // Snapshot of InventoryItem.tracksStock/productionTimeDays at
+  // checkout-start (DECISIONS.md ADR-030) — a later admin edit to a
+  // variant's production time must never rewrite history for orders
+  // already placed, same immutability principle as the price/tax/name
+  // snapshots above. productionTimeDaysSnapshot can be null even when
+  // madeToOrder is true (no estimate was ever set on the variant).
+  madeToOrder                Boolean @default(false)
+  productionTimeDaysSnapshot Int?
+
   createdAt DateTime @default(now())
 
   order              Order               @relation(fields: [orderId], references: [id], onDelete: Cascade)

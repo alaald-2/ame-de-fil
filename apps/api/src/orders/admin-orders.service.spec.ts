@@ -60,13 +60,13 @@ describe("AdminOrdersService.markReadyToShip", () => {
     const result = await service.markReadyToShip("order-1");
 
     expect(orderUpdateMany).toHaveBeenCalledWith({
-      where: { id: "order-1", status: OrderStatus.CONFIRMED },
+      where: { id: "order-1", status: { in: [OrderStatus.CONFIRMED, OrderStatus.IN_PRODUCTION] } },
       data: { status: OrderStatus.READY_TO_SHIP },
     });
     expect(result.orderId).toBe("order-1");
   });
 
-  it("throws when the order is not CONFIRMED", async () => {
+  it("throws when the order is not CONFIRMED or IN_PRODUCTION", async () => {
     const { prisma } = makePrismaMock({
       order: { updateMany: vi.fn().mockResolvedValue({ count: 0 }) },
     });

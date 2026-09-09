@@ -39,6 +39,8 @@ const ORDER_ITEM_SCALAR_COLUMNS = new Set([
   "taxRatePercent",
   "lineSubtotalMinor",
   "lineTotalMinor",
+  "madeToOrder",
+  "productionTimeDaysSnapshot",
   "createdAt",
 ]);
 
@@ -278,6 +280,21 @@ describe("CheckoutService.initiate — successful checkout", () => {
     );
 
     expect(fixture.txOrderItemCreate).toHaveBeenCalledTimes(2);
+    // Regression for DECISIONS.md ADR-030: the made-to-order line's
+    // OrderItem snapshots madeToOrder/productionTimeDaysSnapshot from its
+    // InventoryItem; the finite-stock line does not.
+    expect(fixture.txOrderItemCreate).toHaveBeenNthCalledWith(
+      1,
+      expect.objectContaining({
+        data: expect.objectContaining({ madeToOrder: false, productionTimeDaysSnapshot: null }),
+      }),
+    );
+    expect(fixture.txOrderItemCreate).toHaveBeenNthCalledWith(
+      2,
+      expect.objectContaining({
+        data: expect.objectContaining({ madeToOrder: true, productionTimeDaysSnapshot: 14 }),
+      }),
+    );
     expect(fixture.txCartItemDeleteMany).toHaveBeenCalledWith({ where: { cartId: "cart-1" } });
     expect(fixture.txIdempotencyKeyCreate).toHaveBeenCalledTimes(1);
 

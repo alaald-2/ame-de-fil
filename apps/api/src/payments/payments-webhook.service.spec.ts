@@ -9,6 +9,11 @@ function makeTxMock(overrides: Record<string, unknown> = {}) {
     payment: { findUnique: vi.fn(), updateMany: vi.fn(), update: vi.fn() },
     paymentAttempt: { create: vi.fn() },
     order: { updateMany: vi.fn() },
+    // Defaults to "no made-to-order lines" (DECISIONS.md ADR-030) so every
+    // existing PENDING_PAYMENT -> CONFIRMED test keeps asserting CONFIRMED
+    // without needing to know about this; tests for the IN_PRODUCTION
+    // branch override it explicitly.
+    orderItem: { count: vi.fn().mockResolvedValue(0) },
     stockReservation: { findMany: vi.fn(), updateMany: vi.fn(), update: vi.fn() },
     inventoryItem: { update: vi.fn() },
     inventoryMovement: { create: vi.fn() },
@@ -208,16 +213,20 @@ describe("PaymentsWebhookService.handle", () => {
       });
     });
 
-    it("confirms a made-to-order-only order (zero reservations) with no inventory writes", async () => {
+    it("lands a made-to-order-only order (zero reservations) on IN_PRODUCTION, not CONFIRMED, with no inventory writes (DECISIONS.md ADR-030)", async () => {
       tx.payment.updateMany.mockResolvedValue({ count: 1 });
       tx.$queryRaw.mockResolvedValue([]);
+      tx.orderItem.count.mockResolvedValue(1); // has a made-to-order line
 
       await service.handle(SUCCEEDED);
 
+      expect(tx.orderItem.count).toHaveBeenCalledWith({
+        where: { orderId: "order-1", madeToOrder: true },
+      });
       expect(tx.inventoryItem.update).not.toHaveBeenCalled();
       expect(tx.order.updateMany).toHaveBeenCalledWith({
         where: { id: "order-1", status: OrderStatus.PENDING_PAYMENT },
-        data: { status: OrderStatus.CONFIRMED, confirmedAt: expect.any(Date) },
+        data: { status: OrderStatus.IN_PRODUCTION, confirmedAt: expect.any(Date) },
       });
     });
 

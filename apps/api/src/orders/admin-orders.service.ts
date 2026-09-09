@@ -4,37 +4,46 @@ import { PrismaService } from "../database/prisma.service.ts";
 import type { MarkShippedInput } from "./dto/mark-shipped.dto.ts";
 import type { FulfillmentResponse } from "./dto/fulfillment-response.ts";
 
-const NOT_IN_EXPECTED_STATE = (from: OrderStatus, to: OrderStatus) =>
+const NOT_IN_EXPECTED_STATE = (from: readonly OrderStatus[], to: OrderStatus) =>
   new ConflictException({
     error: "InvalidOrderTransition",
-    message: `Order is not in "${from}" — cannot transition to "${to}"`,
+    message: `Order is not in ${from.map((s) => `"${s}"`).join(" or ")} — cannot transition to "${to}"`,
   });
 
-// Admin fulfillment (PAYMENTS.md §3, DECISIONS.md ADR-022) — the manual
-// counterpart to ManualShippingProvider's customer-facing quote path. Each
-// transition is a guarded conditional update (`WHERE status = <expected>`),
-// the same idiom as ReservationExpiryService/PaymentsWebhookService, not a
-// read-then-write: a zero-row match means the order wasn't in the state
-// this transition applies to, and throws rather than silently no-opping —
-// unlike those two (which are intentionally idempotent no-ops for retried
-// webhook/sweep deliveries), a *manual* admin action calling this on the
-// wrong order state is a real mistake that should surface as an error.
-//
-// Deliberately scoped to CONFIRMED -> READY_TO_SHIP -> SHIPPED -> DELIVERED
-// only — the IN_PRODUCTION branch and productionTimeDays tracking for
-// made-to-order items are the separate "made-to-order production-time
-// flow" roadmap item, not built here (ROADMAP.md Phase 4).
+// Admin fulfillment (PAYMENTS.md §3, DECISIONS.md ADR-022/ADR-030) — the
+// manual counterpart to ManualShippingProvider's customer-facing quote
+// path. Each transition is a guarded conditional update (`WHERE status =
+// <expected>`), the same idiom as ReservationExpiryService/
+// PaymentsWebhookService, not a read-then-write: a zero-row match means the
+// order wasn't in the state this transition applies to, and throws rather
+// than silently no-opping — unlike those two (which are intentionally
+// idempotent no-ops for retried webhook/sweep deliveries), a *manual*
+// admin action calling this on the wrong order state is a real mistake
+// that should surface as an error.
 @Injectable()
 export class AdminOrdersService {
   constructor(private readonly prisma: PrismaService) {}
 
+  // READY_TO_SHIP has two valid predecessors (PAYMENTS.md §3): CONFIRMED
+  // for ready-to-ship-only orders, IN_PRODUCTION once a made-to-order
+  // order's production finishes (ADR-030) — the webhook branches an order
+  // to one or the other at confirmation time, this transition accepts
+  // whichever it landed on.
+  private static readonly READY_TO_SHIP_PREDECESSORS = [
+    OrderStatus.CONFIRMED,
+    OrderStatus.IN_PRODUCTION,
+  ] as const;
+
   async markReadyToShip(orderId: string): Promise<FulfillmentResponse> {
     const updated = await this.prisma.order.updateMany({
-      where: { id: orderId, status: OrderStatus.CONFIRMED },
+      where: { id: orderId, status: { in: [...AdminOrdersService.READY_TO_SHIP_PREDECESSORS] } },
       data: { status: OrderStatus.READY_TO_SHIP },
     });
     if (updated.count === 0) {
-      throw NOT_IN_EXPECTED_STATE(OrderStatus.CONFIRMED, OrderStatus.READY_TO_SHIP);
+      throw NOT_IN_EXPECTED_STATE(
+        AdminOrdersService.READY_TO_SHIP_PREDECESSORS,
+        OrderStatus.READY_TO_SHIP,
+      );
     }
 
     return this.toResponse(orderId);
@@ -47,7 +56,7 @@ export class AdminOrdersService {
         data: { status: OrderStatus.SHIPPED },
       });
       if (updated.count === 0) {
-        throw NOT_IN_EXPECTED_STATE(OrderStatus.READY_TO_SHIP, OrderStatus.SHIPPED);
+        throw NOT_IN_EXPECTED_STATE([OrderStatus.READY_TO_SHIP], OrderStatus.SHIPPED);
       }
 
       // A plain create, not an upsert: Shipment.orderId is a plain indexed
@@ -77,7 +86,7 @@ export class AdminOrdersService {
         data: { status: OrderStatus.DELIVERED },
       });
       if (updated.count === 0) {
-        throw NOT_IN_EXPECTED_STATE(OrderStatus.SHIPPED, OrderStatus.DELIVERED);
+        throw NOT_IN_EXPECTED_STATE([OrderStatus.SHIPPED], OrderStatus.DELIVERED);
       }
 
       const shipment = await tx.shipment.findFirstOrThrow({

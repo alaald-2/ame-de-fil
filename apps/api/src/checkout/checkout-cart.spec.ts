@@ -74,6 +74,39 @@ describe("buildOrderItemSnapshot", () => {
       lineSubtotalMinor: 59800,
       lineTotalMinor: 59800,
       lineTaxMinor: 11960,
+      madeToOrder: false,
+      productionTimeDaysSnapshot: null,
     });
+  });
+
+  // Regression for DECISIONS.md ADR-030: the snapshot must capture
+  // InventoryItem.tracksStock/productionTimeDays at checkout-start, not
+  // read them live later.
+  it("snapshots madeToOrder and productionTimeDaysSnapshot from a made-to-order variant", () => {
+    const item = makeItem({
+      variant: {
+        ...makeItem().variant,
+        inventoryItem: { tracksStock: false, productionTimeDays: 14 },
+      },
+    } as never);
+
+    const snapshot = buildOrderItemSnapshot(item, "sv-SE", "sv-SE", 25);
+
+    expect(snapshot.madeToOrder).toBe(true);
+    expect(snapshot.productionTimeDaysSnapshot).toBe(14);
+  });
+
+  it("snapshots madeToOrder=false and a null productionTimeDaysSnapshot for a stock-tracked variant", () => {
+    const item = makeItem({
+      variant: {
+        ...makeItem().variant,
+        inventoryItem: { tracksStock: true, productionTimeDays: null },
+      },
+    } as never);
+
+    const snapshot = buildOrderItemSnapshot(item, "sv-SE", "sv-SE", 25);
+
+    expect(snapshot.madeToOrder).toBe(false);
+    expect(snapshot.productionTimeDaysSnapshot).toBeNull();
   });
 });

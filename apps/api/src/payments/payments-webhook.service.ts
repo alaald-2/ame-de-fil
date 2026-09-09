@@ -199,9 +199,20 @@ export class PaymentsWebhookService {
     // Made-to-order lines (tracksStock=false) have no StockReservation row
     // at all and never blocked this — an order with zero reservations
     // (all made-to-order) confirms here too, having taken no action above.
+    //
+    // PAYMENTS.md §3 / DECISIONS.md ADR-030: an order with any made-to-order
+    // line lands on IN_PRODUCTION instead of CONFIRMED. lockOrderReservationsForUpdate's
+    // result can't answer this — made-to-order lines are excluded from that
+    // query by construction (no StockReservation row exists for them at
+    // all) — so this checks OrderItem.madeToOrder directly instead.
+    const hasMadeToOrderItems =
+      (await tx.orderItem.count({ where: { orderId, madeToOrder: true } })) > 0;
     await tx.order.updateMany({
       where: { id: orderId, status: OrderStatus.PENDING_PAYMENT },
-      data: { status: OrderStatus.CONFIRMED, confirmedAt: new Date() },
+      data: {
+        status: hasMadeToOrderItems ? OrderStatus.IN_PRODUCTION : OrderStatus.CONFIRMED,
+        confirmedAt: new Date(),
+      },
     });
   }
 

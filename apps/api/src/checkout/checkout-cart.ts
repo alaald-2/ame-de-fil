@@ -49,6 +49,11 @@ export interface OrderItemSnapshot extends PricedLine {
   productNameSnapshot: string;
   variantLabelSnapshot: string;
   skuSnapshot: string;
+  // DECISIONS.md ADR-030 — snapshot of InventoryItem.tracksStock/
+  // productionTimeDays at checkout-start, immutable from then on (same
+  // principle as the price/tax/name snapshots above).
+  madeToOrder: boolean;
+  productionTimeDaysSnapshot: number | null;
 }
 
 export function buildOrderItemSnapshot(
@@ -62,6 +67,8 @@ export function buildOrderItemSnapshot(
     productNameSnapshot: resolveProductName(item, requestedLocale, defaultLocale),
     variantLabelSnapshot: resolveVariantLabel(item, requestedLocale),
     skuSnapshot: item.variant.sku,
+    madeToOrder: !(item.variant.inventoryItem?.tracksStock ?? true),
+    productionTimeDaysSnapshot: item.variant.inventoryItem?.productionTimeDays ?? null,
     ...priceLine(item.variant.priceMinor, item.quantity, taxRatePercent),
   };
 }

@@ -53,7 +53,11 @@ export interface VariantFixture {
 // `beforeEach` (a fresh, independently-tracked `InventoryItem` per test, so
 // one test's onHand/reserved changes can never leak into another's
 // assertions), unlike `seedShopFixture` above.
-export async function seedVariant(prisma: PrismaService, taxClassId: string): Promise<VariantFixture> {
+export async function seedVariant(
+  prisma: PrismaService,
+  taxClassId: string,
+  options: { tracksStock?: boolean; productionTimeDays?: number | null } = {},
+): Promise<VariantFixture> {
   const id = randomUUID();
   const unitPriceMinor = 10000;
 
@@ -72,7 +76,13 @@ export async function seedVariant(prisma: PrismaService, taxClassId: string): Pr
   });
 
   const inventoryItem = await prisma.inventoryItem.create({
-    data: { productVariantId: variant.id, onHand: 100, reserved: 0, tracksStock: true },
+    data: {
+      productVariantId: variant.id,
+      onHand: 100,
+      reserved: 0,
+      tracksStock: options.tracksStock ?? true,
+      productionTimeDays: options.productionTimeDays ?? null,
+    },
   });
 
   return { variantId: variant.id, inventoryItemId: inventoryItem.id, unitPriceMinor };
@@ -83,11 +93,13 @@ export interface PendingOrderFixture {
   paymentId: string;
   providerPaymentIntentId: string;
   orderItemId: string;
-  stockReservationId: string;
+  // null for a made-to-order line — it never has a StockReservation at
+  // all (checkout.service.ts's real behavior, mirrored here).
+  stockReservationId: string | null;
   inventoryItemId: string;
 }
 
-// Builds an Order/OrderItem/Payment/StockReservation directly (bypassing
+// Builds an Order/OrderItem/Payment/(StockReservation) directly (bypassing
 // CheckoutService.initiate(), which is exercised separately in
 // checkout-flow.integration.spec.ts) — these tests are about
 // ReservationExpiryService/PaymentsWebhookService, which only ever see
@@ -97,7 +109,14 @@ export async function seedPendingOrder(
   prisma: PrismaService,
   shop: ShopFixture,
   variant: VariantFixture,
-  options: { reservationExpiresAt: Date; quantity?: number },
+  options: {
+    reservationExpiresAt?: Date;
+    quantity?: number;
+    // DECISIONS.md ADR-030 — when set, mirrors a made-to-order line: no
+    // StockReservation/reserved-increment at all, and the OrderItem
+    // snapshots madeToOrder/productionTimeDaysSnapshot.
+    madeToOrder?: { productionTimeDaysSnapshot: number | null };
+  } = {},
 ): Promise<PendingOrderFixture> {
   const quantity = options.quantity ?? 1;
   const unitPriceMinor = variant.unitPriceMinor;
@@ -139,23 +158,32 @@ export async function seedPendingOrder(
       taxRatePercent: 25,
       lineSubtotalMinor,
       lineTotalMinor: lineSubtotalMinor,
+      madeToOrder: options.madeToOrder !== undefined,
+      productionTimeDaysSnapshot: options.madeToOrder?.productionTimeDaysSnapshot ?? null,
     },
   });
 
-  await prisma.inventoryItem.update({
-    where: { id: variant.inventoryItemId },
-    data: { reserved: { increment: quantity } },
-  });
+  let stockReservationId: string | null = null;
+  if (!options.madeToOrder) {
+    if (!options.reservationExpiresAt) {
+      throw new Error("reservationExpiresAt is required unless madeToOrder is set");
+    }
+    await prisma.inventoryItem.update({
+      where: { id: variant.inventoryItemId },
+      data: { reserved: { increment: quantity } },
+    });
 
-  const stockReservation = await prisma.stockReservation.create({
-    data: {
-      orderItemId: orderItem.id,
-      inventoryItemId: variant.inventoryItemId,
-      quantity,
-      status: StockReservationStatus.PENDING,
-      expiresAt: options.reservationExpiresAt,
-    },
-  });
+    const stockReservation = await prisma.stockReservation.create({
+      data: {
+        orderItemId: orderItem.id,
+        inventoryItemId: variant.inventoryItemId,
+        quantity,
+        status: StockReservationStatus.PENDING,
+        expiresAt: options.reservationExpiresAt,
+      },
+    });
+    stockReservationId = stockReservation.id;
+  }
 
   const providerPaymentIntentId = `pi_test_${order.id}`;
   const payment = await prisma.payment.create({
@@ -174,7 +202,7 @@ export async function seedPendingOrder(
     paymentId: payment.id,
     providerPaymentIntentId,
     orderItemId: orderItem.id,
-    stockReservationId: stockReservation.id,
+    stockReservationId,
     inventoryItemId: variant.inventoryItemId,
   };
 }

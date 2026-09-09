@@ -25,13 +25,13 @@ describe("AdminOrdersService — real Postgres", () => {
     await stopTestDatabase(db);
   });
 
-  async function seedConfirmedOrder(): Promise<string> {
+  async function seedConfirmedOrder(status: OrderStatus = OrderStatus.CONFIRMED): Promise<string> {
     const order = await db.prisma.order.create({
       data: {
         orderNumber: `TEST-${randomUUID()}`,
         guestEmail: "fulfillment-test@example.com",
         locale: Locale.sv_SE,
-        status: OrderStatus.CONFIRMED,
+        status,
         currency: Currency.SEK,
         subtotalMinor: 10000,
         shippingMinor: shop.shippingPriceMinor,
@@ -100,5 +100,25 @@ describe("AdminOrdersService — real Postgres", () => {
 
     const order = await db.prisma.order.findUniqueOrThrow({ where: { id: orderId } });
     expect(order.status).toBe(OrderStatus.READY_TO_SHIP); // unchanged
+  });
+
+  // DECISIONS.md ADR-030: a made-to-order order lands on IN_PRODUCTION at
+  // confirmation time — READY_TO_SHIP must be reachable from it directly,
+  // not just from CONFIRMED, against the real DB guard (not just a mock
+  // that can't distinguish the two WHERE-clause shapes).
+  it("walks a real order through IN_PRODUCTION -> READY_TO_SHIP -> SHIPPED -> DELIVERED", async () => {
+    const orderId = await seedConfirmedOrder(OrderStatus.IN_PRODUCTION);
+
+    await service.markReadyToShip(orderId);
+    let order = await db.prisma.order.findUniqueOrThrow({ where: { id: orderId } });
+    expect(order.status).toBe(OrderStatus.READY_TO_SHIP);
+
+    await service.markShipped(orderId, {});
+    order = await db.prisma.order.findUniqueOrThrow({ where: { id: orderId } });
+    expect(order.status).toBe(OrderStatus.SHIPPED);
+
+    await service.markDelivered(orderId);
+    order = await db.prisma.order.findUniqueOrThrow({ where: { id: orderId } });
+    expect(order.status).toBe(OrderStatus.DELIVERED);
   });
 });

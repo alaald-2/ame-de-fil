@@ -41,7 +41,9 @@ Klarna/Swish payment methods via Stripe (ADR-014), shipment tracking via `Manual
 
 **Shipment tracking: implemented** (`DECISIONS.md` ADR-029) — admin endpoints for `CONFIRMED → READY_TO_SHIP → SHIPPED → DELIVERED`, with carrier name/tracking number recorded on `Shipment` (`ManualShippingProvider`'s admin-entered model, ADR-022). The `IN_PRODUCTION` branch for made-to-order items is deliberately not built here — see the next item — and there's no admin UI yet (Phase 5's "order management" scope will call these endpoints).
 
-Made-to-order production-time flow, transactional email, and abandoned-checkout handling remain unbuilt.
+**Made-to-order production-time flow: implemented** (`DECISIONS.md` ADR-030) — orders with made-to-order lines land on `IN_PRODUCTION` instead of `CONFIRMED` at confirmation time (`OrderItem.madeToOrder`/`productionTimeDaysSnapshot`, snapshotted at checkout), and `markReadyToShip` accepts `IN_PRODUCTION` as a predecessor alongside `CONFIRMED`. Verified live end-to-end (real checkout → real webhook → `IN_PRODUCTION` → admin `ready-to-ship`), plus a regression check that ready-to-ship-only orders are unaffected. Not built: an "estimated ready date" computed/surfaced anywhere — a Phase 5 display concern layered on the now-persisted `productionTimeDaysSnapshot`, not state-machine work.
+
+Transactional email and abandoned-checkout handling remain unbuilt.
 
 ## Phase 5 — Admin dashboard
 

@@ -65,7 +65,7 @@ describe("reservation expiry vs. payment-success — real Postgres", () => {
     expect(inventory.reserved).toBe(0); // decremented once, not twice
 
     const reservation = await db.prisma.stockReservation.findUniqueOrThrow({
-      where: { id: order.stockReservationId },
+      where: { id: order.stockReservationId! },
     });
     expect(reservation.status).toBe(StockReservationStatus.EXPIRED);
 
@@ -121,7 +121,7 @@ describe("reservation expiry vs. payment-success — real Postgres", () => {
     expect(payment.status).toBe(PaymentStatus.PAID);
 
     const reservation = await db.prisma.stockReservation.findUniqueOrThrow({
-      where: { id: order.stockReservationId },
+      where: { id: order.stockReservationId! },
     });
     expect(reservation.status).toBe(StockReservationStatus.EXPIRED); // never CONSUMED
 
@@ -173,5 +173,54 @@ describe("reservation expiry vs. payment-success — real Postgres", () => {
     });
     expect(inventory.onHand).toBe(100);
     expect(inventory.reserved).toBe(0);
+  });
+
+  // DECISIONS.md ADR-030: a made-to-order order has no StockReservation at
+  // all (excluded from lockOrderReservationsForUpdate's query by
+  // construction), so confirming it must come from OrderItem.madeToOrder
+  // directly, not from the reservations result.
+  it("lands a made-to-order order on IN_PRODUCTION (not CONFIRMED) with no inventory writes at all", async () => {
+    const madeToOrderVariant = await seedVariant(db.prisma, shop.taxClassId, {
+      tracksStock: false,
+      productionTimeDays: 14,
+    });
+    const order = await seedPendingOrder(db.prisma, shop, madeToOrderVariant, {
+      madeToOrder: { productionTimeDaysSnapshot: 14 },
+    });
+    expect(order.stockReservationId).toBeNull();
+
+    await webhook.handle(succeededEvent(order.providerPaymentIntentId, `evt_production_${order.orderId}`));
+
+    const finalOrder = await db.prisma.order.findUniqueOrThrow({ where: { id: order.orderId } });
+    expect(finalOrder.status).toBe(OrderStatus.IN_PRODUCTION);
+
+    const payment = await db.prisma.payment.findUniqueOrThrow({ where: { id: order.paymentId } });
+    expect(payment.status).toBe(PaymentStatus.PAID);
+
+    const orderItem = await db.prisma.orderItem.findUniqueOrThrow({ where: { id: order.orderItemId } });
+    expect(orderItem.madeToOrder).toBe(true);
+    expect(orderItem.productionTimeDaysSnapshot).toBe(14);
+
+    const movements = await db.prisma.inventoryMovement.count({
+      where: { relatedOrderItemId: order.orderItemId },
+    });
+    expect(movements).toBe(0);
+
+    const inventory = await db.prisma.inventoryItem.findUniqueOrThrow({
+      where: { id: madeToOrderVariant.inventoryItemId },
+    });
+    expect(inventory.onHand).toBe(100); // untouched — nothing was ever reserved
+    expect(inventory.reserved).toBe(0);
+  });
+
+  it("confirms a ready-to-ship-only order onto CONFIRMED, not IN_PRODUCTION (regression)", async () => {
+    const order = await seedPendingOrder(db.prisma, shop, variant, {
+      reservationExpiresAt: new Date(Date.now() + 15 * 60_000),
+    });
+
+    await webhook.handle(succeededEvent(order.providerPaymentIntentId, `evt_regression_${order.orderId}`));
+
+    const finalOrder = await db.prisma.order.findUniqueOrThrow({ where: { id: order.orderId } });
+    expect(finalOrder.status).toBe(OrderStatus.CONFIRMED);
   });
 });
