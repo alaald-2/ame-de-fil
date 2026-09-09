@@ -56,7 +56,9 @@ Because auth is cookie-based, state-changing requests need CSRF protection beyon
 
 ## 9. Audit logging
 
-Every admin-privileged mutation (product publish/unpublish, price change, refund, role change, discount creation) writes an `AuditLog` row: actor, action, target entity, before/after (where feasible), timestamp, IP. Audit logs are append-only (no update/delete path exposed, even to admins) and excluded from the standard data-retention/erasure flow for the retention period required by financial record-keeping law (distinct from marketing-data GDPR erasure, §10).
+**Requirement:** every admin-privileged mutation (product publish/unpublish, price change, refund, role change, discount creation) is to write an `AuditLog` row: actor, action, target entity, before/after (where feasible), timestamp, IP. Audit logs are append-only (no update/delete path exposed, even to admins) and excluded from the standard data-retention/erasure flow for the retention period required by financial record-keeping law (distinct from marketing-data GDPR erasure, §10).
+
+**Implemented so far: none.** The `AuditLog` Prisma model exists (`DATABASE.md`) and `apps/api/src/audit/audit.module.ts` is registered in `AppModule`, but it's an empty module — no admin mutation (`admin/products`, `admin/inventory`, `admin/orders`, `admin/checkout`) writes to it yet. Until this ships, the "audited role changes" mitigation §11's threat table lists against privilege escalation is a design intent, not an active control. Wiring `AuditLog` writes into the admin mutations that already exist is a small, self-contained next step — it needs no new admin UI.
 
 ## 10. GDPR-oriented design
 

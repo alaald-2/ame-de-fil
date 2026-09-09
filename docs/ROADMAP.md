@@ -47,6 +47,8 @@ Klarna/Swish payment methods via Stripe (ADR-014), shipment tracking via `Manual
 
 Abandoned-checkout handling remains unbuilt.
 
+**Real auth entry point (login, logout, session issuance) remains unbuilt.** `IdentityModule`'s `SessionService`/`PasswordService` (Phase 1's "auth core... skeleton") are the session/password building blocks `SessionAuthGuard`/`PermissionsGuard`/`CsrfGuard` already depend on, but there is no HTTP endpoint that actually creates a session — every admin-only route shipped so far (`admin/products`, `admin/inventory`, `admin/checkout`, `admin/orders`) is consequently unreachable by any real client, only callable in tests that seed a `Session` row directly. This should land before or alongside Phase 5's admin dashboard, since none of that surface is usable by real admin staff without it.
+
 ## Phase 5 — Admin dashboard
 
 Full admin scope from `PRODUCT_SPEC.md` §5: dashboard metrics, order management (incl. refunds), inventory management (reservations/movements/low-stock alerts), customer management, RBAC/user administration, audit log viewer.

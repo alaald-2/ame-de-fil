@@ -5,6 +5,8 @@ Versions were verified against current documentation/release notes as of **2026-
 
 Status legend: ✅ Decided · 🟡 Decided, revisit at scale · ❓ Needs product input (see `ROADMAP.md` and `PRODUCT_SPEC.md` §6 for the open items)
 
+**This marks the decision as final, not the implementation as complete or verified.** An ADR's own "Verified (not asserted)" note — not the ✅ — is what confirms its code has actually been run and checked; an ADR can be ✅ with no such note yet (nothing to verify at decision time), or with a disclosed implementation gap in its own text (e.g. ADR-015, ADR-017 below). Check `ROADMAP.md` for what's actually shipped.
+
 ---
 
 ## ADR-001: Package manager — pnpm ✅
@@ -107,6 +109,7 @@ Status legend: ✅ Decided · 🟡 Decided, revisit at scale · ❓ Needs produc
 **Alternatives:** Lucia (**deprecated March 2025** — the npm package is now explicitly a "learning resource, not a library," so it cannot be a dependency), Auth.js/NextAuth (in security-only maintenance mode, and — more importantly — it's a _Next.js_-shaped solution; putting auth in Next.js would contradict the brief's requirement that NestJS is the single source of truth, since `admin` and any future client would then depend on the storefront's auth), Passport.js strategies inside Nest (viable but adds an abstraction layer for a fairly simple session model; revisit if OAuth/social login is added).
 **WhyःNestJS owns auth:** consistent with "NestJS is the source of truth" for every other domain — the storefront and admin are just authenticated HTTP clients of the API, never independent auth authorities.
 **Consequences:** MFA-readiness = TOTP secret column on `User`, unused until MFA ships; RBAC via `Role`/`Permission` tables (`DATABASE.md`, `SECURITY.md`).
+**Note:** no login/registration/logout HTTP endpoint exists yet — `SessionService`/`PasswordService` (`apps/api/src/identity/`) are the session/password building blocks this design specifies, not a callable auth surface. Every admin-only route enforces `SessionAuthGuard`, so the entire admin API is unreachable by a real client until this ships (`ROADMAP.md` Phase 4).
 
 ## ADR-016: Testing stack ✅
 
@@ -119,6 +122,7 @@ Status legend: ✅ Decided · 🟡 Decided, revisit at scale · ❓ Needs produc
 **Decision:** GitHub Actions pipelines gated on lint → typecheck → unit → integration → build → E2E → security scan, with Turborepo remote caching to keep CI fast as the monorepo grows.
 **Why:** repository already lives on GitHub (`origin` → `github.com/alaald-2/ame-de-fil`); no reason to introduce a second CI system.
 **Consequences:** see `DEPLOYMENT.md`.
+**Note:** no CI pipeline exists yet — `.github/workflows` is empty; `lint`/`typecheck`/`test`/`test:integration`/`build` are only ever run locally so far (ADR-027 separately disclosed this same gap for the integration-test suite specifically).
 
 ## ADR-018: Containerization — Docker, multi-stage builds ✅
 

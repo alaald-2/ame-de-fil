@@ -1,6 +1,8 @@
 # Testing Strategy — Âme de Fil
 
-No tests are implemented in this phase — this document defines the strategy so implementation (Phase 1+) builds tests alongside features, not after.
+This document defines the target strategy; §§1–6 below describe the intended shape of each layer, not a claim that all of them are equally built out.
+
+**Current status** (`pnpm --filter @ame-de-fil/api test` / `test:integration`, most recently confirmed at `DECISIONS.md` ADR-031): 303 unit tests (Vitest, mocked Prisma/services — §2) and 14 integration tests (Vitest + Testcontainers, real Postgres — §3) pass. The §4 "API tests" layer — a real Nest application booted in-memory, Supertest exercising the actual HTTP surface (auth/authorization status codes, DTO validation) — exists for 2 of 13 controllers today (`health.controller.spec.ts`, `orders.controller.spec.ts`); every other `*.controller.spec.ts` is a unit test with a mocked service injected directly, not a real HTTP request through `SessionAuthGuard`/`PermissionsGuard`/`CsrfGuard`. No E2E (Playwright) suite exists yet (§5).
 
 ## 1. Pyramid
 
