@@ -22,6 +22,7 @@ import type { Env } from "@ame-de-fil/config";
 import { OptionalAuth } from "../common/decorators/optional-auth.decorator.ts";
 import { CurrentUser } from "../common/decorators/current-user.decorator.ts";
 import { ZodValidationPipe } from "../common/pipes/zod-validation.pipe.ts";
+import { ApiErrorResponses } from "../common/api-error-responses.ts";
 import { toOpenApiSchema } from "../common/zod-openapi.ts";
 import { resolveCartIdentity } from "../common/cart-identity.ts";
 import type { AuthContext } from "../common/types/auth-context.ts";
@@ -51,6 +52,7 @@ export class CheckoutController {
   @ApiHeader({ name: IDEMPOTENCY_KEY_HEADER, required: true })
   @ApiBody({ schema: toOpenApiSchema(initiateCheckoutSchema) })
   @ApiCreatedResponse({ schema: toOpenApiSchema(checkoutResponseSchema) })
+  @ApiErrorResponses(400, 401, 403, 409)
   async initiate(
     @Req() request: Request,
     @CurrentUser() auth: AuthContext | undefined,

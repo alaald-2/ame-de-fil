@@ -4,6 +4,7 @@ import { OptionalAuth } from "../common/decorators/optional-auth.decorator.ts";
 import { CurrentUser } from "../common/decorators/current-user.decorator.ts";
 import { RateLimit } from "../common/rate-limit/rate-limit.decorator.ts";
 import { ZodValidationPipe } from "../common/pipes/zod-validation.pipe.ts";
+import { ApiErrorResponses } from "../common/api-error-responses.ts";
 import { ApiZodParam, toOpenApiSchema } from "../common/zod-openapi.ts";
 import type { AuthContext } from "../common/types/auth-context.ts";
 import { OrdersService } from "./orders.service.ts";
@@ -41,6 +42,7 @@ export class OrdersController {
     description: "Required for a guest (unauthenticated) caller; ignored for an authenticated one",
   })
   @ApiOkResponse({ schema: toOpenApiSchema(orderStatusResponseSchema) })
+  @ApiErrorResponses(400, 401, 404, 429)
   async getStatus(
     @Param(new ZodValidationPipe(orderIdParamSchema)) params: OrderIdParam,
     @CurrentUser() auth: AuthContext | undefined,

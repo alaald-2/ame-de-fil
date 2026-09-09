@@ -20,6 +20,7 @@ import {
 import { CurrentUser } from "../common/decorators/current-user.decorator.ts";
 import { RequirePermissions } from "../common/decorators/require-permissions.decorator.ts";
 import { ZodValidationPipe } from "../common/pipes/zod-validation.pipe.ts";
+import { ApiErrorResponses } from "../common/api-error-responses.ts";
 import { ApiZodParam, ApiZodQuery, toOpenApiSchema } from "../common/zod-openapi.ts";
 import { paginationQuerySchema, type PaginationQuery } from "../common/dto/pagination.schema.ts";
 import type { AuthContext } from "../common/types/auth-context.ts";
@@ -46,6 +47,7 @@ export class InventoryController {
   @ApiOperation({ summary: "List inventory items with stock/availability" })
   @ApiZodQuery(paginationQuerySchema)
   @ApiOkResponse({ schema: toOpenApiSchema(listInventoryResponseSchema) })
+  @ApiErrorResponses(400, 401, 403)
   @UsePipes(new ZodValidationPipe(paginationQuerySchema))
   async list(@Query() query: PaginationQuery) {
     return this.inventory.list(query.page, query.pageSize);
@@ -56,6 +58,7 @@ export class InventoryController {
   @ApiOperation({ summary: "Get one variant's inventory item with recent movement history" })
   @ApiZodParam(variantIdParamSchema)
   @ApiOkResponse({ schema: toOpenApiSchema(inventoryDetailResponseSchema) })
+  @ApiErrorResponses(400, 401, 403, 404)
   async getOne(@Param(new ZodValidationPipe(variantIdParamSchema)) params: VariantIdParam) {
     return this.inventory.getByVariantId(params.variantId);
   }
@@ -67,6 +70,7 @@ export class InventoryController {
   @ApiZodParam(variantIdParamSchema)
   @ApiBody({ schema: toOpenApiSchema(adjustStockSchema) })
   @ApiCreatedResponse({ schema: toOpenApiSchema(inventoryItemResponseSchema) })
+  @ApiErrorResponses(400, 401, 403, 404)
   async adjust(
     @Param(new ZodValidationPipe(variantIdParamSchema)) params: VariantIdParam,
     @Body(new ZodValidationPipe(adjustStockSchema)) body: AdjustStockInput,

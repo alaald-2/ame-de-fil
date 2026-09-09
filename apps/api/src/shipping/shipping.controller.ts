@@ -2,6 +2,7 @@ import { Controller, Get, Inject, Query, UsePipes } from "@nestjs/common";
 import { ApiOkResponse, ApiOperation, ApiTags } from "@nestjs/swagger";
 import { Public } from "../common/decorators/public.decorator.ts";
 import { ZodValidationPipe } from "../common/pipes/zod-validation.pipe.ts";
+import { ApiErrorResponses } from "../common/api-error-responses.ts";
 import { ApiZodQuery, toOpenApiSchema } from "../common/zod-openapi.ts";
 import { localeQuerySchema, type LocaleQuery } from "../common/dto/locale-query.schema.ts";
 import { SHIPPING_PROVIDER, type ShippingProvider } from "./shipping-provider.ts";
@@ -19,6 +20,7 @@ export class ShippingController {
   @ApiOperation({ summary: "List active shipping methods with their flat-rate price" })
   @ApiZodQuery(localeQuerySchema)
   @ApiOkResponse({ schema: toOpenApiSchema(listShippingMethodsResponseSchema) })
+  @ApiErrorResponses(400)
   @UsePipes(new ZodValidationPipe(localeQuerySchema))
   async list(@Query() query: LocaleQuery) {
     const quotes = await this.shipping.listAvailableMethods();

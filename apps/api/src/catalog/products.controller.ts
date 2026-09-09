@@ -2,6 +2,7 @@ import { Controller, Get, Param, Query, UsePipes } from "@nestjs/common";
 import { ApiOkResponse, ApiOperation, ApiTags } from "@nestjs/swagger";
 import { Public } from "../common/decorators/public.decorator.ts";
 import { ZodValidationPipe } from "../common/pipes/zod-validation.pipe.ts";
+import { ApiErrorResponses } from "../common/api-error-responses.ts";
 import { ApiZodParam, ApiZodQuery, toOpenApiSchema } from "../common/zod-openapi.ts";
 import { ProductsService } from "./products.service.ts";
 import { listProductsQuerySchema, type ListProductsQuery } from "./dto/list-products.query.ts";
@@ -25,6 +26,7 @@ export class ProductsController {
   @ApiOperation({ summary: "List published products, optionally filtered by category/collection" })
   @ApiZodQuery(listProductsQuerySchema)
   @ApiOkResponse({ schema: toOpenApiSchema(listProductsResponseSchema) })
+  @ApiErrorResponses(400)
   @UsePipes(new ZodValidationPipe(listProductsQuerySchema))
   async list(@Query() query: ListProductsQuery) {
     return this.products.list(query);
@@ -35,6 +37,7 @@ export class ProductsController {
   @ApiZodParam(slugParamSchema)
   @ApiZodQuery(localeQuerySchema)
   @ApiOkResponse({ schema: toOpenApiSchema(productResponseSchema) })
+  @ApiErrorResponses(400, 404)
   async getBySlug(
     @Param(new ZodValidationPipe(slugParamSchema)) params: SlugParam,
     @Query(new ZodValidationPipe(localeQuerySchema)) query: LocaleQuery,

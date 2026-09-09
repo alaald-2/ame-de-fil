@@ -2,6 +2,7 @@ import { Body, Controller, HttpCode, HttpStatus, Post, UsePipes } from "@nestjs/
 import { ApiBody, ApiCookieAuth, ApiCreatedResponse, ApiOperation, ApiTags } from "@nestjs/swagger";
 import { RequirePermissions } from "../common/decorators/require-permissions.decorator.ts";
 import { ZodValidationPipe } from "../common/pipes/zod-validation.pipe.ts";
+import { ApiErrorResponses } from "../common/api-error-responses.ts";
 import { toOpenApiSchema } from "../common/zod-openapi.ts";
 import { AdminProductsService } from "./admin-products.service.ts";
 import { createProductSchema, type CreateProductInput } from "./dto/create-product.dto.ts";
@@ -25,6 +26,7 @@ export class AdminProductsController {
   @ApiOperation({ summary: "Create a product with its translations, options, and variants" })
   @ApiBody({ schema: toOpenApiSchema(createProductSchema) })
   @ApiCreatedResponse({ schema: toOpenApiSchema(createProductResponseSchema) })
+  @ApiErrorResponses(400, 401, 403)
   @UsePipes(new ZodValidationPipe(createProductSchema))
   async create(@Body() body: CreateProductInput) {
     return this.adminProducts.createProduct(body);

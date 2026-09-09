@@ -18,6 +18,7 @@ import type { Env } from "@ame-de-fil/config";
 import { OptionalAuth } from "../common/decorators/optional-auth.decorator.ts";
 import { CurrentUser } from "../common/decorators/current-user.decorator.ts";
 import { ZodValidationPipe } from "../common/pipes/zod-validation.pipe.ts";
+import { ApiErrorResponses } from "../common/api-error-responses.ts";
 import { ApiZodParam, ApiZodQuery, toOpenApiSchema } from "../common/zod-openapi.ts";
 import { localeQuerySchema, type LocaleQuery } from "../common/dto/locale-query.schema.ts";
 import type { AuthContext } from "../common/types/auth-context.ts";
@@ -49,6 +50,7 @@ export class CartController {
   @ApiOperation({ summary: "Get the current cart (guest or signed-in) — never creates one" })
   @ApiZodQuery(localeQuerySchema)
   @ApiOkResponse({ schema: toOpenApiSchema(cartResponseSchema) })
+  @ApiErrorResponses(400, 401)
   async getCart(
     @Req() request: Request,
     @CurrentUser() auth: AuthContext | undefined,
@@ -64,6 +66,7 @@ export class CartController {
   @ApiZodQuery(localeQuerySchema)
   @ApiBody({ schema: toOpenApiSchema(addItemSchema) })
   @ApiOkResponse({ schema: toOpenApiSchema(cartResponseSchema) })
+  @ApiErrorResponses(400, 401, 403)
   async addItem(
     @Req() request: Request,
     @Res({ passthrough: true }) response: Response,
@@ -85,6 +88,7 @@ export class CartController {
   @ApiZodQuery(localeQuerySchema)
   @ApiBody({ schema: toOpenApiSchema(updateQuantitySchema) })
   @ApiOkResponse({ schema: toOpenApiSchema(cartResponseSchema) })
+  @ApiErrorResponses(400, 401, 403, 404)
   async updateItem(
     @Req() request: Request,
     @CurrentUser() auth: AuthContext | undefined,
@@ -101,6 +105,7 @@ export class CartController {
   @ApiZodParam(itemIdParamSchema)
   @ApiZodQuery(localeQuerySchema)
   @ApiOkResponse({ schema: toOpenApiSchema(cartResponseSchema) })
+  @ApiErrorResponses(400, 401, 403, 404)
   async removeItem(
     @Req() request: Request,
     @CurrentUser() auth: AuthContext | undefined,

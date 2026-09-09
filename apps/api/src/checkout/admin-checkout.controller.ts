@@ -1,6 +1,7 @@
 import { Controller, HttpCode, HttpStatus, Post } from "@nestjs/common";
 import { ApiCookieAuth, ApiOkResponse, ApiOperation, ApiTags } from "@nestjs/swagger";
 import { RequirePermissions } from "../common/decorators/require-permissions.decorator.ts";
+import { ApiErrorResponses } from "../common/api-error-responses.ts";
 import { ReservationExpiryService } from "./reservation-expiry.service.ts";
 
 // No queue/scheduler is provisioned in this environment (see
@@ -29,6 +30,7 @@ export class AdminCheckoutController {
       },
     },
   })
+  @ApiErrorResponses(401, 403)
   async expireReservations() {
     return this.reservationExpiry.releaseExpiredReservations();
   }
