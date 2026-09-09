@@ -31,9 +31,15 @@ Cart, inventory reservation flow (`DATABASE.md` §4), Stripe card Payment Intent
 
 Klarna/Swish (ADR-014's eventual scope for this same Stripe integration) remain unbuilt — Phase 4.
 
-## Phase 4 — Klarna & Swish, fulfillment lifecycle
+## Phase 4 — Klarna & Swish, fulfillment lifecycle 🟡 in progress
 
 Klarna/Swish payment methods via Stripe (ADR-014), shipment tracking via `ManualShippingProvider` (admin-entered, carrier-agnostic — ADR-022), made-to-order production-time flow, transactional email (order confirmation, shipping notification), abandoned-checkout handling.
+
+**Klarna: implemented and verified live** (`DECISIONS.md` ADR-028) — `StripePaymentProvider` now offers `card`+`klarna` via an explicit `payment_method_types` list (matching ADR-014, not the prior `automatic_payment_methods` config). A real checkout through Klarna's actual test-mode sandbox redirect/confirmation flow was run end-to-end, confirming correct order/payment state transitions, inventory movement, and the storefront's existing Payment Element rendering Klarna with no frontend code change needed. `Payment.method` (previously unpopulated) now records which method was actually used, via a new `charge.succeeded` webhook handler.
+
+**Swish: blocked, not a code gap.** Verified live that this Stripe account's Dashboard has not activated Swish — Stripe's API rejects it outright (`"not activated in your dashboard"`), a bank-linked Swedish payment method likely requiring Stripe's own approval. The code is ready: adding `"swish"` to `ENABLED_PAYMENT_METHOD_TYPES` (`stripe-payment.provider.ts`) is the only change needed once activated — no other code, webhook, or frontend work required, since the same generic Stripe PaymentIntents/webhook/Payment Element path already handles it identically to Klarna.
+
+Shipment tracking, made-to-order production-time flow, transactional email, and abandoned-checkout handling remain unbuilt.
 
 ## Phase 5 — Admin dashboard
 

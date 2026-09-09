@@ -20,7 +20,20 @@ const HANDLED_EVENT_TYPES: Record<string, VerifiedWebhookOutcome> = {
   "payment_intent.succeeded": "succeeded",
   "payment_intent.payment_failed": "failed",
   "payment_intent.canceled": "canceled",
+  "charge.succeeded": "paymentMethodRecorded",
 };
+
+// ADR-014/ADR-028: an explicit list, not `automatic_payment_methods` — keeps
+// the offered methods exactly what the business confirmed (ADR-014: card,
+// Klarna, Swish), rather than whatever the Stripe account's Dashboard
+// happens to have toggled on (automatic mode was silently also offering
+// Link/Amazon Pay, neither ever confirmed in scope). "swish" is deferred:
+// verified live against this project's Stripe test account that it's
+// rejected today ("The payment method type 'swish' is invalid... ensure
+// the provided type is activated in your dashboard") — a Stripe
+// Dashboard/account action, not a code gap. Add it back here once
+// activated; no other code change is needed.
+export const ENABLED_PAYMENT_METHOD_TYPES = ["card", "klarna"] as const;
 
 @Injectable()
 export class StripePaymentProvider implements PaymentProvider {
@@ -64,7 +77,7 @@ export class StripePaymentProvider implements PaymentProvider {
       {
         amount: input.amountMinor,
         currency: input.currency.toLowerCase(),
-        automatic_payment_methods: { enabled: true },
+        payment_method_types: [...ENABLED_PAYMENT_METHOD_TYPES],
         metadata: { orderId: input.orderId },
       },
       { idempotencyKey: `checkout-payment-intent:${input.orderId}` },
@@ -100,20 +113,40 @@ export class StripePaymentProvider implements PaymentProvider {
     const event = this.stripe.webhooks.constructEvent(rawBody, signature, this.webhookSecret);
     const outcome = HANDLED_EVENT_TYPES[event.type] ?? "irrelevant";
 
-    // Every event type this provider handles is a payment_intent.* event,
-    // so event.data.object is a PaymentIntent — but Stripe.Event's type is
-    // a discriminated union keyed on event.type, and "irrelevant" events
-    // may carry any object shape at all, so the id is only trusted when the
-    // event is one we actually recognize.
-    const providerPaymentIntentId =
-      outcome === "irrelevant"
-        ? null
-        : ((event.data.object as Stripe.PaymentIntent).id ?? null);
+    if (outcome === "irrelevant") {
+      // May carry any object shape at all — never trust an id off it.
+      return {
+        providerEventId: event.id,
+        eventType: event.type,
+        providerPaymentIntentId: null,
+        outcome,
+        raw: event,
+      };
+    }
 
+    // "paymentMethodRecorded" (charge.succeeded) carries a Stripe.Charge,
+    // not a PaymentIntent — its id is the charge's own id, not the
+    // PaymentIntent's, and the method actually used lives at
+    // payment_method_details.type. Every other handled type is a
+    // payment_intent.* event, so event.data.object is a PaymentIntent there.
+    if (outcome === "paymentMethodRecorded") {
+      const charge = event.data.object as Stripe.Charge;
+      return {
+        providerEventId: event.id,
+        eventType: event.type,
+        providerPaymentIntentId:
+          typeof charge.payment_intent === "string" ? charge.payment_intent : null,
+        outcome,
+        paymentMethodType: charge.payment_method_details?.type ?? null,
+        raw: event,
+      };
+    }
+
+    const paymentIntent = event.data.object as Stripe.PaymentIntent;
     return {
       providerEventId: event.id,
       eventType: event.type,
-      providerPaymentIntentId,
+      providerPaymentIntentId: paymentIntent.id ?? null,
       outcome,
       raw: event,
     };

@@ -20,7 +20,8 @@ interface VerifiedWebhookEvent {
   providerEventId: string;
   eventType: string;
   providerPaymentIntentId: string | null;
-  outcome: "succeeded" | "failed" | "canceled" | "irrelevant";
+  outcome: "succeeded" | "failed" | "canceled" | "paymentMethodRecorded" | "irrelevant";
+  paymentMethodType?: string | null; // set only for "paymentMethodRecorded" — §4's charge.succeeded handling
   raw: unknown;
 }
 
@@ -32,14 +33,19 @@ interface PaymentProvider {
 
 ```
 PaymentProvider
-├── StripePaymentProvider      # implemented — card via Stripe Payment Intents, automatic capture
+├── StripePaymentProvider      # implemented — card + Klarna via Stripe Payment Intents, automatic capture
 │   (KlarnaPaymentProvider / SwishPaymentProvider as direct-integration
 │    implementations are a documented future path, not built — ADR-014;
-│    Klarna/Swish-via-Stripe is also not yet wired even though StripePaymentProvider
-│    could route them — v1 scope is card only)
+│    Swish is deferred — see ADR-028: rejected by Stripe today because it
+│    isn't activated on this account's Dashboard, a Stripe account action,
+│    not a code gap)
 └── PendingPaymentProvider     # fallback when STRIPE_SECRET_KEY/STRIPE_WEBHOOK_SECRET are unset —
                                  records a PENDING Payment row, contacts no processor
 ```
+
+**Payment method types (`ADR-028`):** `StripePaymentProvider.createPayment` passes an explicit `payment_method_types` array (`ENABLED_PAYMENT_METHOD_TYPES` in `stripe-payment.provider.ts`) rather than `automatic_payment_methods` — this keeps the offered methods exactly what ADR-014 confirmed (card, Klarna; Swish once activated), instead of whatever the Stripe account's Dashboard happens to have toggled on (the prior `automatic_payment_methods` config was silently also offering Link and Amazon Pay, neither ever confirmed in scope). Verified live against this project's Stripe test account: `card`+`klarna` accepted; `swish` rejected with `"The payment method type 'swish' is invalid... ensure the provided type is activated in your dashboard"`. Adding Swish back is a one-line change to that array once the Dashboard activates it — no other code change needed.
+
+Klarna is confirmed working end-to-end in Stripe **test mode** (real checkout → real Klarna sandbox redirect and confirmation → real webhook processing, verified live in this checkpoint). Stripe.js itself also warns in the browser console that Klarna "will be displayed in test mode, but hidden in live mode" until activated on the Dashboard — so, like Swish, Klarna will need that same one-time account activation step before a production launch; unlike Swish, it does not block **testing** it today.
 
 `CreatePaymentInput` passed into `createPayment` carries only server-computed amounts (`CheckoutService`'s own totals, never a client-supplied number) — the browser never supplies a total that gets charged. `PaymentsModule` selects between the two implementations at boot via a `useFactory` reading `STRIPE_SECRET_KEY`/`STRIPE_WEBHOOK_SECRET` — this is the same "disclosed rather than faked" posture already used elsewhere in this project for the Docker/reservation-expiry-scheduler gaps, so the app boots and checkout still works end-to-end (with a PENDING-only payment) wherever Stripe test keys aren't available.
 
@@ -97,7 +103,9 @@ Order and Payment are deliberately **separate** state machines (per the brief) �
 3. Its event ID is checked against `WebhookEvent` (idempotency ledger, `DATABASE.md` §2) — if already processed, return 200 and no-op (`payments-webhook.service.ts`).
 4. Inside a DB transaction, the reservation is converted to a commit and the state machines advance (`DATABASE.md` §4) — see §3's matrix below.
 
-**v1 handles a narrower event set than eventually needed**: `payment_intent.succeeded` / `payment_intent.payment_failed` / `payment_intent.canceled` only; every other event type (including `payment_intent.processing`, dispute events) is acknowledged (200) and no-opped, not yet acted on. Automatic capture is used for v1 card payments, so `PaymentStatus.AUTHORIZED` stays unused (reserved for a future manual-capture or Klarna/Swish flow, same posture as `User.totpSecret` under ADR-015).
+**v1 handles a narrower event set than eventually needed**: `payment_intent.succeeded` / `payment_intent.payment_failed` / `payment_intent.canceled` for state transitions, plus `charge.succeeded` for one purely informational purpose (below); every other event type (including `payment_intent.processing`, `payment_intent.requires_action` — seen live for Klarna's redirect step, `charge.updated`, dispute events) is acknowledged (200) and no-opped, not yet acted on. Automatic capture is used for v1 card payments, so `PaymentStatus.AUTHORIZED` stays unused (reserved for a future manual-capture or Klarna/Swish flow, same posture as `User.totpSecret` under ADR-015).
+
+**`charge.succeeded` → `Payment.method` (ADR-028):** the `Payment` model has a `method String?` column recording which underlying method (`"card"`/`"klarna"`/`"swish"`) a payment actually used — populated from this event's `payment_method_details.type`, correlated back to the `Payment` row via `charge.payment_intent` (a Charge's own id is not a PaymentIntent id). Purely informational: this never drives a state transition, is idempotent by construction (writing the same value twice is a no-op in effect), and is handled in a dedicated branch precisely so it can never be mistaken for a failure/cancellation outcome.
 
 **On a definitive failure/cancellation, the reservation is released immediately** (not left to the 15-minute TTL) and the order transitions straight to `CANCELED` — a deliberate extension beyond §3's diagram (which only shows expiry-triggered cancellation), reasoned as: once Stripe has told us definitively the payment won't succeed, there's no reason to make the customer wait out the TTL before retrying checkout.
 

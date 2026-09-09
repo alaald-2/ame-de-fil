@@ -45,6 +45,10 @@ export class PaymentsWebhookService {
         );
       } else if (event.outcome === "succeeded") {
         await this.handleSucceeded(tx, payment, event);
+      } else if (event.outcome === "paymentMethodRecorded") {
+        // Informational only (ADR-028) — never a state transition, so it
+        // must not fall into handleFailedOrCanceled below.
+        await this.recordPaymentMethod(tx, payment, event);
       } else {
         await this.handleFailedOrCanceled(tx, payment, event);
       }
@@ -78,6 +82,25 @@ export class PaymentsWebhookService {
     await this.prisma.webhookEvent.update({
       where: { id: eventId },
       data: { processedAt: new Date() },
+    });
+  }
+
+  // Informational only (ADR-028) — records which underlying method
+  // (card/klarna/swish) a payment actually used, from the charge.succeeded
+  // event's payment_method_details.type. Never a state transition, so no
+  // status guard is needed: an unconditional write is already idempotent
+  // (writing the same value twice is a no-op in effect), and this must
+  // never race against or block handleSucceeded/handleFailedOrCanceled,
+  // which own every actual state change.
+  private async recordPaymentMethod(
+    tx: Prisma.TransactionClient,
+    payment: { id: string },
+    event: VerifiedWebhookEvent,
+  ): Promise<void> {
+    if (!event.paymentMethodType) return;
+    await tx.payment.update({
+      where: { id: payment.id },
+      data: { method: event.paymentMethodType },
     });
   }
 

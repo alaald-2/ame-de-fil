@@ -83,7 +83,7 @@ describe("StripePaymentProvider", () => {
         {
           amount: 64500,
           currency: "sek",
-          automatic_payment_methods: { enabled: true },
+          payment_method_types: ["card", "klarna"],
           metadata: { orderId: "order-1" },
         },
         { idempotencyKey: "checkout-payment-intent:order-1" },
@@ -161,6 +161,40 @@ describe("StripePaymentProvider", () => {
 
       expect(result.outcome).toBe(outcome);
       expect(result.providerPaymentIntentId).toBe("pi_456");
+    });
+
+    it("maps charge.succeeded to outcome 'paymentMethodRecorded', extracting the PaymentIntent id and method type from the Charge object", () => {
+      webhooksConstructEvent.mockReturnValue({
+        id: "evt_charge_1",
+        type: "charge.succeeded",
+        data: {
+          object: {
+            id: "ch_1",
+            payment_intent: "pi_789",
+            payment_method_details: { type: "klarna" },
+          },
+        },
+      });
+      const provider = new StripePaymentProvider(makeConfigMock());
+
+      const result = provider.verifyWebhookSignature(Buffer.from("{}"), "sig");
+
+      expect(result.outcome).toBe("paymentMethodRecorded");
+      expect(result.providerPaymentIntentId).toBe("pi_789"); // from charge.payment_intent, not charge.id
+      expect(result.paymentMethodType).toBe("klarna");
+    });
+
+    it("maps charge.succeeded with no payment_method_details to a null paymentMethodType", () => {
+      webhooksConstructEvent.mockReturnValue({
+        id: "evt_charge_2",
+        type: "charge.succeeded",
+        data: { object: { id: "ch_2", payment_intent: "pi_789", payment_method_details: null } },
+      });
+      const provider = new StripePaymentProvider(makeConfigMock());
+
+      const result = provider.verifyWebhookSignature(Buffer.from("{}"), "sig");
+
+      expect(result.paymentMethodType).toBeNull();
     });
 
     it("maps an unrecognized event type to outcome 'irrelevant' with a null PaymentIntent id", () => {

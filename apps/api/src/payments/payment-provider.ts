@@ -29,13 +29,23 @@ export interface PaymentRecord {
 // The provider-agnostic shape a verified inbound webhook is normalized to
 // before it ever reaches business logic (PaymentsWebhookService) — that
 // service depends only on this, never on a provider SDK's own event type.
-export type VerifiedWebhookOutcome = "succeeded" | "failed" | "canceled" | "irrelevant";
+// "paymentMethodRecorded" is informational only (DECISIONS.md ADR-028) —
+// it never drives an Order/Payment state transition, only records which
+// underlying method (card/klarna/swish) a payment actually used.
+export type VerifiedWebhookOutcome =
+  | "succeeded"
+  | "failed"
+  | "canceled"
+  | "paymentMethodRecorded"
+  | "irrelevant";
 
 export interface VerifiedWebhookEvent {
   providerEventId: string;
   eventType: string;
   providerPaymentIntentId: string | null;
   outcome: VerifiedWebhookOutcome;
+  // Only meaningful (and only ever set) for outcome === "paymentMethodRecorded".
+  paymentMethodType?: string | null;
   raw: unknown;
 }
 

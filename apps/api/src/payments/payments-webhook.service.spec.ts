@@ -6,7 +6,7 @@ import type { PrismaService } from "../database/prisma.service.ts";
 
 function makeTxMock(overrides: Record<string, unknown> = {}) {
   return {
-    payment: { findUnique: vi.fn(), updateMany: vi.fn() },
+    payment: { findUnique: vi.fn(), updateMany: vi.fn(), update: vi.fn() },
     paymentAttempt: { create: vi.fn() },
     order: { updateMany: vi.fn() },
     stockReservation: { findMany: vi.fn(), updateMany: vi.fn(), update: vi.fn() },
@@ -55,6 +55,15 @@ const IRRELEVANT: VerifiedWebhookEvent = {
   providerPaymentIntentId: null,
   outcome: "irrelevant",
   raw: { id: "evt_4" },
+};
+
+const PAYMENT_METHOD_RECORDED: VerifiedWebhookEvent = {
+  providerEventId: "evt_5",
+  eventType: "charge.succeeded",
+  providerPaymentIntentId: "pi_1",
+  outcome: "paymentMethodRecorded",
+  paymentMethodType: "klarna",
+  raw: { id: "evt_5" },
 };
 
 const PAYMENT = { id: "pay-1", orderId: "order-1" };
@@ -317,6 +326,44 @@ describe("PaymentsWebhookService.handle", () => {
       expect(tx.paymentAttempt.create).not.toHaveBeenCalled();
       expect(tx.stockReservation.findMany).not.toHaveBeenCalled();
       expect(tx.order.updateMany).not.toHaveBeenCalled();
+    });
+  });
+
+  describe("charge.succeeded (paymentMethodRecorded — ADR-028)", () => {
+    beforeEach(() => {
+      prisma.webhookEvent.create.mockResolvedValue({});
+      tx.payment.findUnique.mockResolvedValue(PAYMENT);
+    });
+
+    it("records the actual payment method type onto the Payment row", async () => {
+      await service.handle(PAYMENT_METHOD_RECORDED);
+
+      expect(tx.payment.update).toHaveBeenCalledWith({
+        where: { id: "pay-1" },
+        data: { method: "klarna" },
+      });
+      // Purely informational — never touches status, order state, or inventory.
+      expect(tx.payment.updateMany).not.toHaveBeenCalled();
+      expect(tx.order.updateMany).not.toHaveBeenCalled();
+      expect(tx.inventoryItem.update).not.toHaveBeenCalled();
+    });
+
+    it("skips the write when paymentMethodType is null", async () => {
+      await service.handle({ ...PAYMENT_METHOD_RECORDED, paymentMethodType: null });
+
+      expect(tx.payment.update).not.toHaveBeenCalled();
+    });
+
+    it("is a safe no-op when no Payment matches the PaymentIntent id", async () => {
+      tx.payment.findUnique.mockResolvedValue(null);
+
+      await expect(service.handle(PAYMENT_METHOD_RECORDED)).resolves.not.toThrow();
+
+      expect(tx.payment.update).not.toHaveBeenCalled();
+      expect(tx.webhookEvent.update).toHaveBeenCalledWith({
+        where: { id: "evt_5" },
+        data: { processedAt: expect.any(Date) },
+      });
     });
   });
 });

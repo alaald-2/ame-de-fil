@@ -271,3 +271,25 @@ Two spec files, run via a **separate** `pnpm --filter @ame-de-fil/api test:integ
 - No schema change, no CI workflow added (`.github/workflows` doesn't exist yet in this repo — a separate, pre-existing gap, out of scope here); this ADR only adds the test suite and its dedicated script.
 - Some `testcontainers` transitive dependencies (`ssh2`, `cpu-features`, `protobufjs` — its optional remote-Docker-host SSH-tunnel support) had their install scripts blocked by pnpm's supply-chain policy; left blocked rather than approved, since a local-Docker-socket smoke test confirmed the library works correctly without them for this project's use case.
 - **Verified (not asserted):** `pnpm --filter @ame-de-fil/api test:integration` — 2 files, 5 tests, all passing against a real, freshly-provisioned Postgres container, including the genuinely-concurrent race. `pnpm --filter @ame-de-fil/api test` still passes unchanged (42 files, 264 tests — confirming the exclude pattern works and the fast suite is unaffected), as do `lint`/`typecheck`.
+
+## ADR-028: Klarna enabled, Swish deferred (Stripe Dashboard blocker), `Payment.method` populated ✅
+
+**Context:** ADR-014 confirmed routing Card, Klarna, and Swish through one `StripePaymentProvider` using an explicit `payment_method_types: ['card', 'klarna', 'swish']`. The actual Phase 3 implementation instead used `automatic_payment_methods: { enabled: true }`, and ADR-024 left Klarna/Swish "untested and not claimed as working." With Phase 3's live Postgres/Stripe environment now in place, this checkpoint verified both, live, against the real connected Stripe test account.
+
+**Findings, verified live (not assumed):**
+- `payment_method_types: ["card", "klarna"]` → accepted by Stripe's API.
+- `payment_method_types: ["card", "klarna", "swish"]` → rejected: `"The payment method type 'swish' is invalid... ensure the provided type is activated in your dashboard"`. This is a Stripe Dashboard/account action (likely needing Stripe's own approval, since Swish is a bank-linked Swedish method) — not a code gap, and not something fixable from this codebase.
+- A full real checkout → Klarna's actual sandbox redirect/confirmation flow (Playwright-driven, `pm-redirects.stripe.com` → Klarna's `playground.klarna.com` test environment → real "Betala med Klarna" confirmation) → real `payment_intent.succeeded`/`charge.succeeded` webhooks, all processed correctly: `Order.status = CONFIRMED`, `Payment.status = PAID`, `Payment.method = "klarna"`, correct single inventory decrement and `SALE` movement, exactly one `PaymentAttempt`.
+- The storefront's existing `<PaymentElement />` (`payment-step.tsx`) needed **no code change** — it's fully provider-agnostic and rendered both "Card" and "Klarna" as selectable options the moment the backend's PaymentIntent offered them (confirmed visually in a real browser against the running storefront dev server).
+- Stripe.js itself warns in the browser console that Klarna, like Swish, "will be displayed in test mode, but hidden in live mode" until activated on the account's Dashboard — so a production launch will need that same one-time activation step for Klarna too, even though it already works for testing today.
+- A card checkout was re-run afterward as a regression check: unaffected by the switch away from `automatic_payment_methods`, and now also correctly records `Payment.method = "card"`.
+
+**Decision:**
+1. `stripe-payment.provider.ts` now uses an explicit `ENABLED_PAYMENT_METHOD_TYPES = ["card", "klarna"] as const`, passed as `payment_method_types` — matching ADR-014's original decision, and as a side effect no longer silently offering Link/Amazon Pay (`automatic_payment_methods`'s behavior), neither ever confirmed in scope. Swish is deferred: adding it back is a one-line change to this array once Dashboard-activated.
+2. `Payment.method` (an existing, previously-unpopulated schema column) is now written from the `charge.succeeded` webhook event's `payment_method_details.type` — a new `"paymentMethodRecorded"` `VerifiedWebhookOutcome`, handled in its own branch in `PaymentsWebhookService.handle()` so it can never be mistaken for a failure/cancellation outcome. Purely informational, no state-machine impact (`PAYMENTS.md` §4).
+
+**Consequences:**
+- `PAYMENTS.md` §1/§4 updated with the explicit payment-method-types rationale, the live Klarna/Swish findings, and the `charge.succeeded`/`Payment.method` mechanism.
+- `ROADMAP.md` Phase 4 records Klarna as live/verified and Swish as blocked on a real, external, one-line-away Dashboard action — not "not built."
+- No schema migration (the `method` column already existed), no frontend changes.
+- **Verified (not asserted):** `pnpm --filter @ame-de-fil/api test` (269 tests, 5 new), `lint`, `typecheck` all pass. Live: real Klarna checkout end-to-end (above) and a real card-checkout regression check, both against the real local Postgres and Stripe test API.
