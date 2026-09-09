@@ -30,6 +30,7 @@ flowchart TB
         Stripe[Stripe — Card + Klarna + Swish]
         Email[Transactional email provider — TBD]
         Carrier[Shipping carrier — TBD, PostNord/DHL/Bring/other]
+        Google[Google — OAuth/OIDC sign-in]
     end
 
     Browser --> SF
@@ -45,9 +46,13 @@ flowchart TB
     Worker -- transactional sends --> Email
     Stripe -- signed webhooks --> API
     API -.->|"ShippingProvider — v1 is manual, no v1 integration"| Carrier
+    Browser -.->|"OAuth redirect, storefront customers only — never apps/admin"| Google
+    API -- token/userinfo exchange --> Google
 ```
 
 **Key rule (from the brief, non-negotiable):** `storefront` and `admin` never talk to PostgreSQL or Stripe directly. They are authenticated HTTP clients of `apps/api`. All pricing, stock, discount, and payment-status logic is computed and verified server-side.
+
+**Google sign-in is a storefront-customer convenience, not an admin authentication mechanism.** `apps/admin` has exactly one way to authenticate — email/password via `POST /auth/login` (`SECURITY.md` §1, `DECISIONS.md` ADR-032) — the same session/RBAC guard chain every other admin endpoint already depends on. Google OAuth (`DECISIONS.md` ADR-033) exists only as `GET /auth/google`/`GET /auth/google/callback`, reachable from `apps/storefront`; nothing in `apps/admin` calls it, and there is no SSO of any kind for staff.
 
 ## 2. Monorepo structure
 
