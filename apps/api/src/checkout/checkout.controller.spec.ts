@@ -10,6 +10,9 @@ import { CheckoutService } from "./checkout.service.ts";
 import { SessionAuthGuard } from "../common/guards/session-auth.guard.ts";
 import { PermissionsGuard } from "../common/guards/permissions.guard.ts";
 import { CsrfGuard } from "../common/csrf/csrf.guard.ts";
+import { RateLimitGuard } from "../common/rate-limit/rate-limit.guard.ts";
+import { RATE_LIMIT_STORE } from "../common/rate-limit/rate-limit-store.ts";
+import { InMemoryRateLimitStore } from "../common/rate-limit/in-memory-rate-limit.store.ts";
 import { SessionService } from "../identity/session.service.ts";
 import { AllExceptionsFilter } from "../common/filters/all-exceptions.filter.ts";
 import type { AuthContext } from "../common/types/auth-context.ts";
@@ -44,6 +47,8 @@ async function bootApp(validateSession: (token: string) => Promise<AuthContext |
       { provide: APP_GUARD, useClass: SessionAuthGuard },
       { provide: APP_GUARD, useClass: PermissionsGuard },
       { provide: APP_GUARD, useClass: CsrfGuard },
+      { provide: APP_GUARD, useClass: RateLimitGuard },
+      { provide: RATE_LIMIT_STORE, useClass: InMemoryRateLimitStore },
     ],
   }).compile();
 
@@ -184,5 +189,27 @@ describe("POST /checkout", () => {
 
     expect(response.status).toBe(400);
     expect(booted.initiate).not.toHaveBeenCalled();
+  });
+
+  it("returns 429 once the per-IP rate limit is exceeded", async () => {
+    const booted = await bootApp(async () => null);
+    app = booted.app;
+
+    for (let i = 0; i < 10; i++) {
+      const ok = await supertest(app.getHttpServer())
+        .post("/checkout")
+        .set("Cookie", "ame_cart=guest-token")
+        .set("Idempotency-Key", `key-${i}`)
+        .send(VALID_BODY);
+      expect(ok.status).toBe(201);
+    }
+
+    const limited = await supertest(app.getHttpServer())
+      .post("/checkout")
+      .set("Cookie", "ame_cart=guest-token")
+      .set("Idempotency-Key", "key-limited")
+      .send(VALID_BODY);
+
+    expect(limited.status).toBe(429);
   });
 });

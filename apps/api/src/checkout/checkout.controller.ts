@@ -21,6 +21,7 @@ import { ConfigService } from "@nestjs/config";
 import type { Env } from "@ame-de-fil/config";
 import { OptionalAuth } from "../common/decorators/optional-auth.decorator.ts";
 import { CurrentUser } from "../common/decorators/current-user.decorator.ts";
+import { RateLimit } from "../common/rate-limit/rate-limit.decorator.ts";
 import { ZodValidationPipe } from "../common/pipes/zod-validation.pipe.ts";
 import { ApiErrorResponses } from "../common/api-error-responses.ts";
 import { toOpenApiSchema } from "../common/zod-openapi.ts";
@@ -46,13 +47,20 @@ export class CheckoutController {
     private readonly config: ConfigService<Env, true>,
   ) {}
 
+  // Per-IP, not per-account — a guest checkout has no account to key on,
+  // and this must cover both. 10/min is deliberately looser than login's
+  // 5/min: a real customer's own retries (a declined card, a slow 3DS step)
+  // are a normal part of one checkout attempt, each carrying its own
+  // Idempotency-Key (SECURITY.md §4 names checkout submission explicitly;
+  // this was the one item on that list left unwired).
   @Post()
   @HttpCode(HttpStatus.CREATED)
+  @RateLimit({ windowMs: 60_000, max: 10 })
   @ApiOperation({ summary: "Initiate checkout from the caller's own current cart" })
   @ApiHeader({ name: IDEMPOTENCY_KEY_HEADER, required: true })
   @ApiBody({ schema: toOpenApiSchema(initiateCheckoutSchema) })
   @ApiCreatedResponse({ schema: toOpenApiSchema(checkoutResponseSchema) })
-  @ApiErrorResponses(400, 401, 403, 409)
+  @ApiErrorResponses(400, 401, 403, 409, 429)
   async initiate(
     @Req() request: Request,
     @CurrentUser() auth: AuthContext | undefined,
