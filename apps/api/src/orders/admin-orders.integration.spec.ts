@@ -3,13 +3,21 @@
 // the guarded-update transitions and the Shipment.orderId-is-not-@unique
 // assumption (admin-orders.service.ts's `create`-not-`upsert` choice) are
 // exactly the kind of thing a mocked Prisma client can't actually verify.
-import { afterAll, beforeAll, describe, expect, it } from "vitest";
+import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
 import { randomUUID } from "node:crypto";
+import { BadRequestException, ConflictException, UnprocessableEntityException } from "@nestjs/common";
+import type { ConfigService } from "@nestjs/config";
+import type { Env } from "@ame-de-fil/config";
 import { Currency, Locale, OrderStatus, PaymentStatus, ShipmentStatus } from "@ame-de-fil/database";
 import { AdminOrdersService } from "./admin-orders.service.ts";
 import { NotificationsService } from "../notifications/notifications.service.ts";
 import { PendingEmailProvider } from "../notifications/email-provider.ts";
 import { AuditService } from "../audit/audit.service.ts";
+import type {
+  PaymentProvider,
+  RefundInput,
+  RefundResult,
+} from "../payments/payment-provider.ts";
 import { startTestDatabase, stopTestDatabase, type TestDatabase } from "../test/testcontainers-postgres.ts";
 import {
   seedShopFixture,
@@ -19,18 +27,62 @@ import {
   type VariantFixture,
 } from "../test/fixtures.ts";
 
+// A real, unmocked Stripe call would make refund tests slow, flaky, and
+// dependent on network/credentials — exactly what PendingPaymentProvider
+// already does for checkout's own real-Postgres tests (checkout-flow.
+// integration.spec.ts). Refunds need a controllable outcome per test
+// (succeeded/failed/pending) and per-call visibility, which no existing
+// PaymentProvider implementation offers, so this one is purpose-built for
+// this file only — real Stripe test-mode verification is covered
+// separately (STRIPE.md / this checkpoint's report), not by this harness.
+class ControllableFakePaymentProvider implements PaymentProvider {
+  calls: RefundInput[] = [];
+  nextResult: RefundResult | (() => Promise<RefundResult>) = {
+    providerRefundId: "re_fake_default",
+    status: "succeeded",
+  };
+  nextError: Error | null = null;
+
+  createPayment(): never {
+    throw new Error("not used by AdminOrdersService — refund tests never call createPayment");
+  }
+
+  verifyWebhookSignature(): never {
+    throw new Error("not used by AdminOrdersService — refund tests never call verifyWebhookSignature");
+  }
+
+  async refund(input: RefundInput): Promise<RefundResult> {
+    this.calls.push(input);
+    if (this.nextError) throw this.nextError;
+    return typeof this.nextResult === "function" ? this.nextResult() : this.nextResult;
+  }
+
+  reset() {
+    this.calls = [];
+    this.nextResult = { providerRefundId: "re_fake_default", status: "succeeded" };
+    this.nextError = null;
+  }
+}
+
+function makeTestConfig(): ConfigService<Env, true> {
+  return {
+    get: (key: string) => (key === "REFUND_IDEMPOTENCY_TTL_HOURS" ? 1 : undefined),
+  } as unknown as ConfigService<Env, true>;
+}
+
 describe("AdminOrdersService — real Postgres", () => {
   let db: TestDatabase;
   let shop: ShopFixture;
   let variant: VariantFixture;
   let service: AdminOrdersService;
   let actorUserId: string;
+  const paymentProvider = new ControllableFakePaymentProvider();
 
   beforeAll(async () => {
     db = await startTestDatabase();
     shop = await seedShopFixture(db.prisma);
     variant = await seedVariant(db.prisma, shop.taxClassId);
-    actorUserId = (await seedUserWithPermissions(db.prisma, ["orders.fulfill"])).userId;
+    actorUserId = (await seedUserWithPermissions(db.prisma, ["orders.fulfill", "orders.refund"])).userId;
     // PendingEmailProvider — no real SMTP container in this harness
     // (TESTING.md §3); NotificationsService never throws, so this can't
     // affect any assertion below about order/shipment state.
@@ -38,8 +90,14 @@ describe("AdminOrdersService — real Postgres", () => {
       db.prisma,
       new NotificationsService(db.prisma, new PendingEmailProvider()),
       new AuditService(db.prisma),
+      paymentProvider,
+      makeTestConfig(),
     );
   }, 120_000);
+
+  beforeEach(() => {
+    paymentProvider.reset();
+  });
 
   afterAll(async () => {
     await stopTestDatabase(db);
@@ -81,6 +139,7 @@ describe("AdminOrdersService — real Postgres", () => {
       guestEmail?: string;
       createdAt?: Date;
       paymentStatus?: PaymentStatus;
+      status?: OrderStatus;
     } = {},
   ): Promise<string> {
     const order = await db.prisma.order.create({
@@ -89,7 +148,7 @@ describe("AdminOrdersService — real Postgres", () => {
         userId: options.userId ?? null,
         guestEmail: options.userId ? null : (options.guestEmail ?? "detail-test@example.com"),
         locale: Locale.sv_SE,
-        status: OrderStatus.CONFIRMED,
+        status: options.status ?? OrderStatus.CONFIRMED,
         currency: Currency.SEK,
         subtotalMinor: 10000,
         discountMinor: 0,
@@ -309,6 +368,266 @@ describe("AdminOrdersService — real Postgres", () => {
       const result = await service.getOrderDetail(orderId);
 
       expect(result.customer).toEqual({ userId: null, email: "real-guest@example.com", name: null });
+    });
+  });
+
+  describe("issueRefund", () => {
+    async function paymentFor(orderId: string) {
+      return db.prisma.payment.findFirstOrThrow({ where: { orderId } });
+    }
+
+    it("rejects a refund amount exceeding the remaining refundable amount, with no Refund row created", async () => {
+      const orderId = await seedOrderWithDetails({});
+      const payment = await paymentFor(orderId);
+
+      await expect(
+        service.issueRefund(orderId, { amountMinor: payment.amountMinor + 1 }, randomUUID(), actorUserId),
+      ).rejects.toThrow(BadRequestException);
+
+      expect(paymentProvider.calls).toHaveLength(0);
+      const refunds = await db.prisma.refund.findMany({ where: { paymentId: payment.id } });
+      expect(refunds).toHaveLength(0);
+    });
+
+    it("rejects a refund on a payment that is not PAID or PARTIALLY_REFUNDED", async () => {
+      const orderId = await seedOrderWithDetails({ paymentStatus: PaymentStatus.PENDING });
+
+      await expect(service.issueRefund(orderId, { amountMinor: 1000 }, randomUUID(), actorUserId)).rejects.toThrow(
+        BadRequestException,
+      );
+      expect(paymentProvider.calls).toHaveLength(0);
+    });
+
+    it("a partial refund succeeds, marks Payment/Order PARTIALLY_REFUNDED, and never restocks", async () => {
+      const orderId = await seedOrderWithDetails({});
+      const payment = await paymentFor(orderId);
+      const inventoryBefore = await db.prisma.inventoryItem.findUniqueOrThrow({
+        where: { id: variant.inventoryItemId },
+      });
+
+      const response = await service.issueRefund(
+        orderId,
+        { amountMinor: 1000, reason: "customer request" },
+        randomUUID(),
+        actorUserId,
+      );
+
+      expect(response.status).toBe("SUCCEEDED");
+      expect(response.paymentStatus).toBe(PaymentStatus.PARTIALLY_REFUNDED);
+      expect(response.orderStatus).toBe(OrderStatus.PARTIALLY_REFUNDED);
+
+      const updatedPayment = await db.prisma.payment.findUniqueOrThrow({ where: { id: payment.id } });
+      expect(updatedPayment.status).toBe(PaymentStatus.PARTIALLY_REFUNDED);
+      const updatedOrder = await db.prisma.order.findUniqueOrThrow({ where: { id: orderId } });
+      expect(updatedOrder.status).toBe(OrderStatus.PARTIALLY_REFUNDED);
+
+      const inventoryAfter = await db.prisma.inventoryItem.findUniqueOrThrow({
+        where: { id: variant.inventoryItemId },
+      });
+      expect(inventoryAfter.onHand).toBe(inventoryBefore.onHand); // partial refund never restocks
+
+      const auditEntry = await db.prisma.auditLog.findFirst({
+        where: { entityType: "Refund", action: "order.refund_issued" },
+        orderBy: { createdAt: "desc" },
+      });
+      expect(auditEntry?.actorUserId).toBe(actorUserId);
+    });
+
+    it("a full refund on an unshipped order restocks the returned item", async () => {
+      const orderId = await seedOrderWithDetails({});
+      const payment = await paymentFor(orderId);
+      const inventoryBefore = await db.prisma.inventoryItem.findUniqueOrThrow({
+        where: { id: variant.inventoryItemId },
+      });
+
+      const response = await service.issueRefund(orderId, { amountMinor: payment.amountMinor }, randomUUID(), actorUserId);
+
+      expect(response.status).toBe("SUCCEEDED");
+      expect(response.paymentStatus).toBe(PaymentStatus.REFUNDED);
+      expect(response.orderStatus).toBe(OrderStatus.REFUNDED);
+
+      const inventoryAfter = await db.prisma.inventoryItem.findUniqueOrThrow({
+        where: { id: variant.inventoryItemId },
+      });
+      expect(inventoryAfter.onHand).toBe(inventoryBefore.onHand + 1); // seeded order has quantity: 1
+
+      const orderItem = await db.prisma.orderItem.findFirstOrThrow({ where: { orderId } });
+      const relatedMovement = await db.prisma.inventoryMovement.findFirst({
+        where: { relatedOrderItemId: orderItem.id },
+      });
+      expect(relatedMovement?.type).toBe("RETURN");
+      expect(relatedMovement?.quantity).toBe(1);
+    });
+
+    it("a full refund on a shipped order does NOT restock (manual restock only)", async () => {
+      const orderId = await seedOrderWithDetails({ status: OrderStatus.SHIPPED });
+      const payment = await paymentFor(orderId);
+      const inventoryBefore = await db.prisma.inventoryItem.findUniqueOrThrow({
+        where: { id: variant.inventoryItemId },
+      });
+
+      const response = await service.issueRefund(orderId, { amountMinor: payment.amountMinor }, randomUUID(), actorUserId);
+
+      expect(response.paymentStatus).toBe(PaymentStatus.REFUNDED);
+      const inventoryAfter = await db.prisma.inventoryItem.findUniqueOrThrow({
+        where: { id: variant.inventoryItemId },
+      });
+      expect(inventoryAfter.onHand).toBe(inventoryBefore.onHand);
+    });
+
+    it("a Stripe refund failure marks the Refund FAILED and leaves Payment/Order unchanged", async () => {
+      const orderId = await seedOrderWithDetails({});
+      const payment = await paymentFor(orderId);
+      paymentProvider.nextError = new Error("card_declined");
+
+      await expect(
+        service.issueRefund(orderId, { amountMinor: 1000 }, randomUUID(), actorUserId),
+      ).rejects.toThrow(UnprocessableEntityException);
+
+      const updatedPayment = await db.prisma.payment.findUniqueOrThrow({ where: { id: payment.id } });
+      expect(updatedPayment.status).toBe(PaymentStatus.PAID); // unchanged
+      const refund = await db.prisma.refund.findFirstOrThrow({ where: { paymentId: payment.id } });
+      expect(refund.status).toBe("FAILED");
+      const auditEntry = await db.prisma.auditLog.findFirst({ where: { entityType: "Refund", entityId: refund.id } });
+      expect(auditEntry).toBeNull(); // a failed refund never gets Order/Payment/audit effects applied
+
+      // The failed reservation's amount must not remain counted against
+      // "remaining" — a later, otherwise-identical refund must be allowed.
+      paymentProvider.nextError = null;
+      const secondAttempt = await service.issueRefund(
+        orderId,
+        { amountMinor: payment.amountMinor },
+        randomUUID(),
+        actorUserId,
+      );
+      expect(secondAttempt.status).toBe("SUCCEEDED");
+    });
+
+    it("replays the exact original result for an identical Idempotency-Key + identical request, without calling Stripe again", async () => {
+      const orderId = await seedOrderWithDetails({});
+      const key = randomUUID();
+
+      const first = await service.issueRefund(orderId, { amountMinor: 1000, reason: "r1" }, key, actorUserId);
+      const second = await service.issueRefund(orderId, { amountMinor: 1000, reason: "r1" }, key, actorUserId);
+
+      expect(second).toEqual(first);
+      expect(paymentProvider.calls).toHaveLength(1);
+      const refunds = await db.prisma.refund.findMany({ where: { id: first.refundId } });
+      expect(refunds).toHaveLength(1);
+    });
+
+    it("rejects a re-used Idempotency-Key attached to a different request body with 409", async () => {
+      const orderId = await seedOrderWithDetails({});
+      const key = randomUUID();
+
+      await service.issueRefund(orderId, { amountMinor: 1000, reason: "r1" }, key, actorUserId);
+
+      await expect(
+        service.issueRefund(orderId, { amountMinor: 2000, reason: "different" }, key, actorUserId),
+      ).rejects.toThrow(ConflictException);
+      expect(paymentProvider.calls).toHaveLength(1); // second call never reached Stripe
+    });
+
+    it("self-heals a prior refund that reached SUCCEEDED but never applied its Order/Payment/audit effects", async () => {
+      const orderId = await seedOrderWithDetails({});
+      const payment = await paymentFor(orderId);
+
+      // Simulates a crash between Txn 2b (Refund -> SUCCEEDED, durable) and
+      // Txn 3 (applyRefundEffects) on a *prior* attempt — inserted directly,
+      // bypassing the service, so no Order/Payment/audit effects exist yet.
+      const orphanedRefund = await db.prisma.refund.create({
+        data: {
+          paymentId: payment.id,
+          amountMinor: 4000,
+          status: "SUCCEEDED",
+          providerRefundId: "re_orphaned",
+          initiatedByUserId: actorUserId,
+        },
+      });
+
+      const response = await service.issueRefund(orderId, { amountMinor: 1000 }, randomUUID(), actorUserId);
+
+      // The orphaned refund's effects were applied as a side effect of this
+      // new call's reconciliation step, before its own reservation was made.
+      const healedAudit = await db.prisma.auditLog.findFirst({
+        where: { entityType: "Refund", entityId: orphanedRefund.id },
+      });
+      expect(healedAudit).not.toBeNull();
+
+      const updatedPayment = await db.prisma.payment.findUniqueOrThrow({ where: { id: payment.id } });
+      expect(updatedPayment.status).toBe(PaymentStatus.PARTIALLY_REFUNDED); // 4000 + 1000 < total
+      expect(response.status).toBe("SUCCEEDED");
+    });
+
+    // CONCURRENCY / OVER-REFUND PROTECTION (approved design requirement):
+    // two concurrent refund requests against the same Payment that together
+    // exceed its remaining refundable amount must never both succeed — the
+    // Payment row's SELECT ... FOR UPDATE lock (issueRefund's reservation
+    // transaction) must serialize them so exactly one wins.
+    it("under real concurrent requests, never lets combined SUCCEEDED refunds exceed the payment's amount", async () => {
+      const orderId = await seedOrderWithDetails({});
+      const payment = await paymentFor(orderId);
+      expect(payment.amountMinor).toBeGreaterThan(0);
+      const halfPlusOne = Math.floor(payment.amountMinor / 2) + 1; // two of these together exceed the total
+
+      const results = await Promise.allSettled([
+        service.issueRefund(orderId, { amountMinor: halfPlusOne }, randomUUID(), actorUserId),
+        service.issueRefund(orderId, { amountMinor: halfPlusOne }, randomUUID(), actorUserId),
+      ]);
+
+      const fulfilled = results.filter((r) => r.status === "fulfilled");
+      const rejected = results.filter((r) => r.status === "rejected");
+      expect(fulfilled).toHaveLength(1);
+      expect(rejected).toHaveLength(1);
+
+      const succeededAgg = await db.prisma.refund.aggregate({
+        where: { paymentId: payment.id, status: "SUCCEEDED" },
+        _sum: { amountMinor: true },
+      });
+      expect(succeededAgg._sum.amountMinor ?? 0).toBe(halfPlusOne);
+      expect(succeededAgg._sum.amountMinor ?? 0).toBeLessThanOrEqual(payment.amountMinor);
+      expect(paymentProvider.calls).toHaveLength(1); // the loser never reached Stripe
+    });
+
+    // Distinct from the over-refund race above: here BOTH refunds fit
+    // within budget and both succeed at Stripe — the risk is two concurrent
+    // applyRefundEffects calls (admin-orders.service.ts) each computing the
+    // cumulative SUCCEEDED total from a stale read and independently
+    // concluding "this completes the full refund," each restocking the
+    // same returned item. The Payment-row lock inside applyRefundEffects
+    // must serialize them so the restock (and the REFUNDED transition)
+    // happens exactly once.
+    it("under two concurrent within-budget refunds that together total the full amount, restocks exactly once", async () => {
+      const orderId = await seedOrderWithDetails({});
+      const payment = await paymentFor(orderId);
+      const half1 = Math.floor(payment.amountMinor / 2);
+      const half2 = payment.amountMinor - half1;
+      const inventoryBefore = await db.prisma.inventoryItem.findUniqueOrThrow({
+        where: { id: variant.inventoryItemId },
+      });
+
+      const results = await Promise.all([
+        service.issueRefund(orderId, { amountMinor: half1 }, randomUUID(), actorUserId),
+        service.issueRefund(orderId, { amountMinor: half2 }, randomUUID(), actorUserId),
+      ]);
+
+      expect(results.every((r) => r.status === "SUCCEEDED")).toBe(true);
+
+      const updatedPayment = await db.prisma.payment.findUniqueOrThrow({ where: { id: payment.id } });
+      expect(updatedPayment.status).toBe(PaymentStatus.REFUNDED);
+      const updatedOrder = await db.prisma.order.findUniqueOrThrow({ where: { id: orderId } });
+      expect(updatedOrder.status).toBe(OrderStatus.REFUNDED);
+
+      const inventoryAfter = await db.prisma.inventoryItem.findUniqueOrThrow({
+        where: { id: variant.inventoryItemId },
+      });
+      expect(inventoryAfter.onHand).toBe(inventoryBefore.onHand + 1); // exactly once, not twice
+
+      const orderItem = await db.prisma.orderItem.findFirstOrThrow({ where: { orderId } });
+      const movements = await db.prisma.inventoryMovement.findMany({
+        where: { relatedOrderItemId: orderItem.id },
+      });
+      expect(movements).toHaveLength(1);
     });
   });
 });

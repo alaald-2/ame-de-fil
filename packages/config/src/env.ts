@@ -51,6 +51,11 @@ export const envSchema = z.object({
   // network, a user re-submitting after a page reload) without keeping the
   // table growing forever.
   CHECKOUT_IDEMPOTENCY_TTL_HOURS: z.coerce.number().int().positive().default(24),
+  // Same purpose, a deliberately separate config value — an admin retrying
+  // a refund action is a much shorter, more immediate UX interaction than
+  // a customer's multi-hour cart-recovery window, so a much shorter
+  // default is appropriate (admin-orders.service.ts's issueRefund).
+  REFUND_IDEMPOTENCY_TTL_HOURS: z.coerce.number().int().positive().default(1),
 
   // Guest order-status polling credential lifetime (PAYMENTS.md §4,
   // DECISIONS.md ADR-024) — long enough to cover a slow redirect-based 3DS

@@ -1,5 +1,17 @@
-import { Body, Controller, Get, HttpCode, HttpStatus, Param, Post, Query, Req } from "@nestjs/common";
-import { ApiBody, ApiCookieAuth, ApiOkResponse, ApiOperation, ApiTags } from "@nestjs/swagger";
+import {
+  BadRequestException,
+  Body,
+  Controller,
+  Get,
+  Headers,
+  HttpCode,
+  HttpStatus,
+  Param,
+  Post,
+  Query,
+  Req,
+} from "@nestjs/common";
+import { ApiBody, ApiCookieAuth, ApiHeader, ApiOkResponse, ApiOperation, ApiTags } from "@nestjs/swagger";
 import type { Request } from "express";
 import { CurrentUser } from "../common/decorators/current-user.decorator.ts";
 import { RequirePermissions } from "../common/decorators/require-permissions.decorator.ts";
@@ -12,17 +24,22 @@ import { AdminOrdersService } from "./admin-orders.service.ts";
 import { orderIdParamSchema, type OrderIdParam } from "./dto/order-id.param.ts";
 import { markShippedSchema, type MarkShippedInput } from "./dto/mark-shipped.dto.ts";
 import { fulfillmentResponseSchema } from "./dto/fulfillment-response.ts";
+import { refundOrderSchema, type RefundOrderInput } from "./dto/refund-order.dto.ts";
 import {
   adminOrderDetailResponseSchema,
   listAdminOrdersResponseSchema,
+  refundOrderResponseSchema,
 } from "./dto/admin-order-responses.ts";
 
+const IDEMPOTENCY_KEY_HEADER = "idempotency-key";
+
 // No @Public()/@OptionalAuth() — admin-only, default-deny, same posture as
-// InventoryController/AdminProductsController. Two permissions gate this
-// controller: "orders.view" (read-only list/detail) and "orders.fulfill"
-// (state-changing) — kept separate so a role can be granted one without
-// the other, mirroring the existing inventory.view/inventory.adjust split
-// rather than overloading orders.fulfill for a different privilege level.
+// InventoryController/AdminProductsController. Three permissions gate this
+// controller: "orders.view" (read-only list/detail), "orders.fulfill"
+// (fulfillment state-changing), and "orders.refund" (money movement) —
+// kept separate so a role can be granted one without the others, mirroring
+// the existing inventory.view/inventory.adjust split rather than
+// overloading orders.fulfill for a different privilege level.
 @ApiTags("admin")
 @ApiCookieAuth("ame_session")
 @Controller("admin/orders")
@@ -94,5 +111,36 @@ export class AdminOrdersController {
     @Req() request: Request,
   ) {
     return this.adminOrders.markDelivered(params.orderId, auth.userId, request.ip);
+  }
+
+  // Idempotency-Key required, same posture/header as checkout's own
+  // POST /checkout (checkout.controller.ts) — this is a money-movement
+  // mutation with a real payment-provider call behind it, exactly the kind
+  // of request an admin's retry-after-timeout must not be allowed to
+  // double-submit.
+  @Post(":orderId/refund")
+  @RequirePermissions("orders.refund")
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({ summary: "Issue an amount-based refund against an order's payment" })
+  @ApiZodParam(orderIdParamSchema)
+  @ApiHeader({ name: IDEMPOTENCY_KEY_HEADER, required: true })
+  @ApiBody({ schema: toOpenApiSchema(refundOrderSchema) })
+  @ApiOkResponse({ schema: toOpenApiSchema(refundOrderResponseSchema) })
+  @ApiErrorResponses(400, 401, 403, 404, 409, 422)
+  async refund(
+    @Param(new ZodValidationPipe(orderIdParamSchema)) params: OrderIdParam,
+    @Body(new ZodValidationPipe(refundOrderSchema)) body: RefundOrderInput,
+    @Headers(IDEMPOTENCY_KEY_HEADER) idempotencyKey: string | undefined,
+    @CurrentUser() auth: AuthContext,
+    @Req() request: Request,
+  ) {
+    if (!idempotencyKey) {
+      throw new BadRequestException({
+        error: "IdempotencyKeyRequired",
+        message: `The "${IDEMPOTENCY_KEY_HEADER}" header is required`,
+      });
+    }
+
+    return this.adminOrders.issueRefund(params.orderId, body, idempotencyKey, auth.userId, request.ip);
   }
 }

@@ -7,6 +7,8 @@ import type {
   CreatePaymentInput,
   PaymentProvider,
   PaymentRecord,
+  RefundInput,
+  RefundResult,
   VerifiedWebhookEvent,
   VerifiedWebhookOutcome,
 } from "./payment-provider.ts";
@@ -102,6 +104,35 @@ export class StripePaymentProvider implements PaymentProvider {
       currency: payment.currency,
       clientSecret: intent.client_secret ?? undefined,
     };
+  }
+
+  // Synchronous confirmation only (approved refund design, v1) — the
+  // caller trusts this call's own resolved `status`, never a later
+  // webhook. `idempotencyKey` is the caller's own already-durably-
+  // persisted Refund.id (never the admin's raw request header), so a
+  // retried call — whether a genuine network retry or admin-orders.
+  // service.ts resuming a crashed attempt — returns Stripe's original
+  // refund object rather than creating a second one.
+  //
+  // Only Stripe's own "succeeded" maps to our "succeeded" — "pending"/
+  // "requires_action" are real possible outcomes for some payment methods
+  // (unconfirmed here whether Klarna's refund path can return either) and
+  // are deliberately NOT treated as success without a webhook to later
+  // confirm them, which this checkpoint doesn't build. Disclosed
+  // limitation, not a silent gap: PAYMENTS.md documents this explicitly.
+  async refund(input: RefundInput): Promise<RefundResult> {
+    const refund = await this.stripe.refunds.create(
+      { payment_intent: input.providerPaymentIntentId, amount: input.amountMinor },
+      { idempotencyKey: input.idempotencyKey },
+    );
+
+    const status: RefundResult["status"] =
+      refund.status === "succeeded"
+        ? "succeeded"
+        : refund.status === "failed" || refund.status === "canceled"
+          ? "failed"
+          : "pending"; // "pending" | "requires_action"
+    return { providerRefundId: refund.id, status };
   }
 
   // SECURITY.md §6: every inbound webhook is signature-verified before any

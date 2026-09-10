@@ -1,11 +1,14 @@
 import { describe, expect, it, vi } from "vitest";
 import { ConflictException, NotFoundException } from "@nestjs/common";
 import { Currency, Locale, OrderStatus, PaymentStatus, ShipmentStatus } from "@ame-de-fil/database";
+import type { ConfigService } from "@nestjs/config";
+import type { Env } from "@ame-de-fil/config";
 import { AdminOrdersService } from "./admin-orders.service.ts";
 import { ADMIN_ORDER_DETAIL_SELECT, ADMIN_ORDER_LIST_SELECT } from "./mappers/admin-order.mapper.ts";
 import type { PrismaService } from "../database/prisma.service.ts";
 import type { NotificationsService } from "../notifications/notifications.service.ts";
 import { AuditService } from "../audit/audit.service.ts";
+import type { PaymentProvider } from "../payments/payment-provider.ts";
 
 const ACTOR_USER_ID = "user-1";
 
@@ -13,6 +16,22 @@ function makeNotificationsMock() {
   return { sendShippingNotification: vi.fn().mockResolvedValue(undefined) } as unknown as NotificationsService & {
     sendShippingNotification: ReturnType<typeof vi.fn>;
   };
+}
+
+// Refund-specific tests (below) construct their own PaymentProvider/Env
+// mocks tailored to what they're exercising — this one is only for the
+// pre-existing fulfillment tests above, which never call issueRefund and so
+// never touch either dependency.
+function makeUnusedPaymentProviderMock(): PaymentProvider {
+  return {
+    createPayment: vi.fn(),
+    verifyWebhookSignature: vi.fn(),
+    refund: vi.fn(),
+  };
+}
+
+function makeUnusedConfigMock(): ConfigService<Env, true> {
+  return { get: vi.fn() } as unknown as ConfigService<Env, true>;
 }
 
 const ORDER = { id: "order-1", status: OrderStatus.CONFIRMED };
@@ -117,7 +136,13 @@ describe("AdminOrdersService.listOrders", () => {
     // the actual mocks it produced for the assertions below.
     const findMany = (prisma as unknown as { order: { findMany: typeof orderFindMany } }).order.findMany;
     const count = (prisma as unknown as { order: { count: typeof orderCount } }).order.count;
-    const service = new AdminOrdersService(prisma, makeNotificationsMock(), new AuditService(prisma));
+    const service = new AdminOrdersService(
+      prisma,
+      makeNotificationsMock(),
+      new AuditService(prisma),
+      makeUnusedPaymentProviderMock(),
+      makeUnusedConfigMock(),
+    );
 
     const result = await service.listOrders(1, 20);
 
@@ -157,7 +182,13 @@ describe("AdminOrdersService.listOrders", () => {
 
   it("computes skip from page/pageSize for the second page", async () => {
     const { prisma } = makePrismaMock();
-    const service = new AdminOrdersService(prisma, makeNotificationsMock(), new AuditService(prisma));
+    const service = new AdminOrdersService(
+      prisma,
+      makeNotificationsMock(),
+      new AuditService(prisma),
+      makeUnusedPaymentProviderMock(),
+      makeUnusedConfigMock(),
+    );
 
     await service.listOrders(3, 10);
 
@@ -231,7 +262,13 @@ describe("AdminOrdersService.getOrderDetail", () => {
 
   it("returns 404 when the order does not exist", async () => {
     const { prisma } = makePrismaMock({ order: { findUnique: vi.fn().mockResolvedValue(null) } });
-    const service = new AdminOrdersService(prisma, makeNotificationsMock(), new AuditService(prisma));
+    const service = new AdminOrdersService(
+      prisma,
+      makeNotificationsMock(),
+      new AuditService(prisma),
+      makeUnusedPaymentProviderMock(),
+      makeUnusedConfigMock(),
+    );
 
     await expect(service.getOrderDetail("missing")).rejects.toThrow(NotFoundException);
   });
@@ -240,7 +277,13 @@ describe("AdminOrdersService.getOrderDetail", () => {
     const { prisma } = makePrismaMock({ order: { findUnique: vi.fn().mockResolvedValue(DETAIL_ROW) } });
     const findUnique = (prisma as unknown as { order: { findUnique: ReturnType<typeof vi.fn> } }).order
       .findUnique;
-    const service = new AdminOrdersService(prisma, makeNotificationsMock(), new AuditService(prisma));
+    const service = new AdminOrdersService(
+      prisma,
+      makeNotificationsMock(),
+      new AuditService(prisma),
+      makeUnusedPaymentProviderMock(),
+      makeUnusedConfigMock(),
+    );
 
     await service.getOrderDetail("order-1");
 
@@ -252,7 +295,13 @@ describe("AdminOrdersService.getOrderDetail", () => {
 
   it("maps a full order to the admin-safe detail shape for a registered customer", async () => {
     const { prisma } = makePrismaMock({ order: { findUnique: vi.fn().mockResolvedValue(DETAIL_ROW) } });
-    const service = new AdminOrdersService(prisma, makeNotificationsMock(), new AuditService(prisma));
+    const service = new AdminOrdersService(
+      prisma,
+      makeNotificationsMock(),
+      new AuditService(prisma),
+      makeUnusedPaymentProviderMock(),
+      makeUnusedConfigMock(),
+    );
 
     const result = await service.getOrderDetail("order-1");
 
@@ -303,7 +352,13 @@ describe("AdminOrdersService.getOrderDetail", () => {
   it("maps a guest order's customer with no userId/name", async () => {
     const guestRow = { ...DETAIL_ROW, guestEmail: "guest@example.com", user: null };
     const { prisma } = makePrismaMock({ order: { findUnique: vi.fn().mockResolvedValue(guestRow) } });
-    const service = new AdminOrdersService(prisma, makeNotificationsMock(), new AuditService(prisma));
+    const service = new AdminOrdersService(
+      prisma,
+      makeNotificationsMock(),
+      new AuditService(prisma),
+      makeUnusedPaymentProviderMock(),
+      makeUnusedConfigMock(),
+    );
 
     const result = await service.getOrderDetail("order-1");
 
@@ -314,7 +369,13 @@ describe("AdminOrdersService.getOrderDetail", () => {
 describe("AdminOrdersService.markReadyToShip", () => {
   it("transitions CONFIRMED -> READY_TO_SHIP", async () => {
     const { prisma, orderUpdateMany, auditLogCreate } = makePrismaMock();
-    const service = new AdminOrdersService(prisma, makeNotificationsMock(), new AuditService(prisma));
+    const service = new AdminOrdersService(
+      prisma,
+      makeNotificationsMock(),
+      new AuditService(prisma),
+      makeUnusedPaymentProviderMock(),
+      makeUnusedConfigMock(),
+    );
 
     const result = await service.markReadyToShip("order-1", ACTOR_USER_ID);
 
@@ -342,7 +403,13 @@ describe("AdminOrdersService.markReadyToShip", () => {
         findUniqueOrThrow: vi.fn().mockResolvedValue(ORDER),
       },
     });
-    const service = new AdminOrdersService(prisma, makeNotificationsMock(), new AuditService(prisma));
+    const service = new AdminOrdersService(
+      prisma,
+      makeNotificationsMock(),
+      new AuditService(prisma),
+      makeUnusedPaymentProviderMock(),
+      makeUnusedConfigMock(),
+    );
 
     await expect(service.markReadyToShip("order-1", ACTOR_USER_ID)).rejects.toThrow(ConflictException);
     expect(auditLogCreate).not.toHaveBeenCalled();
@@ -354,7 +421,13 @@ describe("AdminOrdersService.markShipped", () => {
 
   it("transitions READY_TO_SHIP -> SHIPPED and creates a Shipment record", async () => {
     const { prisma, shipmentCreate } = makePrismaMock();
-    const service = new AdminOrdersService(prisma, makeNotificationsMock(), new AuditService(prisma));
+    const service = new AdminOrdersService(
+      prisma,
+      makeNotificationsMock(),
+      new AuditService(prisma),
+      makeUnusedPaymentProviderMock(),
+      makeUnusedConfigMock(),
+    );
 
     await service.markShipped("order-1", INPUT, ACTOR_USER_ID);
 
@@ -371,7 +444,13 @@ describe("AdminOrdersService.markShipped", () => {
 
   it("creates a Shipment even with no carrier/tracking info supplied (all optional)", async () => {
     const { prisma, shipmentCreate } = makePrismaMock();
-    const service = new AdminOrdersService(prisma, makeNotificationsMock(), new AuditService(prisma));
+    const service = new AdminOrdersService(
+      prisma,
+      makeNotificationsMock(),
+      new AuditService(prisma),
+      makeUnusedPaymentProviderMock(),
+      makeUnusedConfigMock(),
+    );
 
     await service.markShipped("order-1", {}, ACTOR_USER_ID);
 
@@ -383,7 +462,13 @@ describe("AdminOrdersService.markShipped", () => {
   it("sends the shipping notification only after the transaction has committed (DECISIONS.md ADR-031)", async () => {
     const { prisma } = makePrismaMock();
     const notifications = makeNotificationsMock();
-    const service = new AdminOrdersService(prisma, notifications, new AuditService(prisma));
+    const service = new AdminOrdersService(
+      prisma,
+      notifications,
+      new AuditService(prisma),
+      makeUnusedPaymentProviderMock(),
+      makeUnusedConfigMock(),
+    );
 
     await service.markShipped("order-1", INPUT, ACTOR_USER_ID);
 
@@ -403,7 +488,13 @@ describe("AdminOrdersService.markShipped", () => {
       $transaction: vi.fn().mockImplementation((cb: (tx: unknown) => unknown) => cb(tx)),
     } as unknown as PrismaService;
     const notifications = makeNotificationsMock();
-    const service = new AdminOrdersService(prisma, notifications, new AuditService(prisma));
+    const service = new AdminOrdersService(
+      prisma,
+      notifications,
+      new AuditService(prisma),
+      makeUnusedPaymentProviderMock(),
+      makeUnusedConfigMock(),
+    );
 
     await expect(service.markShipped("order-1", INPUT, ACTOR_USER_ID)).rejects.toThrow(ConflictException);
     expect(shipmentCreate).not.toHaveBeenCalled();
@@ -414,7 +505,13 @@ describe("AdminOrdersService.markShipped", () => {
 describe("AdminOrdersService.markDelivered", () => {
   it("transitions SHIPPED -> DELIVERED and updates the most recent Shipment", async () => {
     const { prisma, shipmentFindFirstOrThrow, shipmentUpdate } = makePrismaMock();
-    const service = new AdminOrdersService(prisma, makeNotificationsMock(), new AuditService(prisma));
+    const service = new AdminOrdersService(
+      prisma,
+      makeNotificationsMock(),
+      new AuditService(prisma),
+      makeUnusedPaymentProviderMock(),
+      makeUnusedConfigMock(),
+    );
 
     await service.markDelivered("order-1", ACTOR_USER_ID);
 
@@ -435,7 +532,13 @@ describe("AdminOrdersService.markDelivered", () => {
     const prisma = {
       $transaction: vi.fn().mockImplementation((cb: (tx: unknown) => unknown) => cb(tx)),
     } as unknown as PrismaService;
-    const service = new AdminOrdersService(prisma, makeNotificationsMock(), new AuditService(prisma));
+    const service = new AdminOrdersService(
+      prisma,
+      makeNotificationsMock(),
+      new AuditService(prisma),
+      makeUnusedPaymentProviderMock(),
+      makeUnusedConfigMock(),
+    );
 
     await expect(service.markDelivered("order-1", ACTOR_USER_ID)).rejects.toThrow(ConflictException);
     expect(shipmentFindFirstOrThrow).not.toHaveBeenCalled();

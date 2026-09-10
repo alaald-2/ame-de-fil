@@ -4,6 +4,7 @@ import { PaymentStatus, type Prisma } from "@ame-de-fil/database";
 import type { Env } from "@ame-de-fil/config";
 
 const paymentIntentsCreate = vi.fn();
+const refundsCreate = vi.fn();
 const webhooksConstructEvent = vi.fn();
 
 vi.mock("stripe", () => ({
@@ -14,6 +15,7 @@ vi.mock("stripe", () => ({
   default: vi.fn().mockImplementation(function StripeMock() {
     return {
       paymentIntents: { create: paymentIntentsCreate },
+      refunds: { create: refundsCreate },
       webhooks: { constructEvent: webhooksConstructEvent },
     };
   }),
@@ -52,6 +54,7 @@ function makeTxMock() {
 describe("StripePaymentProvider", () => {
   beforeEach(() => {
     paymentIntentsCreate.mockReset();
+    refundsCreate.mockReset();
     webhooksConstructEvent.mockReset();
   });
 
@@ -119,6 +122,56 @@ describe("StripePaymentProvider", () => {
       });
 
       expect(result.clientSecret).toBeUndefined();
+    });
+  });
+
+  describe("refund", () => {
+    it("calls stripe.refunds.create with the caller's own idempotency key and maps 'succeeded'", async () => {
+      refundsCreate.mockResolvedValue({ id: "re_123", status: "succeeded" });
+      const provider = new StripePaymentProvider(makeConfigMock());
+
+      const result = await provider.refund({
+        providerPaymentIntentId: "pi_123",
+        amountMinor: 5000,
+        idempotencyKey: "refund:refund-cuid-1",
+      });
+
+      expect(refundsCreate).toHaveBeenCalledWith(
+        { payment_intent: "pi_123", amount: 5000 },
+        { idempotencyKey: "refund:refund-cuid-1" },
+      );
+      expect(result).toEqual({ providerRefundId: "re_123", status: "succeeded" });
+    });
+
+    it.each([
+      ["failed", "failed"],
+      ["canceled", "failed"],
+      ["pending", "pending"],
+      ["requires_action", "pending"],
+    ] as const)("maps Stripe refund status '%s' to '%s'", async (stripeStatus, mapped) => {
+      refundsCreate.mockResolvedValue({ id: "re_456", status: stripeStatus });
+      const provider = new StripePaymentProvider(makeConfigMock());
+
+      const result = await provider.refund({
+        providerPaymentIntentId: "pi_123",
+        amountMinor: 1000,
+        idempotencyKey: "refund:refund-cuid-2",
+      });
+
+      expect(result).toEqual({ providerRefundId: "re_456", status: mapped });
+    });
+
+    it("propagates a Stripe API error rather than swallowing it", async () => {
+      refundsCreate.mockRejectedValue(new Error("charge has already been fully refunded"));
+      const provider = new StripePaymentProvider(makeConfigMock());
+
+      await expect(
+        provider.refund({
+          providerPaymentIntentId: "pi_123",
+          amountMinor: 1000,
+          idempotencyKey: "refund:refund-cuid-3",
+        }),
+      ).rejects.toThrow(/already been fully refunded/);
     });
   });
 

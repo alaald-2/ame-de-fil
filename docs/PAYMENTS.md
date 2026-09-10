@@ -4,7 +4,7 @@ See `DECISIONS.md` ADR-014 for the rationale (**flagged for your confirmation**)
 
 ## 1. Provider abstraction
 
-**Implemented** (`apps/api/src/payments/payment-provider.ts`), narrower than the original illustrative sketch — `refund()`/`getStatus()` are deliberately not part of the interface yet (refunds are an admin-phase feature not built; storefront/admin never ask the provider for status, they read DB state instead, §4):
+**Implemented** (`apps/api/src/payments/payment-provider.ts`), narrower than the original illustrative sketch — `getStatus()` is deliberately not part of the interface (storefront/admin never ask the provider for status, they read DB state instead, §4). `refund()` **is implemented** (admin-refunds checkpoint, §6) — deliberately the one method that does **not** accept a `Prisma.TransactionClient`, unlike `createPayment`: it must never run from inside a DB transaction/lock (§6 explains why):
 
 ```ts
 interface PaymentRecord {
@@ -25,8 +25,14 @@ interface VerifiedWebhookEvent {
   raw: unknown;
 }
 
+interface RefundResult {
+  providerRefundId: string;
+  status: "succeeded" | "pending" | "failed"; // only "succeeded" is treated as money actually moved — §6
+}
+
 interface PaymentProvider {
   createPayment(tx: Prisma.TransactionClient, input: CreatePaymentInput): Promise<PaymentRecord>;
+  refund(input: { providerPaymentIntentId: string; amountMinor: number; idempotencyKey: string }): Promise<RefundResult>;
   verifyWebhookSignature(rawBody: Buffer, signature: string): VerifiedWebhookEvent;
 }
 ```
@@ -137,7 +143,24 @@ The frontend never trusts `stripe.confirmPayment()`'s own resolution as "the ord
 
 ## 6. Refunds
 
-Full and partial refunds are issued through the provider (`refund()`), recorded as a `Refund` row referencing the originating `Payment`, and drive the order toward `REFUNDED`/`PARTIALLY_REFUNDED`. Refunds restore inventory via a compensating `InventoryMovement` (`DATABASE.md` §4) only if the item hadn't shipped; shipped-item refunds do not restock automatically (handled as a manual admin decision, since the physical item's condition is unknown).
+**Implemented** (`AdminOrdersService.issueRefund`, `apps/api/src/orders/admin-orders.service.ts`) — `POST /admin/orders/:orderId/refund`, gated by `orders.refund` (`SECURITY.md` §2), requiring an `Idempotency-Key` header (same convention as `POST /checkout`). Amount-based only (v1) — no per-line-item refund selection; the admin supplies `amountMinor` (and an optional free-text `reason`), capped by the payment's own remaining refundable amount, never by a client-supplied ceiling.
+
+**Eligibility:** the order's `Payment` must be `PAID` or `PARTIALLY_REFUNDED`; the requested amount must not exceed `Payment.amountMinor` minus every existing `PENDING`-or-`SUCCEEDED` `Refund` against it ("remaining"). A full refund (cumulative `SUCCEEDED` total reaches `Payment.amountMinor`) drives `Payment`/`Order` to `REFUNDED`; a partial refund drives both to `PARTIALLY_REFUNDED`. `OrderStatus.REFUND_REQUESTED` remains unused (no async/manual-approval step in v1 — a refund is issued synchronously or not at all).
+
+**Concurrency / over-refund protection:** two concurrent refund requests against the same `Payment` can never collectively exceed its remaining refundable amount. The mechanism is a `SELECT ... FOR UPDATE` lock on the `Payment` row, held only for a short reservation transaction (no network call inside it): that transaction computes "remaining" from `PENDING`+`SUCCEEDED` refunds (a `PENDING` row is a genuine reservation, not just a prior read) and, still under the lock, creates the new `Refund` row as `PENDING` before releasing it. A concurrent request racing for the same budget sees the reservation, not a stale read, so at most one of two over-committing requests can ever reserve. The Stripe call itself happens strictly *after* this transaction commits and the lock is released — Stripe is never asked to refund an amount the database has already rejected. `AdminOrdersService.applyRefundEffects` takes the same Payment-row lock again when writing Order/Payment/inventory effects, for a related but distinct race: two *different* refunds on one payment completing at nearly the same time could otherwise both read a stale cumulative total and double-apply an additive effect (see "double-restock" below).
+
+**Failure-ordering guarantees:**
+- A failed Stripe call marks the `Refund` row `FAILED` and touches nothing else (no `Order`/`Payment`/inventory/`AuditLog` write) — the reserved amount stops counting against "remaining" immediately.
+- A **successful** Stripe call is never silently lost if a later write fails: `Refund.status = SUCCEEDED` and `providerRefundId` are persisted in their own small transaction *immediately* on Stripe's response, before the Order/Payment/inventory/audit effects are even attempted. If that later step fails, the `Refund` row's success is already durable.
+- **Idempotency at the provider boundary:** `StripePaymentProvider.refund` passes an idempotency key derived from our own `Refund.id` (never the admin's raw `Idempotency-Key` header) — a retried/resumed call returns Stripe's original refund object rather than creating a second one. Verified against real Stripe test mode: an identical `idempotencyKey` returns the identical `refund.id` on a second call.
+- **Bounded v1 recovery, not full reconciliation:** if Stripe succeeds and the durable-proof write commits, but the subsequent Order/Payment/inventory/audit write fails, the next refund attempt on that same `Payment` (`reconcileOutstandingRefunds`) re-applies any `SUCCEEDED` refund whose `AuditLog` marker doesn't exist yet before doing anything else. **This is not a background job** — if no further refund attempt ever touches that payment again, the inconsistency (Payment/Order status, inventory, audit trail lagging behind a `SUCCEEDED` refund) can persist until one does, or until a real reconciliation job is built (same disclosed-gap posture as §5's reconciliation-job note above). `applyRefundEffects` itself is idempotent, keyed on whether this refund's own `AuditLog` row already exists.
+- **Double-apply / double-restock protection:** the Order/Payment status transitions are naturally convergent (each recomputes the true cumulative total from the DB, so repeated or reordered application settles on the same correct final state) — but restocking is an *increment*, not a convergent set, so it is gated on the row-count of the guarded `Order` status UPDATE (`WHERE status <> 'REFUNDED'`) actually changing something, not on the plain "is this now a full refund" boolean. Two different refunds completing at nearly the same time can both observe an already-full cumulative total (each's own `SUCCEEDED` write happens, unlocked, before either reaches this code), but Postgres serializes their `Order`-row UPDATEs and re-evaluates the guard for whichever runs second — so restocking (and the accompanying `RETURN` `InventoryMovement`) still happens exactly once. Verified with a real-Postgres integration test running two genuinely concurrent within-budget refunds that together total the full amount.
+
+Refunds restore inventory via a compensating `InventoryMovement` (`DATABASE.md` §4) only for a **full** refund on an order that has **not shipped** (`SHIPPED`/`DELIVERED`/`COMPLETED`, `admin-orders.service.ts`'s `SHIPPED_ORDER_STATUSES`); partial refunds never auto-restock, and a shipped order's refund never auto-restocks either — both are left as a manual admin decision via `POST /admin/inventory/:variantId/adjustments`, since the physical item's condition is unknown.
+
+**Synchronous confirmation only — disclosed limitation:** the caller trusts Stripe's own resolved `refund.status` from that single API call; there is no webhook that later resolves a non-terminal `pending`/`requires_action` outcome (`StripePaymentProvider.refund` maps only `succeeded` to success, `failed`/`canceled` to failure, and passes everything else through as `PENDING` with no further follow-up built). A `PENDING` refund's reserved amount keeps counting against "remaining" indefinitely until a later refund attempt under the same `Idempotency-Key` resumes it — a known, accepted v1 gap for the same reason as this section's other disclosed limitations: no async reconciliation exists yet.
+
+**Idempotency-Key scoping (verified, not assumed reusable from checkout):** `IdempotencyKey.key` is a single global primary key and `scope` is stored but never filtered on by checkout's own lookup — reusing a raw client header value here could collide with an unrelated checkout key. `admin-orders.service.ts`'s `refund-idempotency.ts` namespaces the key as `` admin-refund:{orderId}:{clientKey} `` instead, requiring no schema change. Unlike checkout's simpler "only ever the final response" snapshot, a refund's `IdempotencyKey.responseSnapshot` also captures an interim `{ phase: "pending", refundId }` state after the reservation but before the Stripe call — because a refund can't complete in one transaction (the Stripe call must happen outside any lock), a crash mid-flight must be *resumable* under the same key (reusing the same `Refund.id`, and therefore the same Stripe idempotency key), not just replayed-or-rejected. An identical key + identical request body replays the final result (or resumes an unfinished one); the same key with a different request body returns `409`.
 
 ## 7. Abandoned checkout
 
@@ -152,7 +175,7 @@ A separate, lower-priority "abandoned cart" email job (distinct from checkout ab
 - Stripe secret keys and webhook signing secrets live only in `apps/api`'s runtime secrets (`STRIPE_SECRET_KEY`/`STRIPE_WEBHOOK_SECRET`) — never shipped to `storefront`/`admin`. Only the publishable key (`NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY`, non-secret by Stripe's own design) reaches the browser, for `@stripe/stripe-js`/`@stripe/react-stripe-js`'s Payment Element.
 - PCI scope is minimized by using Stripe's Payment Element / hosted fields — raw card data never touches our servers, and `apps/storefront` never calls the Stripe API directly for anything business-logic-bearing (intent creation, confirmation amounts) — it only ever renders the client-secret-scoped Payment Element apps/api already gave it.
 - `apps/storefront`'s CSP (`next.config.ts`) is scoped to what Stripe.js/Payment Element need: `script-src` allows `https://js.stripe.com`, `frame-src` allows `https://js.stripe.com`/`https://hooks.stripe.com`, `connect-src` allows `https://api.stripe.com`. `script-src`/`style-src` also carry `'unsafe-inline'` — a disclosed trade-off for Next.js's own unnonced inline hydration scripts (verified live: without it, Next's own bootstrap script is blocked), not something loosened for Stripe's sake.
-- All payment/refund admin actions are written to `AuditLog` (who, when, amount, reason) — not yet applicable in practice, since refunds/admin actions aren't built yet (§6).
+- Refund admin actions are written to `AuditLog` (`action: "order.refund_issued"`, actor, before/after `Payment`/`Order` status, amount, IP) — **implemented** (§6), applied by `applyRefundEffects` and attributed to the refund's original `initiatedByUserId`, never to whichever later action happened to trigger a reconciliation re-apply.
 
 ## 9. Guest order-status polling (`DECISIONS.md` ADR-024)
 

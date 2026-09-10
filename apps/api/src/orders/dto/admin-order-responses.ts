@@ -3,8 +3,11 @@ import { z } from "zod";
 // Duplicated rather than shared (checkout/dto/responses.ts, cart/dto/
 // responses.ts, shipping/dto/responses.ts each define the identical
 // two-field shape locally already) — this project's established pattern
-// for this one, that a shared money-schema module isn't worth extracting for.
-const moneySchema = z.object({ amountMinor: z.number().int(), currency: z.literal("SEK") });
+// for this one, that a shared money-schema module isn't worth extracting
+// for. Exported (unlike those) only because refundOrderResponseSchema
+// below lives in this same file and needs the identical shape — still not
+// worth a dedicated shared module for a two-field object.
+export const moneySchema = z.object({ amountMinor: z.number().int(), currency: z.literal("SEK") });
 
 // Order.userId/guestEmail are mutually exclusive by construction
 // (checkout.service.ts requires exactly one) — `email` is always the best-
@@ -101,3 +104,17 @@ export const adminOrderDetailResponseSchema = z.object({
   canceledAt: z.iso.datetime().nullable(),
 });
 export type AdminOrderDetailResponse = z.infer<typeof adminOrderDetailResponseSchema>;
+
+// "PENDING" here means Stripe itself returned a non-terminal status
+// ("pending"/"requires_action") — synchronous confirmation only (approved
+// design), so this response is the caller's *entire* signal; there is no
+// later webhook that will resolve it further in this version
+// (admin-orders.service.ts / PAYMENTS.md document this limitation).
+export const refundOrderResponseSchema = z.object({
+  refundId: z.string(),
+  status: z.enum(["SUCCEEDED", "FAILED", "PENDING"]),
+  amount: moneySchema,
+  orderStatus: z.string(),
+  paymentStatus: z.string(),
+});
+export type RefundOrderResponse = z.infer<typeof refundOrderResponseSchema>;

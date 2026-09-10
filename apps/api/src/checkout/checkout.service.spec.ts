@@ -232,6 +232,7 @@ function makeShippingProvider(quote: ShippingQuote | null = SHIPPING_QUOTE): Shi
 function makePaymentProvider(record: PaymentRecord = PAYMENT_RECORD): PaymentProvider {
   return {
     createPayment: vi.fn().mockResolvedValue(record),
+    refund: vi.fn(),
     verifyWebhookSignature: vi.fn(),
   };
 }

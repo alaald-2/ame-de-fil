@@ -49,11 +49,36 @@ export interface VerifiedWebhookEvent {
   raw: unknown;
 }
 
+export interface RefundInput {
+  providerPaymentIntentId: string;
+  amountMinor: number;
+  // Derived from our own, already-durably-persisted Refund.id
+  // (admin-orders.service.ts) — never the caller's raw Idempotency-Key
+  // header. This is what makes a retried call return the same Stripe
+  // refund object instead of creating a second one (PAYMENTS.md, mirrors
+  // createPayment's own `checkout-payment-intent:{orderId}` key).
+  idempotencyKey: string;
+}
+
+export interface RefundResult {
+  providerRefundId: string;
+  status: "succeeded" | "pending" | "failed";
+}
+
 export interface PaymentProvider {
   // Runs inside checkout's own transaction (accepts an explicit Prisma
   // client) so the Payment row is created atomically with the Order,
   // OrderItems, and StockReservations — never as a separate, out-of-band write.
   createPayment(tx: Prisma.TransactionClient, input: CreatePaymentInput): Promise<PaymentRecord>;
+
+  // Deliberately does NOT accept a Prisma transaction client, unlike
+  // createPayment — refunds must never be called from inside a DB
+  // transaction/lock (admin-orders.service.ts's own comments explain why:
+  // the eligibility check and reservation happen in their own short
+  // transaction that commits and releases its lock *before* this runs).
+  // Synchronous confirmation only (v1, approved design) — the caller
+  // trusts this call's own resolved status, no webhook confirmation.
+  refund(input: RefundInput): Promise<RefundResult>;
 
   // Verifies an inbound webhook's signature and normalizes it to a
   // VerifiedWebhookEvent. Throws on an invalid/unverifiable signature —
@@ -104,5 +129,13 @@ export class PendingPaymentProvider implements PaymentProvider {
   // loudly instead of pretending to verify something that can't be real.
   verifyWebhookSignature(): VerifiedWebhookEvent {
     throw new Error("PendingPaymentProvider cannot verify webhooks — no processor is configured");
+  }
+
+  // Same "fail loudly, never fake" posture as verifyWebhookSignature above
+  // — there is no real payment at Stripe (or anywhere) to refund when this
+  // provider is bound, so pretending to succeed would fabricate money
+  // movement that never happened.
+  refund(): Promise<RefundResult> {
+    throw new Error("PendingPaymentProvider cannot issue refunds — no processor is configured");
   }
 }
