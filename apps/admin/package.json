@@ -9,7 +9,8 @@
     "build": "next build",
     "start": "next start -p 3002",
     "typecheck": "tsc --noEmit",
-    "lint": "eslint ."
+    "lint": "eslint .",
+    "test:e2e": "playwright test"
   },
   "dependencies": {
     "@ame-de-fil/types": "workspace:*",
@@ -23,6 +24,8 @@
   "devDependencies": {
     "@ame-de-fil/config": "workspace:*",
     "@ame-de-fil/eslint-config": "workspace:*",
+    "@axe-core/playwright": "4.13.0",
+    "@playwright/test": "1.63.0",
     "@tailwindcss/postcss": "4.3.3",
     "@types/node": "24.0.0",
     "@types/react": "19.2.18",

@@ -1,39 +1,17 @@
-import { getTranslations } from "next-intl/server";
-import { Container, Heading, Alert, FormField, Input, Button, Stack } from "@ame-de-fil/ui";
+import { Suspense } from "react";
+import { Container, Spinner } from "@ame-de-fil/ui";
+import { LoginForm } from "../../components/login-form";
 
-// Structural shell only — no real submission wired to apps/api yet
-// (product/business logic for login is explicitly out of scope for this
-// checkpoint; DECISIONS.md ADR-015 owns the eventual real session-creation flow).
-export default async function LoginPage() {
-  const t = await getTranslations("Login");
-
+// Real submission (DECISIONS.md ADR-032) — LoginForm reads `from` via
+// useSearchParams, which requires a Suspense boundary so this route can
+// still prerender its static shell rather than opting the whole page into
+// fully client-side rendering.
+export default function LoginPage() {
   return (
     <Container className="flex min-h-screen items-center justify-center">
-      <div className="w-full max-w-sm">
-        <Heading level={2} className="mb-6 text-center">
-          {t("title")}
-        </Heading>
-        <Alert tone="info" className="mb-6">
-          {t("notImplemented")}
-        </Alert>
-        <form>
-          <Stack gap="md">
-            <FormField label={t("emailLabel")} required>
-              {(fieldProps) => (
-                <Input type="email" autoComplete="username" disabled {...fieldProps} />
-              )}
-            </FormField>
-            <FormField label={t("passwordLabel")} required>
-              {(fieldProps) => (
-                <Input type="password" autoComplete="current-password" disabled {...fieldProps} />
-              )}
-            </FormField>
-            <Button type="submit" disabled className="mt-2">
-              {t("submit")}
-            </Button>
-          </Stack>
-        </form>
-      </div>
+      <Suspense fallback={<Spinner />}>
+        <LoginForm />
+      </Suspense>
     </Container>
   );
 }

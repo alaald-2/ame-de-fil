@@ -16,12 +16,16 @@
     "emailLabel": "E-post",
     "passwordLabel": "Lösenord",
     "submit": "Logga in",
-    "notImplemented": "Inloggning är inte implementerad ännu — detta är endast en gränssnittsgrund."
+    "signingIn": "Loggar in…",
+    "invalidCredentials": "Fel e-postadress eller lösenord.",
+    "genericError": "Något gick fel. Försök igen."
   },
   "Common": {
     "loading": "Laddar…",
     "skipToContent": "Hoppa till innehåll",
-    "comingSoon": "Den här sektionen är inte implementerad ännu."
+    "comingSoon": "Den här sektionen är inte implementerad ännu.",
+    "signOut": "Logga ut",
+    "signOutError": "Det gick inte att logga ut. Försök igen."
   },
   "Errors": {
     "notFoundTitle": "Sidan kunde inte hittas",

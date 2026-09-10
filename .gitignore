@@ -18,6 +18,8 @@ out/
 
 # Testing
 coverage/
+test-results/
+playwright-report/
 
 # Playwright MCP session/verification scratch output (page snapshots,
 # console logs) — never intended to be committed.

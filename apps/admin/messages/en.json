@@ -16,12 +16,16 @@
     "emailLabel": "Email",
     "passwordLabel": "Password",
     "submit": "Sign in",
-    "notImplemented": "Sign-in isn't implemented yet — this is a structural shell only."
+    "signingIn": "Signing in…",
+    "invalidCredentials": "Incorrect email or password.",
+    "genericError": "Something went wrong. Please try again."
   },
   "Common": {
     "loading": "Loading…",
     "skipToContent": "Skip to content",
-    "comingSoon": "This section isn't implemented yet."
+    "comingSoon": "This section isn't implemented yet.",
+    "signOut": "Sign out",
+    "signOutError": "Couldn't sign out. Please try again."
   },
   "Errors": {
     "notFoundTitle": "Page not found",
