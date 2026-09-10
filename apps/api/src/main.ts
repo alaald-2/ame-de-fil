@@ -7,7 +7,7 @@ import { DocumentBuilder, SwaggerModule } from "@nestjs/swagger";
 import { Logger } from "nestjs-pino";
 import type { Env } from "@ame-de-fil/config";
 import { AppModule } from "./app.module.js";
-import { API_PREFIX, API_PREFIX_EXCLUDE } from "./bootstrap-config.js";
+import { API_PREFIX, API_PREFIX_EXCLUDE, shouldExposeApiDocs } from "./bootstrap-config.js";
 
 async function bootstrap(): Promise<void> {
   // rawBody: true — Nest still parses req.body as JSON for every route as
@@ -38,16 +38,21 @@ async function bootstrap(): Promise<void> {
   // OpenAPI document's paths can never drift from the real runtime routes.
   app.setGlobalPrefix(API_PREFIX, { exclude: API_PREFIX_EXCLUDE });
 
-  const swaggerDocument = SwaggerModule.createDocument(
-    app,
-    new DocumentBuilder()
-      .setTitle("Âme de Fil API")
-      .setDescription("Internal REST API — apps/storefront and apps/admin are its only clients.")
-      .setVersion("1")
-      .addCookieAuth("ame_session")
-      .build(),
-  );
-  SwaggerModule.setup("api/docs", app, swaggerDocument);
+  // Swagger UI/docs-json bypass the APP_GUARD chain entirely (see
+  // bootstrap-config.ts) — never registered in production, where they'd be
+  // reachable by anyone with no session at all.
+  if (shouldExposeApiDocs(config.get("NODE_ENV", { infer: true }))) {
+    const swaggerDocument = SwaggerModule.createDocument(
+      app,
+      new DocumentBuilder()
+        .setTitle("Âme de Fil API")
+        .setDescription("Internal REST API — apps/storefront and apps/admin are its only clients.")
+        .setVersion("1")
+        .addCookieAuth("ame_session")
+        .build(),
+    );
+    SwaggerModule.setup("api/docs", app, swaggerDocument);
+  }
 
   const port = config.get("PORT", { infer: true });
   await app.listen(port);
