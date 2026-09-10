@@ -54,7 +54,12 @@ function baseMock() {
     },
     inventoryMovement: {
       findMany: vi.fn().mockResolvedValue([]),
+      count: vi.fn().mockResolvedValue(0),
       create: vi.fn().mockResolvedValue({ id: "mov-1" }),
+    },
+    stockReservation: {
+      findMany: vi.fn().mockResolvedValue([]),
+      count: vi.fn().mockResolvedValue(0),
     },
     auditLog: { create: vi.fn().mockResolvedValue({}) },
     $transaction: vi.fn(),
@@ -170,6 +175,7 @@ describe("InventoryService.getByVariantId", () => {
             createdAt: new Date("2026-01-01T00:00:00.000Z"),
           },
         ]),
+        count: vi.fn(),
         create: vi.fn(),
       },
     });
@@ -254,5 +260,170 @@ describe("InventoryService.adjustStock", () => {
       ),
     ).rejects.toThrow(BadRequestException);
     expect(prisma.inventoryMovement.create).not.toHaveBeenCalled();
+  });
+});
+
+function reservationRow(overrides: Record<string, unknown> = {}) {
+  return {
+    id: "res-1",
+    status: "PENDING",
+    quantity: 1,
+    expiresAt: new Date("2026-01-01T00:15:00.000Z"),
+    createdAt: new Date("2026-01-01T00:00:00.000Z"),
+    inventoryItem: {
+      variant: { id: "var-1", sku: "SKU-1", product: { translations: [{ locale: Locale.sv_SE, name: "Halsduk" }] } },
+    },
+    orderItem: { order: { id: "order-1", orderNumber: "ORD-1" } },
+    ...overrides,
+  };
+}
+
+describe("InventoryService.listReservations", () => {
+  it("defaults to filtering on PENDING status, ordered soonest-to-expire first", async () => {
+    const prisma = makePrisma();
+    vi.mocked(prisma.stockReservation.findMany).mockResolvedValue([reservationRow()] as never);
+    const service = new InventoryService(prisma, new AuditService(prisma));
+
+    const result = await service.listReservations({ page: 1, pageSize: 20, status: "PENDING" });
+
+    expect(prisma.stockReservation.findMany).toHaveBeenCalledWith(
+      expect.objectContaining({ where: { status: "PENDING" }, orderBy: { expiresAt: "asc" } }),
+    );
+    expect(result.items[0]).toMatchObject({
+      id: "res-1",
+      status: "PENDING",
+      variantId: "var-1",
+      sku: "SKU-1",
+      productName: "Halsduk",
+      orderId: "order-1",
+      orderNumber: "ORD-1",
+    });
+  });
+
+  it("omits the status filter entirely for the ALL sentinel", async () => {
+    const prisma = makePrisma();
+    const service = new InventoryService(prisma, new AuditService(prisma));
+
+    await service.listReservations({ page: 1, pageSize: 20, status: "ALL" });
+
+    expect(prisma.stockReservation.findMany).toHaveBeenCalledWith(expect.objectContaining({ where: {} }));
+  });
+
+  it("filters by variantId via the inventoryItem relation", async () => {
+    const prisma = makePrisma();
+    const service = new InventoryService(prisma, new AuditService(prisma));
+
+    await service.listReservations({ page: 1, pageSize: 20, status: "ALL", variantId: "var-1" });
+
+    expect(prisma.stockReservation.findMany).toHaveBeenCalledWith(
+      expect.objectContaining({ where: { inventoryItem: { productVariantId: "var-1" } } }),
+    );
+  });
+});
+
+function movementRow(overrides: Record<string, unknown> = {}) {
+  return {
+    id: "mov-1",
+    type: "RESTOCK",
+    quantity: 5,
+    reason: "New shipment",
+    createdAt: new Date("2026-01-01T00:00:00.000Z"),
+    inventoryItem: {
+      variant: { id: "var-1", sku: "SKU-1", product: { translations: [{ locale: Locale.sv_SE, name: "Halsduk" }] } },
+    },
+    createdBy: { id: "user-1", email: "admin@example.com" },
+    relatedOrderItem: { order: { id: "order-1", orderNumber: "ORD-1" } },
+    ...overrides,
+  };
+}
+
+describe("InventoryService.listMovements", () => {
+  it("has no filter by default, ordered most-recent-first", async () => {
+    const prisma = makePrisma();
+    vi.mocked(prisma.inventoryMovement.findMany).mockResolvedValue([movementRow()] as never);
+    const service = new InventoryService(prisma, new AuditService(prisma));
+
+    const result = await service.listMovements({ page: 1, pageSize: 20 });
+
+    expect(prisma.inventoryMovement.findMany).toHaveBeenCalledWith(
+      expect.objectContaining({ where: {}, orderBy: { createdAt: "desc" } }),
+    );
+    expect(result.items[0]).toMatchObject({
+      id: "mov-1",
+      type: "RESTOCK",
+      createdBy: { id: "user-1", email: "admin@example.com" },
+      orderId: "order-1",
+      orderNumber: "ORD-1",
+    });
+  });
+
+  it("applies type and variantId filters", async () => {
+    const prisma = makePrisma();
+    const service = new InventoryService(prisma, new AuditService(prisma));
+
+    await service.listMovements({ page: 1, pageSize: 20, type: "ADJUSTMENT", variantId: "var-1" });
+
+    expect(prisma.inventoryMovement.findMany).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: { type: "ADJUSTMENT", inventoryItem: { productVariantId: "var-1" } },
+      }),
+    );
+  });
+
+  it("applies an explicit UTC from/to range", async () => {
+    const prisma = makePrisma();
+    const service = new InventoryService(prisma, new AuditService(prisma));
+
+    await service.listMovements({
+      page: 1,
+      pageSize: 20,
+      from: "2026-01-01T00:00:00.000Z",
+      to: "2026-01-31T00:00:00.000Z",
+    });
+
+    const where = vi.mocked(prisma.inventoryMovement.findMany).mock.calls[0]?.[0]?.where as {
+      createdAt: { gte: Date; lt: Date };
+    };
+    expect(where.createdAt.gte.toISOString()).toBe("2026-01-01T00:00:00.000Z");
+    expect(where.createdAt.lt.toISOString()).toBe("2026-01-31T00:00:00.000Z");
+  });
+
+  it("rejects from >= to with a 400, never querying the database", async () => {
+    const prisma = makePrisma();
+    const service = new InventoryService(prisma, new AuditService(prisma));
+
+    await expect(
+      service.listMovements({
+        page: 1,
+        pageSize: 20,
+        from: "2026-01-31T00:00:00.000Z",
+        to: "2026-01-01T00:00:00.000Z",
+      }),
+    ).rejects.toThrow(BadRequestException);
+    expect(prisma.inventoryMovement.findMany).not.toHaveBeenCalled();
+  });
+
+  it("resolves createdBy/orderId/orderNumber to null for a system-driven movement with no related order item", async () => {
+    const prisma = makePrisma();
+    vi.mocked(prisma.inventoryMovement.findMany).mockResolvedValue([
+      movementRow({ type: "SALE", createdBy: null, relatedOrderItem: null }),
+    ] as never);
+    const service = new InventoryService(prisma, new AuditService(prisma));
+
+    const result = await service.listMovements({ page: 1, pageSize: 20 });
+
+    expect(result.items[0]).toMatchObject({ createdBy: null, orderId: null, orderNumber: null });
+  });
+
+  it("resolves createdBy to null when the original actor's User row is gone (onDelete: SetNull)", async () => {
+    const prisma = makePrisma();
+    vi.mocked(prisma.inventoryMovement.findMany).mockResolvedValue([
+      movementRow({ createdBy: null }),
+    ] as never);
+    const service = new InventoryService(prisma, new AuditService(prisma));
+
+    const result = await service.listMovements({ page: 1, pageSize: 20 });
+
+    expect(result.items[0]?.createdBy).toBeNull();
   });
 });

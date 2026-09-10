@@ -29,10 +29,14 @@ import type { AuthContext } from "../common/types/auth-context.ts";
 import { InventoryService } from "./inventory.service.ts";
 import { adjustStockSchema, type AdjustStockInput } from "./dto/adjust-stock.dto.ts";
 import { variantIdParamSchema, type VariantIdParam } from "./dto/variant-id.param.ts";
+import { listReservationsQuerySchema, type ListReservationsQuery } from "./dto/list-reservations.dto.ts";
+import { listMovementsQuerySchema, type ListMovementsQuery } from "./dto/list-movements.dto.ts";
 import {
   inventoryDetailResponseSchema,
   inventoryItemResponseSchema,
   listInventoryResponseSchema,
+  listMovementsResponseSchema,
+  listReservationsResponseSchema,
 } from "./dto/responses.ts";
 
 // No @Public()/@OptionalAuth() — admin-only, default-deny like every other
@@ -69,6 +73,29 @@ export class InventoryController {
   @UsePipes(new ZodValidationPipe(paginationQuerySchema))
   async listLowStock(@Query() query: PaginationQuery) {
     return this.inventory.listLowStock(query.page, query.pageSize);
+  }
+
+  // Same route-ordering requirement as "low-stock" above — must be
+  // declared before @Get(":variantId").
+  @Get("reservations")
+  @RequirePermissions("inventory.view")
+  @ApiOperation({ summary: "List stock reservations, soonest-to-expire first (PENDING by default)" })
+  @ApiZodQuery(listReservationsQuerySchema)
+  @ApiOkResponse({ schema: toOpenApiSchema(listReservationsResponseSchema) })
+  @ApiErrorResponses(400, 401, 403)
+  async listReservations(@Query(new ZodValidationPipe(listReservationsQuerySchema)) query: ListReservationsQuery) {
+    return this.inventory.listReservations(query);
+  }
+
+  // Same route-ordering requirement as "low-stock"/"reservations" above.
+  @Get("movements")
+  @RequirePermissions("inventory.view")
+  @ApiOperation({ summary: "Cross-item inventory movement ledger, most recent first" })
+  @ApiZodQuery(listMovementsQuerySchema)
+  @ApiOkResponse({ schema: toOpenApiSchema(listMovementsResponseSchema) })
+  @ApiErrorResponses(400, 401, 403)
+  async listMovements(@Query(new ZodValidationPipe(listMovementsQuerySchema)) query: ListMovementsQuery) {
+    return this.inventory.listMovements(query);
   }
 
   @Get(":variantId")

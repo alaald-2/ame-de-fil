@@ -538,6 +538,11 @@ model InventoryMovement {
   createdBy        User?         @relation(fields: [createdByUserId], references: [id], onDelete: SetNull)
 
   @@index([inventoryItemId])
+  // Inventory-views checkpoint: GET /admin/inventory/movements orders the
+  // cross-item ledger by createdAt DESC — unlike StockReservation (self-
+  // bounding, already indexed on [status, expiresAt]), this table only
+  // ever grows, and had no index supporting that sort at all (DATABASE.md §11).
+  @@index([createdAt])
 }
 
 // Created at checkout-start (not add-to-cart), 15-minute TTL, released by a

@@ -1,14 +1,20 @@
 import { BadRequestException, Injectable, NotFoundException } from "@nestjs/common";
-import { InventoryMovementType, Prisma } from "@ame-de-fil/database";
+import { InventoryMovementType, Prisma, StockReservationStatus } from "@ame-de-fil/database";
 import { PrismaService } from "../database/prisma.service.ts";
 import { AuditService } from "../audit/audit.service.ts";
 import {
   LOW_STOCK_ITEM_SELECT,
+  MOVEMENT_LEDGER_SELECT,
+  RESERVATION_LIST_SELECT,
   mapInventoryItem,
   mapInventoryItemWithMovements,
+  mapMovementLedgerItem,
+  mapReservationListItem,
   type InventoryItemWithContext,
 } from "./mappers/inventory.mapper.ts";
 import type { AdjustStockInput } from "./dto/adjust-stock.dto.ts";
+import type { ListReservationsQuery } from "./dto/list-reservations.dto.ts";
+import type { ListMovementsQuery } from "./dto/list-movements.dto.ts";
 
 const ITEM_INCLUDE = {
   variant: { include: { product: { include: { translations: true } } } },
@@ -135,6 +141,70 @@ export class InventoryService {
     });
 
     return mapInventoryItemWithMovements({ ...item, movements });
+  }
+
+  // "Current reservations" — distinct from getByVariantId's own capped,
+  // single-item movement preview above: this is cross-item, paginated, and
+  // filterable. Ordered soonest-to-expire (or already-overdue) first, not
+  // "most recent first" like every other list in this codebase — an
+  // operational triage view, not a browsing history, same reasoning as
+  // listLowStock's "most urgent first." A PENDING row whose expiresAt has
+  // already passed is shown as-is, never filtered out or specially
+  // flagged — ReservationExpiryService hasn't swept it yet, and hiding it
+  // would misrepresent the real, if momentarily stale, state.
+  async listReservations(query: ListReservationsQuery) {
+    const { page, pageSize, status, variantId } = query;
+    const where: Prisma.StockReservationWhereInput = {};
+    if (status !== "ALL") where.status = StockReservationStatus[status];
+    if (variantId) where.inventoryItem = { productVariantId: variantId };
+
+    const [rows, total] = await Promise.all([
+      this.prisma.stockReservation.findMany({
+        where,
+        select: RESERVATION_LIST_SELECT,
+        orderBy: { expiresAt: "asc" },
+        skip: (page - 1) * pageSize,
+        take: pageSize,
+      }),
+      this.prisma.stockReservation.count({ where }),
+    ]);
+
+    return { items: rows.map(mapReservationListItem), page, pageSize, total };
+  }
+
+  // Cross-item movement ledger — ordered most-recent-first (the standard
+  // convention every other list here uses), unlike listReservations above:
+  // this is a historical record, not a triage queue.
+  async listMovements(query: ListMovementsQuery) {
+    const { page, pageSize, type, variantId, from: fromInput, to: toInput } = query;
+    const where: Prisma.InventoryMovementWhereInput = {};
+    if (type) where.type = type;
+    if (variantId) where.inventoryItem = { productVariantId: variantId };
+
+    if (fromInput || toInput) {
+      const from = fromInput ? new Date(fromInput) : undefined;
+      const to = toInput ? new Date(toInput) : undefined;
+      if (from && to && from.getTime() >= to.getTime()) {
+        throw new BadRequestException({
+          error: "InvalidDateRange",
+          message: `"from" must be strictly before "to"`,
+        });
+      }
+      where.createdAt = { ...(from ? { gte: from } : {}), ...(to ? { lt: to } : {}) };
+    }
+
+    const [rows, total] = await Promise.all([
+      this.prisma.inventoryMovement.findMany({
+        where,
+        select: MOVEMENT_LEDGER_SELECT,
+        orderBy: { createdAt: "desc" },
+        skip: (page - 1) * pageSize,
+        take: pageSize,
+      }),
+      this.prisma.inventoryMovement.count({ where }),
+    ]);
+
+    return { items: rows.map(mapMovementLedgerItem), page, pageSize, total };
   }
 
   // Race-safe by construction, not by a prior read-then-check: the

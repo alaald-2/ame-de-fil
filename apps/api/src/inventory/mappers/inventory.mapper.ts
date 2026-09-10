@@ -57,11 +57,22 @@ export const LOW_STOCK_ITEM_SELECT = {
 // Admin-facing display name resolves to the default locale (sv-SE), falling
 // back to whatever translation exists — this is an internal admin tool
 // showing "which product is this," not a customer-facing localized page,
-// so it doesn't need a `locale` query param the way catalog does.
-function resolveDisplayName(item: MappableInventoryItem): string {
-  const translations = item.variant.product.translations;
+// so it doesn't need a `locale` query param the way catalog does. Takes
+// the variant directly (not the whole item) so the reservation/movement
+// mappers below — which never fetch a full InventoryItem, only its variant
+// via a nested select — can reuse the identical resolution rule rather
+// than duplicating it a third time.
+function resolveVariantDisplayName(variant: {
+  sku: string;
+  product: { translations: { locale: Locale; name: string }[] };
+}): string {
+  const translations = variant.product.translations;
   const preferred = translations.find((t) => t.locale === Locale.sv_SE);
-  return (preferred ?? translations[0])?.name ?? item.variant.sku;
+  return (preferred ?? translations[0])?.name ?? variant.sku;
+}
+
+function resolveDisplayName(item: MappableInventoryItem): string {
+  return resolveVariantDisplayName(item.variant);
 }
 
 export function mapInventoryItem(item: MappableInventoryItem) {
@@ -92,5 +103,100 @@ export function mapInventoryItemWithMovements(item: InventoryItemWithMovements) 
       createdByUserId: movement.createdByUserId,
       createdAt: movement.createdAt.toISOString(),
     })),
+  };
+}
+
+// GET /admin/inventory/reservations (inventory-views checkpoint) — never a
+// customer name/email/address, just enough (orderId/orderNumber) to
+// cross-reference GET /admin/orders/:id if an admin needs the full order.
+export const RESERVATION_LIST_SELECT = {
+  id: true,
+  status: true,
+  quantity: true,
+  expiresAt: true,
+  createdAt: true,
+  inventoryItem: {
+    select: {
+      variant: {
+        select: {
+          id: true,
+          sku: true,
+          product: { select: { translations: { select: { locale: true, name: true } } } },
+        },
+      },
+    },
+  },
+  orderItem: {
+    select: { order: { select: { id: true, orderNumber: true } } },
+  },
+} satisfies Prisma.StockReservationSelect;
+
+export type ReservationListRow = Prisma.StockReservationGetPayload<{
+  select: typeof RESERVATION_LIST_SELECT;
+}>;
+
+export function mapReservationListItem(row: ReservationListRow) {
+  const variant = row.inventoryItem.variant;
+  return {
+    id: row.id,
+    status: row.status,
+    quantity: row.quantity,
+    expiresAt: row.expiresAt.toISOString(),
+    createdAt: row.createdAt.toISOString(),
+    variantId: variant.id,
+    sku: variant.sku,
+    productName: resolveVariantDisplayName(variant),
+    orderId: row.orderItem.order.id,
+    orderNumber: row.orderItem.order.orderNumber,
+  };
+}
+
+// GET /admin/inventory/movements (inventory-views checkpoint) — createdBy
+// resolved to {id, email} only (mirrors admin-audit-log's own actor
+// resolution, never a bare include of the full User row), nullable for a
+// system-driven movement (SALE, no admin actor) or a since-deleted admin
+// (onDelete: SetNull). orderId/orderNumber nullable the same way, via
+// relatedOrderItem's own onDelete: SetNull.
+export const MOVEMENT_LEDGER_SELECT = {
+  id: true,
+  type: true,
+  quantity: true,
+  reason: true,
+  createdAt: true,
+  inventoryItem: {
+    select: {
+      variant: {
+        select: {
+          id: true,
+          sku: true,
+          product: { select: { translations: { select: { locale: true, name: true } } } },
+        },
+      },
+    },
+  },
+  createdBy: { select: { id: true, email: true } },
+  relatedOrderItem: {
+    select: { order: { select: { id: true, orderNumber: true } } },
+  },
+} satisfies Prisma.InventoryMovementSelect;
+
+export type MovementLedgerRow = Prisma.InventoryMovementGetPayload<{
+  select: typeof MOVEMENT_LEDGER_SELECT;
+}>;
+
+export function mapMovementLedgerItem(row: MovementLedgerRow) {
+  const variant = row.inventoryItem.variant;
+  return {
+    id: row.id,
+    type: row.type,
+    quantity: row.quantity,
+    reason: row.reason,
+    createdAt: row.createdAt.toISOString(),
+    variantId: variant.id,
+    sku: variant.sku,
+    productName: resolveVariantDisplayName(variant),
+    createdBy: row.createdBy ? { id: row.createdBy.id, email: row.createdBy.email } : null,
+    orderId: row.relatedOrderItem?.order.id ?? null,
+    orderNumber: row.relatedOrderItem?.order.orderNumber ?? null,
   };
 }
