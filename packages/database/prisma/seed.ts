@@ -25,6 +25,9 @@ const PERMISSION_KEYS = [
   "audit.view",
   "customers.view",
   "orders.refund",
+  "users.view",
+  "users.manage",
+  "users.manage_roles",
 ] as const;
 
 const ADMIN_ROLE_NAME = "admin";

@@ -2,7 +2,7 @@ import { randomBytes } from "node:crypto";
 import { Injectable } from "@nestjs/common";
 import { ConfigService } from "@nestjs/config";
 import type { Env } from "@ame-de-fil/config";
-import { UserStatus } from "@ame-de-fil/database";
+import { Prisma, UserStatus } from "@ame-de-fil/database";
 import { PrismaService } from "../database/prisma.service.js";
 import type { AuthContext } from "../common/types/auth-context.js";
 
@@ -96,6 +96,24 @@ export class SessionService {
   async revokeSession(token: string): Promise<void> {
     await this.prisma.session.updateMany({
       where: { id: token, revokedAt: null },
+      data: { revokedAt: new Date() },
+    });
+  }
+
+  // Deactivation's own logout-everywhere step (users/admin-users.service.ts)
+  // — deliberately not relied upon as the *only* enforcement, since
+  // validateSession above already rejects a DISABLED user's session
+  // regardless of revokedAt; this makes that intent explicit and durable
+  // (a re-activated account doesn't inherit a still-unexpired old session).
+  // Takes an optional open transaction client (AuditService.record's same
+  // idiom) so a caller can commit this atomically with the status change
+  // it's revoking sessions for.
+  async revokeAllSessionsForUser(
+    userId: string,
+    client: PrismaService | Prisma.TransactionClient = this.prisma,
+  ): Promise<void> {
+    await client.session.updateMany({
+      where: { userId, revokedAt: null },
       data: { revokedAt: new Date() },
     });
   }
