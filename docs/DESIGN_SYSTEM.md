@@ -42,6 +42,14 @@ shadcn/ui components are copied into `packages/ui` specifically so every default
 
 Product imagery is the primary brand signal for a handmade goods brand — the design system defers to photography rather than competing with it: minimal chrome around images, consistent aspect ratios per context (product card vs. hero vs. detail gallery), `next/image` for automatic AVIF/WebP + responsive sizing (`SEO.md` §4).
 
+**Material/atmospheric imagery — yarn, fiber, and stitch photography — is a distinct, deliberately separate category from product photography, governed by one rule: material, not motif.** Real, editorial macro photography of yarn fiber, knit/crochet stitch texture, and natural material (wool, cotton, linen) communicates the brand's handmade character; illustrated crochet graphics, decorative craft patterns, and scrapbook/collage treatments are explicitly rejected regardless of how "on brand" the subject matter seems — the failure mode this guards against is a premium atelier brand reading as a generic craft-store site.
+
+Treatment: macro/close-up framing (a single strand's twist, a stitch row in raking light), color-graded toward the existing warm neutral/terracotta palette rather than the raw fiber's own hue, generous negative space, no gradients, no heavy shadows, no repeating/tiled textures behind content.
+
+Placement is restrained and occasion-specific, not a sitewide layer: the home hero, one supporting image per collection/category storytelling section, one frame within a product's own gallery, and (on a future About/story page) a barely-visible background wash behind a pull-quote — never behind body copy or an interactive control. Cart, checkout, and the shop listing grid stay clean and imagery-free; nothing here competes with the transactional path to purchase. This "one considered image" restraint applies specifically to this atmospheric/decorative category — it is not a cap on a product detail page's own gallery, which shows as many genuine product photographs as the product needs. Never used on `apps/admin`'s dense data pages, consistent with §8's information-density divergence below.
+
+Final photography is sourced/commissioned at implementation time, not invented as placeholder stock — building the image slots, aspect ratios, and `next/image`-based responsive behavior comes first; real photography meeting this direction is selected afterward.
+
 ## 7. Accessibility target: WCAG 2.2 AA
 
 Concrete, testable commitments (not aspirational):
