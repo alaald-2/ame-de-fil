@@ -1,6 +1,7 @@
 import { describe, expect, it, vi, beforeEach } from "vitest";
 import { ConfigService } from "@nestjs/config";
 import type { Env } from "@ame-de-fil/config";
+import { UserStatus } from "@ame-de-fil/database";
 import { SessionService } from "./session.service.js";
 import type { PrismaService } from "../database/prisma.service.js";
 
@@ -73,6 +74,18 @@ describe("SessionService", () => {
     await expect(service.validateSession("tok")).resolves.toBeNull();
   });
 
+  it("returns null for a still-valid, unrevoked session whose user has since been disabled", async () => {
+    vi.mocked(prisma.session.findUnique).mockResolvedValue({
+      id: "tok",
+      userId: "user-1",
+      csrfToken: "csrf",
+      revokedAt: null,
+      expiresAt: new Date(Date.now() + 10_000),
+      user: { status: UserStatus.DISABLED, roles: [] },
+    } as never);
+    await expect(service.validateSession("tok")).resolves.toBeNull();
+  });
+
   it("flattens roles -> permissions into a deduplicated set for a valid session", async () => {
     vi.mocked(prisma.session.findUnique).mockResolvedValue({
       id: "tok",
@@ -81,6 +94,7 @@ describe("SessionService", () => {
       revokedAt: null,
       expiresAt: new Date(Date.now() + 10_000),
       user: {
+        status: UserStatus.ACTIVE,
         roles: [
           {
             role: {

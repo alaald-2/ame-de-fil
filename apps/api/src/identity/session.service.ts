@@ -2,6 +2,7 @@ import { randomBytes } from "node:crypto";
 import { Injectable } from "@nestjs/common";
 import { ConfigService } from "@nestjs/config";
 import type { Env } from "@ame-de-fil/config";
+import { UserStatus } from "@ame-de-fil/database";
 import { PrismaService } from "../database/prisma.service.js";
 import type { AuthContext } from "../common/types/auth-context.js";
 
@@ -70,6 +71,12 @@ export class SessionService {
     if (!session) return null;
     if (session.revokedAt) return null;
     if (session.expiresAt.getTime() <= Date.now()) return null;
+    // A user disabled after this session was issued must lose access
+    // immediately, not just at their next login (SECURITY.md §1: "an admin
+    // must be able to kill a session instantly") — checked here, not only
+    // in AuthService.login, since an already-issued session never goes
+    // through login again.
+    if (session.user.status !== UserStatus.ACTIVE) return null;
 
     const permissions = new Set<string>();
     for (const userRole of session.user.roles) {
