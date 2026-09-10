@@ -1,8 +1,9 @@
 import { BadRequestException, Injectable, NotFoundException } from "@nestjs/common";
-import { InventoryMovementType } from "@ame-de-fil/database";
+import { InventoryMovementType, Prisma } from "@ame-de-fil/database";
 import { PrismaService } from "../database/prisma.service.ts";
 import { AuditService } from "../audit/audit.service.ts";
 import {
+  LOW_STOCK_ITEM_SELECT,
   mapInventoryItem,
   mapInventoryItemWithMovements,
   type InventoryItemWithContext,
@@ -33,6 +34,64 @@ export class InventoryService {
 
     return {
       items: rows.map((row: InventoryItemWithContext) => mapInventoryItem(row)),
+      page,
+      pageSize,
+      total,
+    };
+  }
+
+  // Only finite-stock items with a threshold actually set can ever be "low
+  // stock" — a made-to-order line (tracksStock=false) has no ceiling to run
+  // low on, and an item with lowStockThreshold: null has nothing to compare
+  // against (Postgres's own NULL semantics already make "(onHand -
+  // reserved) < NULL" false, but the explicit clause below documents that
+  // intent rather than relying on it implicitly). "onHand - reserved <
+  // lowStockThreshold" compares two columns to each other, which Prisma's
+  // declarative `where` filters can't express at all (only column-to-
+  // literal) — raw SQL is the same, already-established escape hatch
+  // stock-lock.ts uses for the identical class of problem, parameterized
+  // via Prisma.sql exactly the same way (SECURITY.md §5).
+  async listLowStock(page: number, pageSize: number) {
+    const LOW_STOCK_CONDITION = Prisma.sql`
+      "tracksStock" = true
+      AND "lowStockThreshold" IS NOT NULL
+      AND ("onHand" - "reserved") < "lowStockThreshold"
+    `;
+
+    const [countRows, idRows] = await Promise.all([
+      this.prisma.$queryRaw<{ count: number }[]>(
+        Prisma.sql`SELECT COUNT(*)::int AS count FROM "InventoryItem" WHERE ${LOW_STOCK_CONDITION}`,
+      ),
+      this.prisma.$queryRaw<{ id: string }[]>(
+        // Most urgent (lowest, or most negative, available quantity) first;
+        // id as a stable tiebreaker for deterministic pagination.
+        Prisma.sql`
+          SELECT "id" FROM "InventoryItem"
+          WHERE ${LOW_STOCK_CONDITION}
+          ORDER BY ("onHand" - "reserved") ASC, "id" ASC
+          LIMIT ${pageSize} OFFSET ${(page - 1) * pageSize}
+        `,
+      ),
+    ]);
+
+    const total = countRows[0]?.count ?? 0;
+    const orderedIds = idRows.map((row) => row.id);
+    if (orderedIds.length === 0) {
+      return { items: [], page, pageSize, total };
+    }
+
+    const rows = await this.prisma.inventoryItem.findMany({
+      where: { id: { in: orderedIds } },
+      select: LOW_STOCK_ITEM_SELECT,
+    });
+
+    // `id IN (...)` doesn't preserve the raw query's ORDER BY — re-sort
+    // into the urgency order the raw query already determined.
+    const byId = new Map(rows.map((row) => [row.id, row]));
+    const ordered = orderedIds.map((id) => byId.get(id)).filter((row) => row !== undefined);
+
+    return {
+      items: ordered.map((row) => mapInventoryItem(row)),
       page,
       pageSize,
       total,

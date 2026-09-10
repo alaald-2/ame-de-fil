@@ -21,13 +21,14 @@ import type { AuthContext } from "../common/types/auth-context.ts";
 // never become CSRF-exempt" (see csrf.guard.spec.ts for the isolated case).
 async function bootApp(validateSession: (token: string) => Promise<AuthContext | null>) {
   const list = vi.fn().mockResolvedValue({ items: [], page: 1, pageSize: 20, total: 0 });
+  const listLowStock = vi.fn().mockResolvedValue({ items: [], page: 1, pageSize: 20, total: 0 });
   const getByVariantId = vi.fn().mockResolvedValue({ variantId: "var-1" });
   const adjustStock = vi.fn().mockResolvedValue({ variantId: "var-1", onHand: 15 });
 
   const moduleRef = await Test.createTestingModule({
     controllers: [InventoryController],
     providers: [
-      { provide: InventoryService, useValue: { list, getByVariantId, adjustStock } },
+      { provide: InventoryService, useValue: { list, listLowStock, getByVariantId, adjustStock } },
       { provide: SessionService, useValue: { validateSession } },
       {
         provide: ConfigService,
@@ -45,7 +46,7 @@ async function bootApp(validateSession: (token: string) => Promise<AuthContext |
   app.use(cookieParser());
   app.useGlobalFilters(new AllExceptionsFilter());
   await app.init();
-  return { app, list, getByVariantId, adjustStock };
+  return { app, list, listLowStock, getByVariantId, adjustStock };
 }
 
 const AUTH_WITH_VIEW: AuthContext = {
@@ -102,6 +103,77 @@ describe("GET /admin/inventory — authorization", () => {
 
     expect(response.status).toBe(200);
     expect(booted.list).toHaveBeenCalledWith(1, 20);
+  });
+});
+
+describe("GET /admin/inventory/low-stock — authorization", () => {
+  let app: INestApplication | undefined;
+
+  afterEach(async () => {
+    await app?.close();
+    app = undefined;
+  });
+
+  it("returns 401 with no session cookie", async () => {
+    const booted = await bootApp(async () => null);
+    app = booted.app;
+
+    const response = await supertest(app.getHttpServer()).get("/admin/inventory/low-stock");
+
+    expect(response.status).toBe(401);
+    expect(booted.listLowStock).not.toHaveBeenCalled();
+  });
+
+  it("returns 403 for a valid session lacking inventory.view", async () => {
+    const booted = await bootApp(async () => ({ ...AUTH_WITH_VIEW, permissions: [] }));
+    app = booted.app;
+
+    const response = await supertest(app.getHttpServer())
+      .get("/admin/inventory/low-stock")
+      .set("Cookie", "ame_session=token");
+
+    expect(response.status).toBe(403);
+    expect(booted.listLowStock).not.toHaveBeenCalled();
+  });
+
+  it("returns 200 and calls listLowStock, not getByVariantId — route ordering regression", async () => {
+    const booted = await bootApp(async () => AUTH_WITH_VIEW);
+    app = booted.app;
+
+    const response = await supertest(app.getHttpServer())
+      .get("/admin/inventory/low-stock")
+      .set("Cookie", "ame_session=token");
+
+    expect(response.status).toBe(200);
+    expect(booted.listLowStock).toHaveBeenCalledWith(1, 20);
+    // The real risk this endpoint introduced: @Get(":variantId") is
+    // registered in the same controller and would otherwise swallow
+    // "low-stock" as a literal variant id if declared first.
+    expect(booted.getByVariantId).not.toHaveBeenCalled();
+  });
+
+  it("passes page/pageSize query params through to the service", async () => {
+    const booted = await bootApp(async () => AUTH_WITH_VIEW);
+    app = booted.app;
+
+    const response = await supertest(app.getHttpServer())
+      .get("/admin/inventory/low-stock?page=2&pageSize=5")
+      .set("Cookie", "ame_session=token");
+
+    expect(response.status).toBe(200);
+    expect(booted.listLowStock).toHaveBeenCalledWith(2, 5);
+  });
+
+  it("returns 400 for a pageSize over the cap, before the service is ever called", async () => {
+    const booted = await bootApp(async () => AUTH_WITH_VIEW);
+    app = booted.app;
+
+    const response = await supertest(app.getHttpServer())
+      .get("/admin/inventory/low-stock?pageSize=999")
+      .set("Cookie", "ame_session=token");
+
+    expect(response.status).toBe(400);
+    expect(booted.listLowStock).not.toHaveBeenCalled();
   });
 });
 

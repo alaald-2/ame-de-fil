@@ -58,6 +58,7 @@ function baseMock() {
     },
     auditLog: { create: vi.fn().mockResolvedValue({}) },
     $transaction: vi.fn(),
+    $queryRaw: vi.fn(),
   };
 }
 
@@ -79,6 +80,70 @@ describe("InventoryService.list", () => {
       available: true,
       availableQuantity: 8,
     });
+  });
+});
+
+// The actual low-stock WHERE-clause arithmetic (tracksStock/
+// lowStockThreshold/onHand-reserved boundary cases) runs as raw SQL a
+// mocked $queryRaw can't meaningfully exercise — those are covered by
+// inventory.service.integration.spec.ts against real Postgres instead.
+// These tests cover the service's own plumbing: pagination pass-through,
+// the empty-page short circuit, and re-sorting the shaping query's result
+// back into the raw query's own urgency order.
+describe("InventoryService.listLowStock", () => {
+  it("re-sorts the shaping query's rows back into the raw query's urgency order", async () => {
+    const prisma = makePrisma();
+    vi.mocked(prisma.$queryRaw)
+      .mockResolvedValueOnce([{ count: 2 }]) // count query
+      .mockResolvedValueOnce([{ id: "inv-2" }, { id: "inv-1" }]); // ids query, in urgency order
+    const rowFor = (id: string, sku: string) => ({
+      id,
+      onHand: 1,
+      reserved: 0,
+      tracksStock: true,
+      isLimitedEdition: false,
+      productionTimeDays: null,
+      lowStockThreshold: 5,
+      variant: { id: `var-${sku}`, sku, product: { translations: [{ locale: Locale.sv_SE, name: sku }] } },
+    });
+    // findMany intentionally returns them in the OPPOSITE order — Prisma's
+    // `id IN (...)` never guarantees result order.
+    vi.mocked(prisma.inventoryItem.findMany).mockResolvedValue([
+      rowFor("inv-1", "SKU-1"),
+      rowFor("inv-2", "SKU-2"),
+    ] as never);
+    const service = new InventoryService(prisma, new AuditService(prisma));
+
+    const result = await service.listLowStock(1, 20);
+
+    expect(result.items.map((item) => item.sku)).toEqual(["SKU-2", "SKU-1"]);
+    expect(result.total).toBe(2);
+    expect(prisma.inventoryItem.findMany).toHaveBeenCalledWith({
+      where: { id: { in: ["inv-2", "inv-1"] } },
+      select: expect.any(Object),
+    });
+  });
+
+  it("returns an empty page without querying the shaping select when nothing is low on stock", async () => {
+    const prisma = makePrisma();
+    vi.mocked(prisma.$queryRaw).mockResolvedValueOnce([{ count: 0 }]).mockResolvedValueOnce([]);
+    const service = new InventoryService(prisma, new AuditService(prisma));
+
+    const result = await service.listLowStock(1, 20);
+
+    expect(result).toEqual({ items: [], page: 1, pageSize: 20, total: 0 });
+    expect(prisma.inventoryItem.findMany).not.toHaveBeenCalled();
+  });
+
+  it("computes pagination consistently with the other list endpoint", async () => {
+    const prisma = makePrisma();
+    vi.mocked(prisma.$queryRaw).mockResolvedValueOnce([{ count: 0 }]).mockResolvedValueOnce([]);
+    const service = new InventoryService(prisma, new AuditService(prisma));
+
+    const result = await service.listLowStock(3, 10);
+
+    expect(result.page).toBe(3);
+    expect(result.pageSize).toBe(10);
   });
 });
 

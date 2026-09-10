@@ -55,6 +55,22 @@ export class InventoryController {
     return this.inventory.list(query.page, query.pageSize);
   }
 
+  // Must be declared before @Get(":variantId") below — Nest/Express match
+  // routes in registration order, and ":variantId" would otherwise swallow
+  // "low-stock" as a literal variant id.
+  @Get("low-stock")
+  @RequirePermissions("inventory.view")
+  @ApiOperation({
+    summary: "List finite-stock items where onHand - reserved is below their lowStockThreshold",
+  })
+  @ApiZodQuery(paginationQuerySchema)
+  @ApiOkResponse({ schema: toOpenApiSchema(listInventoryResponseSchema) })
+  @ApiErrorResponses(400, 401, 403)
+  @UsePipes(new ZodValidationPipe(paginationQuerySchema))
+  async listLowStock(@Query() query: PaginationQuery) {
+    return this.inventory.listLowStock(query.page, query.pageSize);
+  }
+
   @Get(":variantId")
   @RequirePermissions("inventory.view")
   @ApiOperation({ summary: "Get one variant's inventory item with recent movement history" })
