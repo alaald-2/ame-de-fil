@@ -161,5 +161,48 @@
       "exceedsRemainingError": "That amount exceeds what's left refundable on this payment.",
       "noRefundablePaymentError": "This order has no payment in a refundable state."
     }
+  },
+  "Dashboard": {
+    "periodLabel": "Last 30 days",
+    "periodRange": "{from} to {to}",
+    "none": "-",
+    "totalInPeriod": "{count} total",
+    "forbiddenTitle": "You don't have access to this page",
+    "forbiddenDescription": "Viewing the dashboard requires the Dashboard permission. Ask an administrator if you need access.",
+    "errorTitle": "Couldn't load the dashboard",
+    "errorDescription": "Something went wrong while loading dashboard data.",
+    "alerts": {
+      "allClear": "No urgent items right now.",
+      "lowStock": "{count} product(s) low on stock",
+      "disputedPayments": "{count} disputed payment(s)",
+      "failedRefunds": "{count} failed refund(s)"
+    },
+    "revenue": {
+      "title": "Revenue",
+      "net": "Net revenue",
+      "gross": "Gross revenue",
+      "refunds": "Refunds",
+      "averageOrderValue": "Average order value",
+      "confirmedOrders": "Confirmed orders"
+    },
+    "activity": {
+      "title": "Activity",
+      "payments": "Payments",
+      "refunds": "Refunds"
+    },
+    "refundStatus": {
+      "PENDING": "Pending",
+      "SUCCEEDED": "Succeeded",
+      "FAILED": "Failed"
+    },
+    "customers": {
+      "title": "Customers",
+      "totalRegistered": "Total registered",
+      "newInPeriod": "New in this period"
+    },
+    "inventory": {
+      "title": "Inventory",
+      "lowStock": "Low-stock items"
+    }
   }
 }

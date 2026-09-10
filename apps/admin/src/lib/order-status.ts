@@ -43,6 +43,17 @@ export function shipmentStatusTone(status: string): BadgeTone {
   }
 }
 
+export function refundStatusTone(status: string): BadgeTone {
+  switch (status) {
+    case "SUCCEEDED":
+      return "success";
+    case "FAILED":
+      return "danger";
+    default:
+      return "neutral";
+  }
+}
+
 // The fulfillment state machine as admin-orders.service.ts actually
 // enforces it (READY_TO_SHIP accepts two predecessors — CONFIRMED directly,
 // or IN_PRODUCTION once a made-to-order item finishes). Mirrored here only

@@ -161,5 +161,48 @@
       "exceedsRemainingError": "Det beloppet överstiger vad som återstår att återbetala på den här betalningen.",
       "noRefundablePaymentError": "Den här ordern har ingen betalning i ett återbetalningsbart tillstånd."
     }
+  },
+  "Dashboard": {
+    "periodLabel": "Senaste 30 dagarna",
+    "periodRange": "{from} till {to}",
+    "none": "-",
+    "totalInPeriod": "{count} totalt",
+    "forbiddenTitle": "Du har inte åtkomst till den här sidan",
+    "forbiddenDescription": "Att visa översikten kräver behörigheten Översikt. Kontakta en administratör om du behöver åtkomst.",
+    "errorTitle": "Det gick inte att läsa in översikten",
+    "errorDescription": "Något gick fel när översiktens data skulle läsas in.",
+    "alerts": {
+      "allClear": "Inga akuta ärenden just nu.",
+      "lowStock": "{count} vara/varor med lågt lager",
+      "disputedPayments": "{count} bestridd(a) betalning(ar)",
+      "failedRefunds": "{count} misslyckad(e) återbetalning(ar)"
+    },
+    "revenue": {
+      "title": "Omsättning",
+      "net": "Nettoomsättning",
+      "gross": "Bruttoomsättning",
+      "refunds": "Återbetalningar",
+      "averageOrderValue": "Genomsnittligt ordervärde",
+      "confirmedOrders": "Bekräftade ordrar"
+    },
+    "activity": {
+      "title": "Aktivitet",
+      "payments": "Betalningar",
+      "refunds": "Återbetalningar"
+    },
+    "refundStatus": {
+      "PENDING": "Väntande",
+      "SUCCEEDED": "Lyckad",
+      "FAILED": "Misslyckad"
+    },
+    "customers": {
+      "title": "Kunder",
+      "totalRegistered": "Totalt registrerade",
+      "newInPeriod": "Nya under perioden"
+    },
+    "inventory": {
+      "title": "Lager",
+      "lowStock": "Varor med lågt lager"
+    }
   }
 }
