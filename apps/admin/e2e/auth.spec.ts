@@ -7,6 +7,12 @@ import { ADMIN_EMAIL, ADMIN_PASSWORD, requireSeedAdminCredentials } from "./help
 // skipping, since a skipped auth test is worse than no test.
 test.beforeAll(requireSeedAdminCredentials);
 
+// Every other spec reuses the "setup" project's saved session (see
+// playwright.config.ts / auth.setup.ts) — this one deliberately starts from
+// a clean, unauthenticated context instead, since testing the login flow
+// itself requires not already being logged in.
+test.use({ storageState: { cookies: [], origins: [] } });
+
 test("anonymous visitor is redirected to login, then reaches the dashboard after signing in", async ({
   page,
 }) => {

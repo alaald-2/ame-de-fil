@@ -1,13 +1,10 @@
 import { test, expect } from "@playwright/test";
 import AxeBuilder from "@axe-core/playwright";
-import { requireSeedAdminCredentials, loginAsAdmin } from "./helpers";
 
-test.beforeAll(requireSeedAdminCredentials);
-
-test.beforeEach(async ({ page }) => {
-  await loginAsAdmin(page);
-});
-
+// Reuses the "setup" project's saved session (playwright.config.ts /
+// auth.setup.ts) rather than logging in per-test — logging in per-spec was
+// hitting the backend's real login rate limit once more than a couple of
+// specs ran in parallel.
 test("customers list renders real data, and the whole row navigates to detail", async ({ page }) => {
   await page.goto("/customers");
   await expect(page.getByRole("heading", { name: "Kunder", level: 1 })).toBeVisible();

@@ -20,3 +20,5 @@ export * from "./components/Pagination";
 export * from "./components/Skeleton";
 export * from "./components/EmptyState";
 export * from "./components/ErrorState";
+export * from "./components/Card";
+export * from "./components/Dialog";
