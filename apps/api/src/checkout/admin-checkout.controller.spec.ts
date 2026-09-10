@@ -12,17 +12,20 @@ import { PermissionsGuard } from "../common/guards/permissions.guard.ts";
 import { CsrfGuard } from "../common/csrf/csrf.guard.ts";
 import { SessionService } from "../identity/session.service.ts";
 import { AllExceptionsFilter } from "../common/filters/all-exceptions.filter.ts";
+import { AuditService } from "../audit/audit.service.ts";
 import type { AuthContext } from "../common/types/auth-context.ts";
 
 async function bootApp(validateSession: (token: string) => Promise<AuthContext | null>) {
   const releaseExpiredReservations = vi
     .fn()
     .mockResolvedValue({ releasedReservations: 0, canceledOrders: 0 });
+  const record = vi.fn().mockResolvedValue(undefined);
 
   const moduleRef = await Test.createTestingModule({
     controllers: [AdminCheckoutController],
     providers: [
       { provide: ReservationExpiryService, useValue: { releaseExpiredReservations } },
+      { provide: AuditService, useValue: { record } },
       { provide: SessionService, useValue: { validateSession } },
       {
         provide: ConfigService,
@@ -40,7 +43,7 @@ async function bootApp(validateSession: (token: string) => Promise<AuthContext |
   app.use(cookieParser());
   app.useGlobalFilters(new AllExceptionsFilter());
   await app.init();
-  return { app, releaseExpiredReservations };
+  return { app, releaseExpiredReservations, record };
 }
 
 const AUTH_WITH_PERMISSION: AuthContext = {
@@ -105,5 +108,12 @@ describe("POST /admin/checkout/expire-reservations — authorization", () => {
 
     expect(response.status).toBe(200);
     expect(booted.releaseExpiredReservations).toHaveBeenCalledTimes(1);
+    expect(booted.record).toHaveBeenCalledWith(
+      expect.objectContaining({
+        actorUserId: "user-1",
+        action: "checkout.reservations_expired",
+        entityType: "ReservationExpirySweep",
+      }),
+    );
   });
 });

@@ -1,6 +1,7 @@
 import { BadRequestException, Injectable, NotFoundException } from "@nestjs/common";
 import { InventoryMovementType } from "@ame-de-fil/database";
 import { PrismaService } from "../database/prisma.service.ts";
+import { AuditService } from "../audit/audit.service.ts";
 import {
   mapInventoryItem,
   mapInventoryItemWithMovements,
@@ -14,7 +15,10 @@ const ITEM_INCLUDE = {
 
 @Injectable()
 export class InventoryService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly audit: AuditService,
+  ) {}
 
   async list(page: number, pageSize: number) {
     const [rows, total] = await Promise.all([
@@ -65,7 +69,12 @@ export class InventoryService {
   // decrements could each pass an application-level check independently and
   // still drive onHand negative together. This is the reservation flow's
   // same principle (DATABASE.md §4) applied to admin stock adjustments.
-  async adjustStock(variantId: string, input: AdjustStockInput, actorUserId: string) {
+  async adjustStock(
+    variantId: string,
+    input: AdjustStockInput,
+    actorUserId: string,
+    ipAddress?: string,
+  ) {
     const item = await this.prisma.inventoryItem.findUnique({
       where: { productVariantId: variantId },
     });
@@ -107,7 +116,25 @@ export class InventoryService {
         },
       });
 
-      return tx.inventoryItem.findUniqueOrThrow({ where: { id: item.id }, include: ITEM_INCLUDE });
+      const refreshed = await tx.inventoryItem.findUniqueOrThrow({
+        where: { id: item.id },
+        include: ITEM_INCLUDE,
+      });
+
+      await this.audit.record(
+        {
+          actorUserId,
+          action: "inventory.adjusted",
+          entityType: "InventoryItem",
+          entityId: item.id,
+          before: { onHand: item.onHand },
+          after: { onHand: refreshed.onHand, delta: input.delta, reason: input.reason },
+          ipAddress,
+        },
+        tx,
+      );
+
+      return refreshed;
     });
 
     return mapInventoryItem(updated);

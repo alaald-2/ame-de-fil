@@ -1,4 +1,5 @@
 import { Module } from "@nestjs/common";
+import { AuditModule } from "../audit/audit.module.ts";
 import { InventoryController } from "./inventory.controller.ts";
 import { InventoryService } from "./inventory.service.ts";
 
@@ -6,6 +7,7 @@ import { InventoryService } from "./inventory.service.ts";
 // read/adjust endpoints. Reservation-at-checkout is a later phase and does
 // not live here yet.
 @Module({
+  imports: [AuditModule],
   controllers: [InventoryController],
   providers: [InventoryService],
   exports: [InventoryService],

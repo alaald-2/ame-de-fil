@@ -2,6 +2,7 @@ import { ConflictException, Injectable } from "@nestjs/common";
 import { OrderStatus, ShipmentStatus } from "@ame-de-fil/database";
 import { PrismaService } from "../database/prisma.service.ts";
 import { NotificationsService } from "../notifications/notifications.service.ts";
+import { AuditService } from "../audit/audit.service.ts";
 import type { MarkShippedInput } from "./dto/mark-shipped.dto.ts";
 import type { FulfillmentResponse } from "./dto/fulfillment-response.ts";
 
@@ -26,6 +27,7 @@ export class AdminOrdersService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly notifications: NotificationsService,
+    private readonly audit: AuditService,
   ) {}
 
   // READY_TO_SHIP has two valid predecessors (PAYMENTS.md §3): CONFIRMED
@@ -38,22 +40,55 @@ export class AdminOrdersService {
     OrderStatus.IN_PRODUCTION,
   ] as const;
 
-  async markReadyToShip(orderId: string): Promise<FulfillmentResponse> {
-    const updated = await this.prisma.order.updateMany({
-      where: { id: orderId, status: { in: [...AdminOrdersService.READY_TO_SHIP_PREDECESSORS] } },
-      data: { status: OrderStatus.READY_TO_SHIP },
-    });
-    if (updated.count === 0) {
-      throw NOT_IN_EXPECTED_STATE(
-        AdminOrdersService.READY_TO_SHIP_PREDECESSORS,
-        OrderStatus.READY_TO_SHIP,
+  async markReadyToShip(
+    orderId: string,
+    actorUserId: string,
+    ipAddress?: string,
+  ): Promise<FulfillmentResponse> {
+    await this.prisma.$transaction(async (tx) => {
+      // Read solely for the audit entry's "before" value — the transition's
+      // own correctness comes entirely from the guarded conditional update
+      // below, never from this read (same non-TOCTOU reasoning as
+      // InventoryService.adjustStock).
+      const before = await tx.order.findUniqueOrThrow({
+        where: { id: orderId },
+        select: { status: true },
+      });
+
+      const updated = await tx.order.updateMany({
+        where: { id: orderId, status: { in: [...AdminOrdersService.READY_TO_SHIP_PREDECESSORS] } },
+        data: { status: OrderStatus.READY_TO_SHIP },
+      });
+      if (updated.count === 0) {
+        throw NOT_IN_EXPECTED_STATE(
+          AdminOrdersService.READY_TO_SHIP_PREDECESSORS,
+          OrderStatus.READY_TO_SHIP,
+        );
+      }
+
+      await this.audit.record(
+        {
+          actorUserId,
+          action: "order.ready_to_ship",
+          entityType: "Order",
+          entityId: orderId,
+          before: { status: before.status },
+          after: { status: OrderStatus.READY_TO_SHIP },
+          ipAddress,
+        },
+        tx,
       );
-    }
+    });
 
     return this.toResponse(orderId);
   }
 
-  async markShipped(orderId: string, input: MarkShippedInput): Promise<FulfillmentResponse> {
+  async markShipped(
+    orderId: string,
+    input: MarkShippedInput,
+    actorUserId: string,
+    ipAddress?: string,
+  ): Promise<FulfillmentResponse> {
     await this.prisma.$transaction(async (tx) => {
       const updated = await tx.order.updateMany({
         where: { id: orderId, status: OrderStatus.READY_TO_SHIP },
@@ -78,6 +113,23 @@ export class AdminOrdersService {
           shippedAt: new Date(),
         },
       });
+
+      await this.audit.record(
+        {
+          actorUserId,
+          action: "order.shipped",
+          entityType: "Order",
+          entityId: orderId,
+          before: { status: OrderStatus.READY_TO_SHIP },
+          after: {
+            status: OrderStatus.SHIPPED,
+            carrierName: input.carrierName ?? null,
+            trackingNumber: input.trackingNumber ?? null,
+          },
+          ipAddress,
+        },
+        tx,
+      );
     });
 
     // Dispatched only after the transaction above has committed — never
@@ -91,7 +143,11 @@ export class AdminOrdersService {
     return this.toResponse(orderId);
   }
 
-  async markDelivered(orderId: string): Promise<FulfillmentResponse> {
+  async markDelivered(
+    orderId: string,
+    actorUserId: string,
+    ipAddress?: string,
+  ): Promise<FulfillmentResponse> {
     await this.prisma.$transaction(async (tx) => {
       const updated = await tx.order.updateMany({
         where: { id: orderId, status: OrderStatus.SHIPPED },
@@ -109,6 +165,19 @@ export class AdminOrdersService {
         where: { id: shipment.id },
         data: { status: ShipmentStatus.DELIVERED, deliveredAt: new Date() },
       });
+
+      await this.audit.record(
+        {
+          actorUserId,
+          action: "order.delivered",
+          entityType: "Order",
+          entityId: orderId,
+          before: { status: OrderStatus.SHIPPED },
+          after: { status: OrderStatus.DELIVERED },
+          ipAddress,
+        },
+        tx,
+      );
     });
 
     return this.toResponse(orderId);

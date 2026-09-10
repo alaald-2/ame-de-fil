@@ -4,6 +4,9 @@ import { OrderStatus, ShipmentStatus } from "@ame-de-fil/database";
 import { AdminOrdersService } from "./admin-orders.service.ts";
 import type { PrismaService } from "../database/prisma.service.ts";
 import type { NotificationsService } from "../notifications/notifications.service.ts";
+import { AuditService } from "../audit/audit.service.ts";
+
+const ACTOR_USER_ID = "user-1";
 
 function makeNotificationsMock() {
   return { sendShippingNotification: vi.fn().mockResolvedValue(undefined) } as unknown as NotificationsService & {
@@ -24,6 +27,10 @@ const SHIPMENT = {
   createdAt: new Date("2026-09-10T00:00:00.000Z"),
 };
 
+// tx exposes the same nested objects as `prisma` (not a separate literal) so
+// that a per-test override of e.g. `order` on the returned `prisma` is also
+// what the $transaction callback below sees — overrides are read from
+// `prisma` at call time, after any override has already been spread in.
 function makePrismaMock(overrides: Record<string, unknown> = {}) {
   const orderUpdateMany = vi.fn().mockResolvedValue({ count: 1 });
   const orderFindUniqueOrThrow = vi.fn().mockResolvedValue(ORDER);
@@ -31,55 +38,72 @@ function makePrismaMock(overrides: Record<string, unknown> = {}) {
   const shipmentFindFirst = vi.fn().mockResolvedValue(SHIPMENT);
   const shipmentFindFirstOrThrow = vi.fn().mockResolvedValue(SHIPMENT);
   const shipmentUpdate = vi.fn().mockResolvedValue({ ...SHIPMENT, status: ShipmentStatus.DELIVERED });
+  const auditLogCreate = vi.fn().mockResolvedValue({});
 
-  const tx = {
-    order: { updateMany: orderUpdateMany },
+  const prisma: Record<string, unknown> = {
+    order: { updateMany: orderUpdateMany, findUniqueOrThrow: orderFindUniqueOrThrow },
     shipment: {
       create: shipmentCreate,
+      findFirst: shipmentFindFirst,
       findFirstOrThrow: shipmentFindFirstOrThrow,
       update: shipmentUpdate,
     },
-  };
-
-  const prisma = {
-    order: { updateMany: orderUpdateMany, findUniqueOrThrow: orderFindUniqueOrThrow },
-    shipment: { findFirst: shipmentFindFirst, update: shipmentUpdate },
-    $transaction: vi.fn().mockImplementation((callback: (tx: unknown) => unknown) => callback(tx)),
+    auditLog: { create: auditLogCreate },
     ...overrides,
-  } as unknown as PrismaService;
+  };
+  prisma["$transaction"] = vi
+    .fn()
+    .mockImplementation((callback: (tx: unknown) => unknown) =>
+      callback({ order: prisma["order"], shipment: prisma["shipment"], auditLog: prisma["auditLog"] }),
+    );
 
   return {
-    prisma,
+    prisma: prisma as unknown as PrismaService,
     orderUpdateMany,
     orderFindUniqueOrThrow,
     shipmentCreate,
     shipmentFindFirst,
     shipmentFindFirstOrThrow,
     shipmentUpdate,
+    auditLogCreate,
   };
 }
 
 describe("AdminOrdersService.markReadyToShip", () => {
   it("transitions CONFIRMED -> READY_TO_SHIP", async () => {
-    const { prisma, orderUpdateMany } = makePrismaMock();
-    const service = new AdminOrdersService(prisma, makeNotificationsMock());
+    const { prisma, orderUpdateMany, auditLogCreate } = makePrismaMock();
+    const service = new AdminOrdersService(prisma, makeNotificationsMock(), new AuditService(prisma));
 
-    const result = await service.markReadyToShip("order-1");
+    const result = await service.markReadyToShip("order-1", ACTOR_USER_ID);
 
     expect(orderUpdateMany).toHaveBeenCalledWith({
       where: { id: "order-1", status: { in: [OrderStatus.CONFIRMED, OrderStatus.IN_PRODUCTION] } },
       data: { status: OrderStatus.READY_TO_SHIP },
     });
+    expect(auditLogCreate).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({
+          actorUserId: ACTOR_USER_ID,
+          action: "order.ready_to_ship",
+          entityType: "Order",
+          entityId: "order-1",
+        }),
+      }),
+    );
     expect(result.orderId).toBe("order-1");
   });
 
   it("throws when the order is not CONFIRMED or IN_PRODUCTION", async () => {
-    const { prisma } = makePrismaMock({
-      order: { updateMany: vi.fn().mockResolvedValue({ count: 0 }) },
+    const { prisma, auditLogCreate } = makePrismaMock({
+      order: {
+        updateMany: vi.fn().mockResolvedValue({ count: 0 }),
+        findUniqueOrThrow: vi.fn().mockResolvedValue(ORDER),
+      },
     });
-    const service = new AdminOrdersService(prisma, makeNotificationsMock());
+    const service = new AdminOrdersService(prisma, makeNotificationsMock(), new AuditService(prisma));
 
-    await expect(service.markReadyToShip("order-1")).rejects.toThrow(ConflictException);
+    await expect(service.markReadyToShip("order-1", ACTOR_USER_ID)).rejects.toThrow(ConflictException);
+    expect(auditLogCreate).not.toHaveBeenCalled();
   });
 });
 
@@ -88,9 +112,9 @@ describe("AdminOrdersService.markShipped", () => {
 
   it("transitions READY_TO_SHIP -> SHIPPED and creates a Shipment record", async () => {
     const { prisma, shipmentCreate } = makePrismaMock();
-    const service = new AdminOrdersService(prisma, makeNotificationsMock());
+    const service = new AdminOrdersService(prisma, makeNotificationsMock(), new AuditService(prisma));
 
-    await service.markShipped("order-1", INPUT);
+    await service.markShipped("order-1", INPUT, ACTOR_USER_ID);
 
     expect(shipmentCreate).toHaveBeenCalledWith({
       data: expect.objectContaining({
@@ -105,9 +129,9 @@ describe("AdminOrdersService.markShipped", () => {
 
   it("creates a Shipment even with no carrier/tracking info supplied (all optional)", async () => {
     const { prisma, shipmentCreate } = makePrismaMock();
-    const service = new AdminOrdersService(prisma, makeNotificationsMock());
+    const service = new AdminOrdersService(prisma, makeNotificationsMock(), new AuditService(prisma));
 
-    await service.markShipped("order-1", {});
+    await service.markShipped("order-1", {}, ACTOR_USER_ID);
 
     expect(shipmentCreate).toHaveBeenCalledWith({
       data: expect.objectContaining({ carrierName: null, trackingNumber: null, trackingUrl: null }),
@@ -117,9 +141,9 @@ describe("AdminOrdersService.markShipped", () => {
   it("sends the shipping notification only after the transaction has committed (DECISIONS.md ADR-031)", async () => {
     const { prisma } = makePrismaMock();
     const notifications = makeNotificationsMock();
-    const service = new AdminOrdersService(prisma, notifications);
+    const service = new AdminOrdersService(prisma, notifications, new AuditService(prisma));
 
-    await service.markShipped("order-1", INPUT);
+    await service.markShipped("order-1", INPUT, ACTOR_USER_ID);
 
     expect(notifications.sendShippingNotification).toHaveBeenCalledWith("order-1");
     const transactionOrder = (prisma.$transaction as ReturnType<typeof vi.fn>).mock.invocationCallOrder[0];
@@ -137,9 +161,9 @@ describe("AdminOrdersService.markShipped", () => {
       $transaction: vi.fn().mockImplementation((cb: (tx: unknown) => unknown) => cb(tx)),
     } as unknown as PrismaService;
     const notifications = makeNotificationsMock();
-    const service = new AdminOrdersService(prisma, notifications);
+    const service = new AdminOrdersService(prisma, notifications, new AuditService(prisma));
 
-    await expect(service.markShipped("order-1", INPUT)).rejects.toThrow(ConflictException);
+    await expect(service.markShipped("order-1", INPUT, ACTOR_USER_ID)).rejects.toThrow(ConflictException);
     expect(shipmentCreate).not.toHaveBeenCalled();
     expect(notifications.sendShippingNotification).not.toHaveBeenCalled();
   });
@@ -148,9 +172,9 @@ describe("AdminOrdersService.markShipped", () => {
 describe("AdminOrdersService.markDelivered", () => {
   it("transitions SHIPPED -> DELIVERED and updates the most recent Shipment", async () => {
     const { prisma, shipmentFindFirstOrThrow, shipmentUpdate } = makePrismaMock();
-    const service = new AdminOrdersService(prisma, makeNotificationsMock());
+    const service = new AdminOrdersService(prisma, makeNotificationsMock(), new AuditService(prisma));
 
-    await service.markDelivered("order-1");
+    await service.markDelivered("order-1", ACTOR_USER_ID);
 
     expect(shipmentFindFirstOrThrow).toHaveBeenCalledWith({
       where: { orderId: "order-1" },
@@ -169,9 +193,9 @@ describe("AdminOrdersService.markDelivered", () => {
     const prisma = {
       $transaction: vi.fn().mockImplementation((cb: (tx: unknown) => unknown) => cb(tx)),
     } as unknown as PrismaService;
-    const service = new AdminOrdersService(prisma, makeNotificationsMock());
+    const service = new AdminOrdersService(prisma, makeNotificationsMock(), new AuditService(prisma));
 
-    await expect(service.markDelivered("order-1")).rejects.toThrow(ConflictException);
+    await expect(service.markDelivered("order-1", ACTOR_USER_ID)).rejects.toThrow(ConflictException);
     expect(shipmentFindFirstOrThrow).not.toHaveBeenCalled();
   });
 });

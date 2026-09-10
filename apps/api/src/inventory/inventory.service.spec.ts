@@ -3,6 +3,7 @@ import { BadRequestException, NotFoundException } from "@nestjs/common";
 import { InventoryService } from "./inventory.service.ts";
 import type { PrismaService } from "../database/prisma.service.ts";
 import { Locale } from "@ame-de-fil/database";
+import { AuditService } from "../audit/audit.service.ts";
 
 const BASE_ITEM = {
   id: "inv-1",
@@ -55,6 +56,7 @@ function baseMock() {
       findMany: vi.fn().mockResolvedValue([]),
       create: vi.fn().mockResolvedValue({ id: "mov-1" }),
     },
+    auditLog: { create: vi.fn().mockResolvedValue({}) },
     $transaction: vi.fn(),
   };
 }
@@ -62,7 +64,7 @@ function baseMock() {
 describe("InventoryService.list", () => {
   it("maps rows with computed availability and pagination metadata", async () => {
     const prisma = makePrisma();
-    const service = new InventoryService(prisma);
+    const service = new InventoryService(prisma, new AuditService(prisma));
 
     const result = await service.list(1, 20);
 
@@ -85,7 +87,7 @@ describe("InventoryService.getByVariantId", () => {
     const prisma = makePrisma({
       inventoryItem: { ...baseMock().inventoryItem, findUnique: vi.fn().mockResolvedValue(null) },
     });
-    const service = new InventoryService(prisma);
+    const service = new InventoryService(prisma, new AuditService(prisma));
 
     await expect(service.getByVariantId("missing")).rejects.toThrow(NotFoundException);
   });
@@ -106,7 +108,7 @@ describe("InventoryService.getByVariantId", () => {
         create: vi.fn(),
       },
     });
-    const service = new InventoryService(prisma);
+    const service = new InventoryService(prisma, new AuditService(prisma));
 
     const result = await service.getByVariantId("var-1");
 
@@ -121,7 +123,7 @@ describe("InventoryService.adjustStock", () => {
     const prisma = makePrisma({
       inventoryItem: { ...baseMock().inventoryItem, findUnique: vi.fn().mockResolvedValue(null) },
     });
-    const service = new InventoryService(prisma);
+    const service = new InventoryService(prisma, new AuditService(prisma));
 
     await expect(
       service.adjustStock("missing", { delta: 5, reason: "restock", type: "RESTOCK" }, "user-1"),
@@ -130,7 +132,7 @@ describe("InventoryService.adjustStock", () => {
 
   it("applies a positive delta and records a movement", async () => {
     const prisma = makePrisma();
-    const service = new InventoryService(prisma);
+    const service = new InventoryService(prisma, new AuditService(prisma));
 
     const result = await service.adjustStock(
       "var-1",
@@ -156,7 +158,7 @@ describe("InventoryService.adjustStock", () => {
 
   it("folds the not-negative guard into the same atomic update as a negative delta", async () => {
     const prisma = makePrisma();
-    const service = new InventoryService(prisma);
+    const service = new InventoryService(prisma, new AuditService(prisma));
 
     await service.adjustStock(
       "var-1",
@@ -177,7 +179,7 @@ describe("InventoryService.adjustStock", () => {
         updateMany: vi.fn().mockResolvedValue({ count: 0 }),
       },
     });
-    const service = new InventoryService(prisma);
+    const service = new InventoryService(prisma, new AuditService(prisma));
 
     await expect(
       service.adjustStock(

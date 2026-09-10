@@ -1,9 +1,12 @@
-import { Body, Controller, HttpCode, HttpStatus, Param, Post } from "@nestjs/common";
+import { Body, Controller, HttpCode, HttpStatus, Param, Post, Req } from "@nestjs/common";
 import { ApiBody, ApiCookieAuth, ApiOkResponse, ApiOperation, ApiTags } from "@nestjs/swagger";
+import type { Request } from "express";
+import { CurrentUser } from "../common/decorators/current-user.decorator.ts";
 import { RequirePermissions } from "../common/decorators/require-permissions.decorator.ts";
 import { ZodValidationPipe } from "../common/pipes/zod-validation.pipe.ts";
 import { ApiErrorResponses } from "../common/api-error-responses.ts";
 import { ApiZodParam, toOpenApiSchema } from "../common/zod-openapi.ts";
+import type { AuthContext } from "../common/types/auth-context.ts";
 import { AdminOrdersService } from "./admin-orders.service.ts";
 import { orderIdParamSchema, type OrderIdParam } from "./dto/order-id.param.ts";
 import { markShippedSchema, type MarkShippedInput } from "./dto/mark-shipped.dto.ts";
@@ -25,8 +28,12 @@ export class AdminOrdersController {
   @ApiZodParam(orderIdParamSchema)
   @ApiOkResponse({ schema: toOpenApiSchema(fulfillmentResponseSchema) })
   @ApiErrorResponses(400, 401, 403, 404, 409)
-  async readyToShip(@Param(new ZodValidationPipe(orderIdParamSchema)) params: OrderIdParam) {
-    return this.adminOrders.markReadyToShip(params.orderId);
+  async readyToShip(
+    @Param(new ZodValidationPipe(orderIdParamSchema)) params: OrderIdParam,
+    @CurrentUser() auth: AuthContext,
+    @Req() request: Request,
+  ) {
+    return this.adminOrders.markReadyToShip(params.orderId, auth.userId, request.ip);
   }
 
   @Post(":orderId/ship")
@@ -40,8 +47,10 @@ export class AdminOrdersController {
   async ship(
     @Param(new ZodValidationPipe(orderIdParamSchema)) params: OrderIdParam,
     @Body(new ZodValidationPipe(markShippedSchema)) body: MarkShippedInput,
+    @CurrentUser() auth: AuthContext,
+    @Req() request: Request,
   ) {
-    return this.adminOrders.markShipped(params.orderId, body);
+    return this.adminOrders.markShipped(params.orderId, body, auth.userId, request.ip);
   }
 
   @Post(":orderId/deliver")
@@ -51,7 +60,11 @@ export class AdminOrdersController {
   @ApiZodParam(orderIdParamSchema)
   @ApiOkResponse({ schema: toOpenApiSchema(fulfillmentResponseSchema) })
   @ApiErrorResponses(400, 401, 403, 404, 409)
-  async deliver(@Param(new ZodValidationPipe(orderIdParamSchema)) params: OrderIdParam) {
-    return this.adminOrders.markDelivered(params.orderId);
+  async deliver(
+    @Param(new ZodValidationPipe(orderIdParamSchema)) params: OrderIdParam,
+    @CurrentUser() auth: AuthContext,
+    @Req() request: Request,
+  ) {
+    return this.adminOrders.markDelivered(params.orderId, auth.userId, request.ip);
   }
 }

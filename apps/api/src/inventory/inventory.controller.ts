@@ -7,8 +7,10 @@ import {
   Param,
   Post,
   Query,
+  Req,
   UsePipes,
 } from "@nestjs/common";
+import type { Request } from "express";
 import {
   ApiBody,
   ApiCookieAuth,
@@ -75,7 +77,8 @@ export class InventoryController {
     @Param(new ZodValidationPipe(variantIdParamSchema)) params: VariantIdParam,
     @Body(new ZodValidationPipe(adjustStockSchema)) body: AdjustStockInput,
     @CurrentUser() auth: AuthContext,
+    @Req() request: Request,
   ) {
-    return this.inventory.adjustStock(params.variantId, body, auth.userId);
+    return this.inventory.adjustStock(params.variantId, body, auth.userId, request.ip);
   }
 }

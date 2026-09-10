@@ -1,9 +1,12 @@
-import { Body, Controller, HttpCode, HttpStatus, Post, UsePipes } from "@nestjs/common";
+import { Body, Controller, HttpCode, HttpStatus, Post, Req } from "@nestjs/common";
 import { ApiBody, ApiCookieAuth, ApiCreatedResponse, ApiOperation, ApiTags } from "@nestjs/swagger";
+import type { Request } from "express";
+import { CurrentUser } from "../common/decorators/current-user.decorator.ts";
 import { RequirePermissions } from "../common/decorators/require-permissions.decorator.ts";
 import { ZodValidationPipe } from "../common/pipes/zod-validation.pipe.ts";
 import { ApiErrorResponses } from "../common/api-error-responses.ts";
 import { toOpenApiSchema } from "../common/zod-openapi.ts";
+import type { AuthContext } from "../common/types/auth-context.ts";
 import { AdminProductsService } from "./admin-products.service.ts";
 import { createProductSchema, type CreateProductInput } from "./dto/create-product.dto.ts";
 import { createProductResponseSchema } from "./dto/responses.ts";
@@ -27,8 +30,11 @@ export class AdminProductsController {
   @ApiBody({ schema: toOpenApiSchema(createProductSchema) })
   @ApiCreatedResponse({ schema: toOpenApiSchema(createProductResponseSchema) })
   @ApiErrorResponses(400, 401, 403)
-  @UsePipes(new ZodValidationPipe(createProductSchema))
-  async create(@Body() body: CreateProductInput) {
-    return this.adminProducts.createProduct(body);
+  async create(
+    @Body(new ZodValidationPipe(createProductSchema)) body: CreateProductInput,
+    @CurrentUser() auth: AuthContext,
+    @Req() request: Request,
+  ) {
+    return this.adminProducts.createProduct(body, auth.userId, request.ip);
   }
 }

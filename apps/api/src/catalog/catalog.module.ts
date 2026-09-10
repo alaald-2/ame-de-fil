@@ -1,4 +1,5 @@
 import { Module } from "@nestjs/common";
+import { AuditModule } from "../audit/audit.module.ts";
 import { ProductsController } from "./products.controller.ts";
 import { ProductsService } from "./products.service.ts";
 import { CategoriesController } from "./categories.controller.ts";
@@ -12,6 +13,7 @@ import { AdminProductsService } from "./admin-products.service.ts";
 // endpoints are public; the one admin mutation (create product) is
 // permission-gated (SECURITY.md §2) — see admin-products.controller.ts.
 @Module({
+  imports: [AuditModule],
   controllers: [
     ProductsController,
     CategoriesController,

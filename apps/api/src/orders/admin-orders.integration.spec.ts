@@ -9,21 +9,28 @@ import { Currency, Locale, OrderStatus, ShipmentStatus } from "@ame-de-fil/datab
 import { AdminOrdersService } from "./admin-orders.service.ts";
 import { NotificationsService } from "../notifications/notifications.service.ts";
 import { PendingEmailProvider } from "../notifications/email-provider.ts";
+import { AuditService } from "../audit/audit.service.ts";
 import { startTestDatabase, stopTestDatabase, type TestDatabase } from "../test/testcontainers-postgres.ts";
-import { seedShopFixture, type ShopFixture } from "../test/fixtures.ts";
+import { seedShopFixture, seedUserWithPermissions, type ShopFixture } from "../test/fixtures.ts";
 
 describe("AdminOrdersService — real Postgres", () => {
   let db: TestDatabase;
   let shop: ShopFixture;
   let service: AdminOrdersService;
+  let actorUserId: string;
 
   beforeAll(async () => {
     db = await startTestDatabase();
     shop = await seedShopFixture(db.prisma);
+    actorUserId = (await seedUserWithPermissions(db.prisma, ["orders.fulfill"])).userId;
     // PendingEmailProvider — no real SMTP container in this harness
     // (TESTING.md §3); NotificationsService never throws, so this can't
     // affect any assertion below about order/shipment state.
-    service = new AdminOrdersService(db.prisma, new NotificationsService(db.prisma, new PendingEmailProvider()));
+    service = new AdminOrdersService(
+      db.prisma,
+      new NotificationsService(db.prisma, new PendingEmailProvider()),
+      new AuditService(db.prisma),
+    );
   }, 120_000);
 
   afterAll(async () => {
@@ -59,11 +66,11 @@ describe("AdminOrdersService — real Postgres", () => {
   it("walks a real order through CONFIRMED -> READY_TO_SHIP -> SHIPPED -> DELIVERED", async () => {
     const orderId = await seedConfirmedOrder();
 
-    await service.markReadyToShip(orderId);
+    await service.markReadyToShip(orderId, actorUserId);
     let order = await db.prisma.order.findUniqueOrThrow({ where: { id: orderId } });
     expect(order.status).toBe(OrderStatus.READY_TO_SHIP);
 
-    await service.markShipped(orderId, { carrierName: "PostNord", trackingNumber: "ABC123" });
+    await service.markShipped(orderId, { carrierName: "PostNord", trackingNumber: "ABC123" }, actorUserId);
     order = await db.prisma.order.findUniqueOrThrow({ where: { id: orderId } });
     expect(order.status).toBe(OrderStatus.SHIPPED);
 
@@ -73,7 +80,7 @@ describe("AdminOrdersService — real Postgres", () => {
     expect(shipment.trackingNumber).toBe("ABC123");
     expect(shipment.shippedAt).not.toBeNull();
 
-    await service.markDelivered(orderId);
+    await service.markDelivered(orderId, actorUserId);
     order = await db.prisma.order.findUniqueOrThrow({ where: { id: orderId } });
     expect(order.status).toBe(OrderStatus.DELIVERED);
 
@@ -84,12 +91,28 @@ describe("AdminOrdersService — real Postgres", () => {
     // duplication) is correct for this v1 one-shipment-per-order flow.
     const shipmentCount = await db.prisma.shipment.count({ where: { orderId } });
     expect(shipmentCount).toBe(1);
+
+    // One AuditLog row per transition, against the real FK to User — the
+    // kind of thing a mocked Prisma client can't verify (RBAC/authorization
+    // audit: AuditLog wiring).
+    const auditEntries = await db.prisma.auditLog.findMany({
+      where: { entityType: "Order", entityId: orderId },
+      orderBy: { createdAt: "asc" },
+    });
+    expect(auditEntries.map((entry) => entry.action)).toEqual([
+      "order.ready_to_ship",
+      "order.shipped",
+      "order.delivered",
+    ]);
+    for (const entry of auditEntries) {
+      expect(entry.actorUserId).toBe(actorUserId);
+    }
   });
 
   it("rejects shipping an order that's still CONFIRMED (not yet READY_TO_SHIP), with no Shipment created", async () => {
     const orderId = await seedConfirmedOrder();
 
-    await expect(service.markShipped(orderId, {})).rejects.toThrow();
+    await expect(service.markShipped(orderId, {}, actorUserId)).rejects.toThrow();
 
     const order = await db.prisma.order.findUniqueOrThrow({ where: { id: orderId } });
     expect(order.status).toBe(OrderStatus.CONFIRMED); // unchanged
@@ -99,9 +122,9 @@ describe("AdminOrdersService — real Postgres", () => {
 
   it("rejects delivering an order that hasn't shipped yet", async () => {
     const orderId = await seedConfirmedOrder();
-    await service.markReadyToShip(orderId);
+    await service.markReadyToShip(orderId, actorUserId);
 
-    await expect(service.markDelivered(orderId)).rejects.toThrow();
+    await expect(service.markDelivered(orderId, actorUserId)).rejects.toThrow();
 
     const order = await db.prisma.order.findUniqueOrThrow({ where: { id: orderId } });
     expect(order.status).toBe(OrderStatus.READY_TO_SHIP); // unchanged
@@ -114,15 +137,15 @@ describe("AdminOrdersService — real Postgres", () => {
   it("walks a real order through IN_PRODUCTION -> READY_TO_SHIP -> SHIPPED -> DELIVERED", async () => {
     const orderId = await seedConfirmedOrder(OrderStatus.IN_PRODUCTION);
 
-    await service.markReadyToShip(orderId);
+    await service.markReadyToShip(orderId, actorUserId);
     let order = await db.prisma.order.findUniqueOrThrow({ where: { id: orderId } });
     expect(order.status).toBe(OrderStatus.READY_TO_SHIP);
 
-    await service.markShipped(orderId, {});
+    await service.markShipped(orderId, {}, actorUserId);
     order = await db.prisma.order.findUniqueOrThrow({ where: { id: orderId } });
     expect(order.status).toBe(OrderStatus.SHIPPED);
 
-    await service.markDelivered(orderId);
+    await service.markDelivered(orderId, actorUserId);
     order = await db.prisma.order.findUniqueOrThrow({ where: { id: orderId } });
     expect(order.status).toBe(OrderStatus.DELIVERED);
   });

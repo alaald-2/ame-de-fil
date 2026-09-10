@@ -2,13 +2,21 @@ import { BadRequestException, Injectable } from "@nestjs/common";
 import { Currency } from "@ame-de-fil/database";
 import { PrismaService } from "../database/prisma.service.ts";
 import { toPrismaLocale } from "../common/locale.ts";
+import { AuditService } from "../audit/audit.service.ts";
 import type { CreateProductInput } from "./dto/create-product.dto.ts";
 
 @Injectable()
 export class AdminProductsService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly audit: AuditService,
+  ) {}
 
-  async createProduct(input: CreateProductInput): Promise<{ id: string }> {
+  async createProduct(
+    input: CreateProductInput,
+    actorUserId: string,
+    ipAddress?: string,
+  ): Promise<{ id: string }> {
     this.validateOptionSelections(input);
     this.validateUniqueSkus(input);
 
@@ -95,6 +103,25 @@ export class AdminProductsService {
           })),
         });
       }
+
+      await this.audit.record(
+        {
+          actorUserId,
+          action: "product.created",
+          entityType: "Product",
+          entityId: created.id,
+          after: {
+            translations: input.translations.map((t) => ({
+              locale: t.locale,
+              name: t.name,
+              slug: t.slug,
+            })),
+            skus: input.variants.map((v) => v.sku),
+          },
+          ipAddress,
+        },
+        tx,
+      );
 
       return created;
     });

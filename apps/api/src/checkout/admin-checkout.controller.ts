@@ -1,7 +1,12 @@
-import { Controller, HttpCode, HttpStatus, Post } from "@nestjs/common";
+import { randomUUID } from "node:crypto";
+import { Controller, HttpCode, HttpStatus, Post, Req } from "@nestjs/common";
 import { ApiCookieAuth, ApiOkResponse, ApiOperation, ApiTags } from "@nestjs/swagger";
+import type { Request } from "express";
+import { CurrentUser } from "../common/decorators/current-user.decorator.ts";
 import { RequirePermissions } from "../common/decorators/require-permissions.decorator.ts";
 import { ApiErrorResponses } from "../common/api-error-responses.ts";
+import type { AuthContext } from "../common/types/auth-context.ts";
+import { AuditService } from "../audit/audit.service.ts";
 import { ReservationExpiryService } from "./reservation-expiry.service.ts";
 
 // ReservationExpiryScheduler (reservation-expiry.scheduler.ts) already
@@ -14,8 +19,17 @@ import { ReservationExpiryService } from "./reservation-expiry.service.ts";
 @ApiCookieAuth("ame_session")
 @Controller("admin/checkout")
 export class AdminCheckoutController {
-  constructor(private readonly reservationExpiry: ReservationExpiryService) {}
+  constructor(
+    private readonly reservationExpiry: ReservationExpiryService,
+    private readonly audit: AuditService,
+  ) {}
 
+  // The AuditService call lives here, not inside ReservationExpiryService,
+  // because that service is deliberately actor-agnostic — it's also called
+  // every tick by ReservationExpiryScheduler with no human actor at all
+  // (reservation-expiry.scheduler.ts). Only a manually-triggered run via
+  // this admin endpoint has an actor worth recording; the automatic sweep
+  // stays unaudited system automation, not an admin action.
   @Post("expire-reservations")
   @HttpCode(HttpStatus.OK)
   @RequirePermissions("checkout.manage")
@@ -32,7 +46,18 @@ export class AdminCheckoutController {
     },
   })
   @ApiErrorResponses(401, 403)
-  async expireReservations() {
-    return this.reservationExpiry.releaseExpiredReservations();
+  async expireReservations(@CurrentUser() auth: AuthContext, @Req() request: Request) {
+    const result = await this.reservationExpiry.releaseExpiredReservations();
+
+    await this.audit.record({
+      actorUserId: auth.userId,
+      action: "checkout.reservations_expired",
+      entityType: "ReservationExpirySweep",
+      entityId: randomUUID(),
+      after: { releasedReservations: result.releasedReservations, canceledOrders: result.canceledOrders },
+      ipAddress: request.ip,
+    });
+
+    return result;
   }
 }

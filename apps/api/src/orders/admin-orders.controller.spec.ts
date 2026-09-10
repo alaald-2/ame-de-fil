@@ -114,7 +114,7 @@ describe("POST /admin/orders/:orderId/ready-to-ship — authorization", () => {
       .set("x-csrf-token", "csrf-secret");
 
     expect(response.status).toBe(200);
-    expect(booted.markReadyToShip).toHaveBeenCalledWith("order-1");
+    expect(booted.markReadyToShip).toHaveBeenCalledWith("order-1", "user-1", expect.any(String));
   });
 });
 
@@ -152,7 +152,7 @@ describe("POST /admin/orders/:orderId/ship", () => {
       .send(body);
 
     expect(response.status).toBe(200);
-    expect(booted.markShipped).toHaveBeenCalledWith("order-1", body);
+    expect(booted.markShipped).toHaveBeenCalledWith("order-1", body, "user-1", expect.any(String));
   });
 
   it("returns 400 for an invalid trackingUrl, before the service is ever called", async () => {
@@ -180,7 +180,7 @@ describe("POST /admin/orders/:orderId/ship", () => {
       .send({});
 
     expect(response.status).toBe(200);
-    expect(booted.markShipped).toHaveBeenCalledWith("order-1", {});
+    expect(booted.markShipped).toHaveBeenCalledWith("order-1", {}, "user-1", expect.any(String));
   });
 });
 
@@ -215,6 +215,6 @@ describe("POST /admin/orders/:orderId/deliver", () => {
       .set("x-csrf-token", "csrf-secret");
 
     expect(response.status).toBe(200);
-    expect(booted.markDelivered).toHaveBeenCalledWith("order-1");
+    expect(booted.markDelivered).toHaveBeenCalledWith("order-1", "user-1", expect.any(String));
   });
 });

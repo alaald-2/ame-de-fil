@@ -1,6 +1,7 @@
 import { Module } from "@nestjs/common";
 import { ShippingModule } from "../shipping/shipping.module.ts";
 import { PaymentsModule } from "../payments/payments.module.ts";
+import { AuditModule } from "../audit/audit.module.ts";
 import { CheckoutController } from "./checkout.controller.ts";
 import { AdminCheckoutController } from "./admin-checkout.controller.ts";
 import { CheckoutService } from "./checkout.service.ts";
@@ -16,7 +17,7 @@ import { ReservationExpiryScheduler } from "./reservation-expiry.scheduler.ts";
 // ReservationExpiryService (AppModule registers ScheduleModule.forRoot()
 // once, globally, for SchedulerRegistry to be available here).
 @Module({
-  imports: [ShippingModule, PaymentsModule],
+  imports: [ShippingModule, PaymentsModule, AuditModule],
   controllers: [CheckoutController, AdminCheckoutController],
   providers: [CheckoutService, ReservationExpiryService, ReservationExpiryScheduler],
 })
