@@ -14,11 +14,14 @@
     "lint": "eslint .",
     "migrate:dev": "prisma migrate dev",
     "migrate:deploy": "prisma migrate deploy",
-    "migrate:diff-sql": "prisma migrate diff --from-empty --to-schema prisma/schema.prisma --script"
+    "migrate:diff-sql": "prisma migrate diff --from-empty --to-schema prisma/schema.prisma --script",
+    "seed": "prisma db seed"
   },
   "devDependencies": {
     "@ame-de-fil/config": "workspace:*",
     "@ame-de-fil/eslint-config": "workspace:*",
+    "@prisma/adapter-pg": "7.10.0",
+    "argon2": "0.45.1",
     "dotenv": "^17.4.2",
     "eslint": "^10.10.0",
     "prisma": "7.10.0",

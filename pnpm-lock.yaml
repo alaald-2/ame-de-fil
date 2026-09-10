@@ -390,6 +390,12 @@ importers:
       '@ame-de-fil/eslint-config':
         specifier: workspace:*
         version: link:../eslint-config
+      '@prisma/adapter-pg':
+        specifier: 7.10.0
+        version: 7.10.0
+      argon2:
+        specifier: 0.45.1
+        version: 0.45.1
       dotenv:
         specifier: ^17.4.2
         version: 17.4.2

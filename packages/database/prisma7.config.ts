@@ -7,6 +7,10 @@ export default defineConfig({
   schema: "prisma/schema.prisma",
   migrations: {
     path: "prisma/migrations",
+    // RBAC bootstrap (prisma/seed.ts) — never auto-run by migrations in
+    // Prisma 7, only via the explicit `pnpm --filter @ame-de-fil/database
+    // run seed` (docs/DEPLOYMENT.md §1).
+    seed: "node prisma/seed.ts",
   },
   datasource: {
     url: process.env["DATABASE_URL"],

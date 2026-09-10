@@ -11,6 +11,8 @@
 
 **Environment gap noted in this discovery:** Docker is not currently installed in this WSL2 dev environment (`docker: command not found`, WSL integration not enabled in Docker Desktop). This blocks local `docker-compose` testing until resolved — flagged for you to address before or during Phase 1.
 
+**RBAC bootstrap:** no admin endpoint creates `Role`/`Permission`/`RolePermission`/`UserRole` rows (Phase 5 scope) — the only controlled path is `pnpm --filter @ame-de-fil/database run seed` (`packages/database/prisma/seed.ts`), run explicitly against any environment (never auto-run by migrations). It idempotently seeds every permission key an `@RequirePermissions(...)` decorator currently checks, granted to one `admin` role. Set `SEED_ADMIN_EMAIL`/`SEED_ADMIN_PASSWORD` to also create (or just role-link, if the user already exists) a bootstrap admin — unset skips that step; an existing user's password is never overwritten by a re-run. Found and closed as part of the RBAC/authorization audit.
+
 ## 2. CI/CD pipeline (GitHub Actions)
 
 ```mermaid
