@@ -46,13 +46,16 @@ export function SidebarNav({ permissions }: SidebarNavProps) {
   });
 
   return (
-    <nav aria-label={t("dashboard")} className="flex flex-col gap-1">
+    <nav
+      aria-label={t("dashboard")}
+      className="-mx-1 mt-3 flex gap-1 overflow-x-auto px-1 md:mx-0 md:mt-0 md:flex-col md:overflow-visible md:px-0"
+    >
       {visibleItems.map((item) => (
         <NavLink
           key={item.href}
           href={item.href}
           active={pathname === item.href || (item.href !== "/" && pathname.startsWith(item.href))}
-          className="rounded-sm px-3 py-2 hover:bg-neutral-100"
+          className="rounded-sm px-3 py-2 whitespace-nowrap hover:bg-neutral-100"
         >
           {item.label}
         </NavLink>

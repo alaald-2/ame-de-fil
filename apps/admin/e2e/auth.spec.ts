@@ -1,21 +1,11 @@
 import { test, expect } from "@playwright/test";
 import AxeBuilder from "@axe-core/playwright";
+import { ADMIN_EMAIL, ADMIN_PASSWORD, requireSeedAdminCredentials } from "./helpers";
 
 // TESTING.md §5 item 11 ("Admin login") — the first real Playwright coverage
-// for apps/admin. Requires SEED_ADMIN_EMAIL/SEED_ADMIN_PASSWORD to name a
-// real bootstrap admin already seeded against the running apps/api (see
-// e2e/README.md) — a missing credential fails loudly rather than silently
+// for apps/admin. A missing credential fails loudly rather than silently
 // skipping, since a skipped auth test is worse than no test.
-const ADMIN_EMAIL = process.env.SEED_ADMIN_EMAIL;
-const ADMIN_PASSWORD = process.env.SEED_ADMIN_PASSWORD;
-
-test.beforeAll(() => {
-  if (!ADMIN_EMAIL || !ADMIN_PASSWORD) {
-    throw new Error(
-      "SEED_ADMIN_EMAIL/SEED_ADMIN_PASSWORD must be set to run e2e/auth.spec.ts — see e2e/README.md.",
-    );
-  }
-});
+test.beforeAll(requireSeedAdminCredentials);
 
 test("anonymous visitor is redirected to login, then reaches the dashboard after signing in", async ({
   page,

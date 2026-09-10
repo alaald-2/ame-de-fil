@@ -34,5 +34,28 @@
     "genericTitle": "Something went wrong",
     "genericBody": "An unexpected error occurred. Please try again.",
     "retry": "Try again"
+  },
+  "Customers": {
+    "registeredCount": "{count} registered",
+    "columnEmail": "Email",
+    "columnName": "Name",
+    "columnStatus": "Status",
+    "columnOrders": "Orders",
+    "columnJoined": "Joined",
+    "columnLastActive": "Last active",
+    "nameFallback": "-",
+    "never": "Never",
+    "statusActive": "Active",
+    "statusDisabled": "Disabled",
+    "viewCustomer": "View {email}",
+    "emptyTitle": "No customers yet",
+    "emptyDescription": "Registered customers will appear here once they create an account.",
+    "forbiddenTitle": "You don't have access to this page",
+    "forbiddenDescription": "Viewing customers requires the Customers permission. Ask an administrator if you need access.",
+    "errorTitle": "Couldn't load customers",
+    "errorDescription": "Something went wrong while loading the customer list.",
+    "paginationPrevious": "Previous",
+    "paginationNext": "Next",
+    "paginationPage": "Page {page} of {totalPages}"
   }
 }

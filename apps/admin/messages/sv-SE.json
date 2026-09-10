@@ -34,5 +34,28 @@
     "genericTitle": "Något gick fel",
     "genericBody": "Ett oväntat fel inträffade. Försök igen.",
     "retry": "Försök igen"
+  },
+  "Customers": {
+    "registeredCount": "{count} registrerade",
+    "columnEmail": "E-post",
+    "columnName": "Namn",
+    "columnStatus": "Status",
+    "columnOrders": "Ordrar",
+    "columnJoined": "Registrerad",
+    "columnLastActive": "Senast aktiv",
+    "nameFallback": "-",
+    "never": "Aldrig",
+    "statusActive": "Aktiv",
+    "statusDisabled": "Inaktiverad",
+    "viewCustomer": "Visa {email}",
+    "emptyTitle": "Inga kunder ännu",
+    "emptyDescription": "Registrerade kunder visas här när de skapar ett konto.",
+    "forbiddenTitle": "Du har inte åtkomst till den här sidan",
+    "forbiddenDescription": "Att visa kunder kräver behörigheten Kunder. Kontakta en administratör om du behöver åtkomst.",
+    "errorTitle": "Det gick inte att läsa in kunder",
+    "errorDescription": "Något gick fel när kundlistan skulle läsas in.",
+    "paginationPrevious": "Föregående",
+    "paginationNext": "Nästa",
+    "paginationPage": "Sida {page} av {totalPages}"
   }
 }

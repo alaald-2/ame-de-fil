@@ -1,20 +1,7 @@
 import "server-only";
 import { cache } from "react";
-import { headers } from "next/headers";
 import { redirect } from "next/navigation";
-import { createApiClient } from "@ame-de-fil/types";
-
-const API_URL = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:3000";
-
-// A separate, server-only client instance from lib/api-client.ts's browser-
-// facing `api` export — that one relies on `credentials: "include"` for the
-// browser's own cookie jar, which is meaningless in a server-side fetch
-// (Node has no cookie jar; the incoming request's Cookie header must be
-// forwarded explicitly, per call, below, instead). Both go through the same
-// sanctioned createApiClient() factory (ARCHITECTURE.md §1's "only door to
-// apps/api") — only the credentials mode differs, since "include" has no
-// effect on a server-side fetch either way.
-const dalClient = createApiClient({ baseUrl: API_URL });
+import { getServerApiClient } from "./server-api";
 
 export interface CurrentUser {
   id: string;
@@ -56,12 +43,8 @@ export interface AuthenticatedSession {
 // alone isn't sufficient) costs exactly one network call per request, not
 // one per call site.
 export const getCurrentUser = cache(async (): Promise<AuthenticatedSession | null> => {
-  const cookieHeader = (await headers()).get("cookie") ?? "";
-
-  const { data, error } = await dalClient.GET("/api/v1/auth/session", {
-    headers: { cookie: cookieHeader },
-    cache: "no-store",
-  });
+  const client = await getServerApiClient();
+  const { data, error } = await client.GET("/api/v1/auth/session", { cache: "no-store" });
 
   if (error || !data.authenticated) return null;
   return { user: data.user, csrfToken: data.csrfToken };

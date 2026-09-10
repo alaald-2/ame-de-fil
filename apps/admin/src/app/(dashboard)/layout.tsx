@@ -17,15 +17,20 @@ export default async function DashboardLayout({ children }: { children: ReactNod
   const session = await getCurrentUser();
 
   return (
-    <div className="grid min-h-screen grid-cols-[240px_1fr]">
-      <aside className="flex flex-col border-r border-neutral-200 p-4">
-        <div className="mb-6 px-3 font-display text-lg text-neutral-900">Âme de Fil</div>
+    <div className="flex min-h-screen flex-col md:grid md:grid-cols-[240px_1fr]">
+      <aside className="border-b border-neutral-200 p-4 md:flex md:flex-col md:border-r md:border-b-0">
+        <div className="flex items-center justify-between gap-4 px-1 md:mb-6 md:block md:px-3">
+          <span className="font-display text-lg text-neutral-900">Âme de Fil</span>
+          <div className="md:hidden">
+            <SignOutButton />
+          </div>
+        </div>
         <SidebarNav permissions={session?.user.permissions ?? []} />
-        <div className="mt-auto pt-4">
+        <div className="mt-auto hidden pt-4 md:block">
           <SignOutButton />
         </div>
       </aside>
-      <main id="main-content" className="px-8 py-8">
+      <main id="main-content" className="px-4 py-6 md:px-8 md:py-8">
         {children}
       </main>
     </div>
