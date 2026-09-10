@@ -17,7 +17,7 @@ This document is the architecture-level security design. For the vulnerability-d
 - `User` ⇄ `Role` ⇄ `Permission`, many-to-many, evaluated in a Nest **guard**, not scattered `if (user.isAdmin)` checks.
 - Every admin-facing endpoint declares its required permission(s) via a decorator; the guard denies by default (allow-list, not deny-list).
 - Storefront endpoints (cart, checkout, own-order lookup) enforce **object-level** authorization — a logged-in customer can only read/mutate their own cart/orders/addresses, checked against the session's `userId` on every request, never trusted from a route param alone (classic IDOR prevention: `/orders/:id` must verify `order.userId === session.userId` server-side, not just that `:id` is a valid order).
-- Admin actions are additionally scoped — e.g. a "support" role can view orders and issue notes but not issue refunds or change RBAC itself.
+- Admin actions are additionally scoped — e.g. a "support" role could view orders and issue notes but not issue refunds or change RBAC itself. **Illustrative only, not yet implemented:** today's permission set is just the 5 keys actual routes check (`products.create`, `inventory.view`, `inventory.adjust`, `checkout.manage`, `orders.fulfill` — grep `@RequirePermissions` in `apps/api` for the current list), and `packages/database/prisma/seed.ts` (added in the RBAC/authorization audit) grants all of them to a single `admin` role. No `orders.refund`/notes/RBAC-management permission exists, and no "support" role is seeded — finer-grained roles are Phase 5 scope.
 
 ## 3. CSRF
 
