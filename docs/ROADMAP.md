@@ -51,9 +51,11 @@ Klarna/Swish payment methods via Stripe (ADR-014), shipment tracking via `Manual
 
 **Google sign-in: implemented, optional extension** (`DECISIONS.md` ADR-033) — `GET /auth/google`/`GET /auth/google/callback`, Authorization Code + PKCE, scoped to storefront customers (not admin staff). A first-time Google sign-in now auto-creates a `User` with no password at all (`OAuthAccount`, a new additive migration) — this is the one path that *does* create accounts, unlike password login above. **Deliberately not built:** any "Sign in with Google" UI in either frontend (apps/storefront has no auth page at all yet), sign-in with any provider other than Google, and self-service password registration is still nonexistent for the password path. **Not verified against real Google servers** — no Google Cloud OAuth client was available in this environment; verified against a real database and mocked Google responses only, behind a `PendingOAuthProvider` fallback (same posture as Stripe/SMTP) when unconfigured.
 
-## Phase 5 — Admin dashboard
+## Phase 5 — Admin dashboard 🟡 in progress
 
 Full admin scope from `PRODUCT_SPEC.md` §5: dashboard metrics, order management (incl. refunds), inventory management (reservations/movements/low-stock alerts), customer management, RBAC/user administration, audit log viewer.
+
+**Order management: list/detail implemented** — `GET /admin/orders` (paginated, most recent first) and `GET /admin/orders/:orderId` (full detail: items, payments, shipments, shipping/billing addresses), gated by a new `orders.view` permission, kept separate from `orders.fulfill` (mirrors the existing `inventory.view`/`inventory.adjust` split) so a role can be granted read access without fulfillment authority, or vice versa. Admin-safe by construction: every query uses an explicit `select`, so a `User` row can only ever surface `id`/`email`/`firstName`/`lastName` — verified live that a real password hash never reaches the response. No per-order ownership check (unlike the guest/owner-scoped `OrdersController.getStatus`) — an admin holding `orders.view` is authorized to see any order, not just "their own," so the authorization boundary is entirely the permission guard. **Deliberately not built:** refunds, order mutations beyond the existing fulfillment endpoints, dashboard metrics, customer management, RBAC/user administration, and an audit-log viewer — all remain open Phase 5 scope.
 
 ## Phase 6 — Reviews, discounts, editorial, wishlist
 

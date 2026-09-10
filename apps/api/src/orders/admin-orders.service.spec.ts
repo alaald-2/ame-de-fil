@@ -1,7 +1,8 @@
 import { describe, expect, it, vi } from "vitest";
-import { ConflictException } from "@nestjs/common";
-import { OrderStatus, ShipmentStatus } from "@ame-de-fil/database";
+import { ConflictException, NotFoundException } from "@nestjs/common";
+import { Currency, Locale, OrderStatus, PaymentStatus, ShipmentStatus } from "@ame-de-fil/database";
 import { AdminOrdersService } from "./admin-orders.service.ts";
+import { ADMIN_ORDER_DETAIL_SELECT, ADMIN_ORDER_LIST_SELECT } from "./mappers/admin-order.mapper.ts";
 import type { PrismaService } from "../database/prisma.service.ts";
 import type { NotificationsService } from "../notifications/notifications.service.ts";
 import { AuditService } from "../audit/audit.service.ts";
@@ -34,6 +35,9 @@ const SHIPMENT = {
 function makePrismaMock(overrides: Record<string, unknown> = {}) {
   const orderUpdateMany = vi.fn().mockResolvedValue({ count: 1 });
   const orderFindUniqueOrThrow = vi.fn().mockResolvedValue(ORDER);
+  const orderFindMany = vi.fn().mockResolvedValue([]);
+  const orderCount = vi.fn().mockResolvedValue(0);
+  const orderFindUnique = vi.fn().mockResolvedValue(null);
   const shipmentCreate = vi.fn().mockResolvedValue(SHIPMENT);
   const shipmentFindFirst = vi.fn().mockResolvedValue(SHIPMENT);
   const shipmentFindFirstOrThrow = vi.fn().mockResolvedValue(SHIPMENT);
@@ -41,7 +45,13 @@ function makePrismaMock(overrides: Record<string, unknown> = {}) {
   const auditLogCreate = vi.fn().mockResolvedValue({});
 
   const prisma: Record<string, unknown> = {
-    order: { updateMany: orderUpdateMany, findUniqueOrThrow: orderFindUniqueOrThrow },
+    order: {
+      updateMany: orderUpdateMany,
+      findUniqueOrThrow: orderFindUniqueOrThrow,
+      findMany: orderFindMany,
+      count: orderCount,
+      findUnique: orderFindUnique,
+    },
     shipment: {
       create: shipmentCreate,
       findFirst: shipmentFindFirst,
@@ -61,6 +71,9 @@ function makePrismaMock(overrides: Record<string, unknown> = {}) {
     prisma: prisma as unknown as PrismaService,
     orderUpdateMany,
     orderFindUniqueOrThrow,
+    orderFindMany,
+    orderCount,
+    orderFindUnique,
     shipmentCreate,
     shipmentFindFirst,
     shipmentFindFirstOrThrow,
@@ -68,6 +81,235 @@ function makePrismaMock(overrides: Record<string, unknown> = {}) {
     auditLogCreate,
   };
 }
+
+function makeDecimal(value: number) {
+  return { toNumber: () => value };
+}
+
+describe("AdminOrdersService.listOrders", () => {
+  it("maps rows to the admin-safe list shape, resolving both a registered and a guest customer", async () => {
+    const registeredRow = {
+      id: "order-reg-1",
+      orderNumber: "ORD-1",
+      status: OrderStatus.CONFIRMED,
+      createdAt: new Date("2026-09-10T00:00:00.000Z"),
+      totalMinor: 15000,
+      currency: Currency.SEK,
+      guestEmail: null,
+      user: { id: "user-1", email: "anna@example.com", firstName: "Anna", lastName: "Andersson" },
+      payments: [{ status: PaymentStatus.PAID }],
+    };
+    const guestRow = {
+      id: "order-guest-1",
+      orderNumber: "ORD-2",
+      status: OrderStatus.PENDING_PAYMENT,
+      createdAt: new Date("2026-09-09T00:00:00.000Z"),
+      totalMinor: 5000,
+      currency: Currency.SEK,
+      guestEmail: "guest@example.com",
+      user: null,
+      payments: [],
+    };
+    const { prisma, orderFindMany, orderCount } = makePrismaMock({
+      order: { findMany: vi.fn().mockResolvedValue([registeredRow, guestRow]), count: vi.fn().mockResolvedValue(2) },
+    });
+    // makePrismaMock's override replaces the whole `order` object, so re-read
+    // the actual mocks it produced for the assertions below.
+    const findMany = (prisma as unknown as { order: { findMany: typeof orderFindMany } }).order.findMany;
+    const count = (prisma as unknown as { order: { count: typeof orderCount } }).order.count;
+    const service = new AdminOrdersService(prisma, makeNotificationsMock(), new AuditService(prisma));
+
+    const result = await service.listOrders(1, 20);
+
+    expect(findMany).toHaveBeenCalledWith({
+      select: ADMIN_ORDER_LIST_SELECT,
+      orderBy: { createdAt: "desc" },
+      skip: 0,
+      take: 20,
+    });
+    expect(count).toHaveBeenCalledTimes(1);
+    expect(result).toEqual({
+      items: [
+        {
+          orderId: "order-reg-1",
+          orderNumber: "ORD-1",
+          status: OrderStatus.CONFIRMED,
+          customer: { userId: "user-1", email: "anna@example.com", name: "Anna Andersson" },
+          total: { amountMinor: 15000, currency: "SEK" },
+          paymentStatus: "PAID",
+          createdAt: "2026-09-10T00:00:00.000Z",
+        },
+        {
+          orderId: "order-guest-1",
+          orderNumber: "ORD-2",
+          status: OrderStatus.PENDING_PAYMENT,
+          customer: { userId: null, email: "guest@example.com", name: null },
+          total: { amountMinor: 5000, currency: "SEK" },
+          paymentStatus: null,
+          createdAt: "2026-09-09T00:00:00.000Z",
+        },
+      ],
+      page: 1,
+      pageSize: 20,
+      total: 2,
+    });
+  });
+
+  it("computes skip from page/pageSize for the second page", async () => {
+    const { prisma } = makePrismaMock();
+    const service = new AdminOrdersService(prisma, makeNotificationsMock(), new AuditService(prisma));
+
+    await service.listOrders(3, 10);
+
+    expect(
+      (prisma as unknown as { order: { findMany: ReturnType<typeof vi.fn> } }).order.findMany,
+    ).toHaveBeenCalledWith(expect.objectContaining({ skip: 20, take: 10 }));
+  });
+});
+
+describe("AdminOrdersService.getOrderDetail", () => {
+  const DETAIL_ROW = {
+    id: "order-1",
+    orderNumber: "ORD-1",
+    status: OrderStatus.CONFIRMED,
+    locale: Locale.sv_SE,
+    currency: Currency.SEK,
+    guestEmail: null,
+    user: { id: "user-1", email: "anna@example.com", firstName: "Anna", lastName: "Andersson" },
+    subtotalMinor: 10000,
+    discountMinor: 0,
+    shippingMinor: 4900,
+    taxMinor: 2500,
+    totalMinor: 17400,
+    shippingName: "Anna Andersson",
+    shippingLine1: "Storgatan 1",
+    shippingLine2: null,
+    shippingPostalCode: "11122",
+    shippingCity: "Stockholm",
+    shippingCountry: "SE",
+    shippingPhone: null,
+    billingName: "Anna Andersson",
+    billingLine1: "Storgatan 1",
+    billingLine2: null,
+    billingPostalCode: "11122",
+    billingCity: "Stockholm",
+    billingCountry: "SE",
+    billingPhone: null,
+    shippingMethod: { nameSv: "Standardfrakt", nameEn: "Standard shipping" },
+    items: [
+      {
+        id: "item-1",
+        productNameSnapshot: "Halsduk",
+        variantLabelSnapshot: "SKU-1",
+        skuSnapshot: "SKU-1",
+        unitPriceMinor: 10000,
+        quantity: 1,
+        taxRatePercent: makeDecimal(25),
+        lineSubtotalMinor: 10000,
+        lineTotalMinor: 10000,
+        madeToOrder: false,
+        productionTimeDaysSnapshot: null,
+      },
+    ],
+    payments: [
+      {
+        id: "pay-1",
+        provider: "stripe",
+        providerPaymentIntentId: "pi_123",
+        method: "card",
+        status: PaymentStatus.PAID,
+        amountMinor: 17400,
+        currency: Currency.SEK,
+        createdAt: new Date("2026-09-10T00:00:00.000Z"),
+      },
+    ],
+    shipments: [],
+    createdAt: new Date("2026-09-10T00:00:00.000Z"),
+    confirmedAt: new Date("2026-09-10T00:05:00.000Z"),
+    canceledAt: null,
+  };
+
+  it("returns 404 when the order does not exist", async () => {
+    const { prisma } = makePrismaMock({ order: { findUnique: vi.fn().mockResolvedValue(null) } });
+    const service = new AdminOrdersService(prisma, makeNotificationsMock(), new AuditService(prisma));
+
+    await expect(service.getOrderDetail("missing")).rejects.toThrow(NotFoundException);
+  });
+
+  it("queries with the exact admin-safe select (never a bare User include)", async () => {
+    const { prisma } = makePrismaMock({ order: { findUnique: vi.fn().mockResolvedValue(DETAIL_ROW) } });
+    const findUnique = (prisma as unknown as { order: { findUnique: ReturnType<typeof vi.fn> } }).order
+      .findUnique;
+    const service = new AdminOrdersService(prisma, makeNotificationsMock(), new AuditService(prisma));
+
+    await service.getOrderDetail("order-1");
+
+    expect(findUnique).toHaveBeenCalledWith({
+      where: { id: "order-1" },
+      select: ADMIN_ORDER_DETAIL_SELECT,
+    });
+  });
+
+  it("maps a full order to the admin-safe detail shape for a registered customer", async () => {
+    const { prisma } = makePrismaMock({ order: { findUnique: vi.fn().mockResolvedValue(DETAIL_ROW) } });
+    const service = new AdminOrdersService(prisma, makeNotificationsMock(), new AuditService(prisma));
+
+    const result = await service.getOrderDetail("order-1");
+
+    expect(result.customer).toEqual({ userId: "user-1", email: "anna@example.com", name: "Anna Andersson" });
+    expect(result.items).toEqual([
+      {
+        id: "item-1",
+        productName: "Halsduk",
+        variantLabel: "SKU-1",
+        sku: "SKU-1",
+        unitPrice: { amountMinor: 10000, currency: "SEK" },
+        quantity: 1,
+        taxRatePercent: 25,
+        lineSubtotal: { amountMinor: 10000, currency: "SEK" },
+        lineTotal: { amountMinor: 10000, currency: "SEK" },
+        madeToOrder: false,
+        productionTimeDaysSnapshot: null,
+      },
+    ]);
+    expect(result.payments).toEqual([
+      {
+        id: "pay-1",
+        provider: "stripe",
+        providerPaymentIntentId: "pi_123",
+        method: "card",
+        status: PaymentStatus.PAID,
+        amount: { amountMinor: 17400, currency: "SEK" },
+        createdAt: "2026-09-10T00:00:00.000Z",
+      },
+    ]);
+    expect(result.shippingAddress).toEqual({
+      name: "Anna Andersson",
+      line1: "Storgatan 1",
+      line2: null,
+      postalCode: "11122",
+      city: "Stockholm",
+      country: "SE",
+      phone: null,
+    });
+    expect(result.shippingMethodName).toBe("Standardfrakt"); // sv_SE order locale
+    expect(result.confirmedAt).toBe("2026-09-10T00:05:00.000Z");
+    expect(result.canceledAt).toBeNull();
+
+    // Never leaks anything beyond the four selected User columns.
+    expect(result.customer).not.toHaveProperty("passwordHash");
+  });
+
+  it("maps a guest order's customer with no userId/name", async () => {
+    const guestRow = { ...DETAIL_ROW, guestEmail: "guest@example.com", user: null };
+    const { prisma } = makePrismaMock({ order: { findUnique: vi.fn().mockResolvedValue(guestRow) } });
+    const service = new AdminOrdersService(prisma, makeNotificationsMock(), new AuditService(prisma));
+
+    const result = await service.getOrderDetail("order-1");
+
+    expect(result.customer).toEqual({ userId: null, email: "guest@example.com", name: null });
+  });
+});
 
 describe("AdminOrdersService.markReadyToShip", () => {
   it("transitions CONFIRMED -> READY_TO_SHIP", async () => {

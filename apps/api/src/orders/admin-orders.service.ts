@@ -1,16 +1,26 @@
-import { ConflictException, Injectable } from "@nestjs/common";
+import { ConflictException, Injectable, NotFoundException } from "@nestjs/common";
 import { OrderStatus, ShipmentStatus } from "@ame-de-fil/database";
 import { PrismaService } from "../database/prisma.service.ts";
 import { NotificationsService } from "../notifications/notifications.service.ts";
 import { AuditService } from "../audit/audit.service.ts";
+import {
+  ADMIN_ORDER_DETAIL_SELECT,
+  ADMIN_ORDER_LIST_SELECT,
+  mapAdminOrderDetail,
+  mapAdminOrderListItem,
+} from "./mappers/admin-order.mapper.ts";
 import type { MarkShippedInput } from "./dto/mark-shipped.dto.ts";
 import type { FulfillmentResponse } from "./dto/fulfillment-response.ts";
+import type { AdminOrderDetailResponse } from "./dto/admin-order-responses.ts";
 
 const NOT_IN_EXPECTED_STATE = (from: readonly OrderStatus[], to: OrderStatus) =>
   new ConflictException({
     error: "InvalidOrderTransition",
     message: `Order is not in ${from.map((s) => `"${s}"`).join(" or ")} — cannot transition to "${to}"`,
   });
+
+const ORDER_NOT_FOUND = () =>
+  new NotFoundException({ error: "OrderNotFound", message: "Order not found" });
 
 // Admin fulfillment (PAYMENTS.md §3, DECISIONS.md ADR-022/ADR-030) — the
 // manual counterpart to ManualShippingProvider's customer-facing quote
@@ -29,6 +39,42 @@ export class AdminOrdersService {
     private readonly notifications: NotificationsService,
     private readonly audit: AuditService,
   ) {}
+
+  // Read-only, permission-gated by `orders.view` at the controller (not
+  // ownership-checked here) — unlike OrdersController.getStatus's guest/
+  // owner-scoped read, an admin holding this permission is authorized to
+  // view every order, not just "their own." Least-fetch by construction:
+  // both queries use an explicit `select` (never a bare relation include),
+  // so a User row can only ever surface id/email/firstName/lastName here,
+  // regardless of what's added to the User model later.
+  async listOrders(page: number, pageSize: number) {
+    const [rows, total] = await Promise.all([
+      this.prisma.order.findMany({
+        select: ADMIN_ORDER_LIST_SELECT,
+        orderBy: { createdAt: "desc" },
+        skip: (page - 1) * pageSize,
+        take: pageSize,
+      }),
+      this.prisma.order.count(),
+    ]);
+
+    return {
+      items: rows.map(mapAdminOrderListItem),
+      page,
+      pageSize,
+      total,
+    };
+  }
+
+  async getOrderDetail(orderId: string): Promise<AdminOrderDetailResponse> {
+    const order = await this.prisma.order.findUnique({
+      where: { id: orderId },
+      select: ADMIN_ORDER_DETAIL_SELECT,
+    });
+    if (!order) throw ORDER_NOT_FOUND();
+
+    return mapAdminOrderDetail(order);
+  }
 
   // READY_TO_SHIP has two valid predecessors (PAYMENTS.md §3): CONFIRMED
   // for ready-to-ship-only orders, IN_PRODUCTION once a made-to-order

@@ -21,6 +21,7 @@ const PERMISSION_KEYS = [
   "inventory.adjust",
   "checkout.manage",
   "orders.fulfill",
+  "orders.view",
 ] as const;
 
 const ADMIN_ROLE_NAME = "admin";
