@@ -7,6 +7,8 @@
 // P2002-adapter-shape defects (fixed in this same checkpoint) were only
 // ever actually reachable.
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
+import type { ConfigService } from "@nestjs/config";
+import type { Env } from "@ame-de-fil/config";
 import { OrderStatus, PaymentStatus, StockReservationStatus } from "@ame-de-fil/database";
 import { PaymentsWebhookService } from "../payments/payments-webhook.service.ts";
 import { ReservationExpiryService } from "./reservation-expiry.service.ts";
@@ -15,6 +17,14 @@ import { NotificationsService } from "../notifications/notifications.service.ts"
 import { PendingEmailProvider } from "../notifications/email-provider.ts";
 import { startTestDatabase, stopTestDatabase, type TestDatabase } from "../test/testcontainers-postgres.ts";
 import { seedShopFixture, seedVariant, seedPendingOrder, type ShopFixture, type VariantFixture } from "../test/fixtures.ts";
+
+// Real ReservationExpiryService needs CHECKOUT_RESERVATION_TTL_MINUTES —
+// matches env.ts's own default (15) so this file's cutoff arithmetic stays
+// predictable regardless of what a real .env sets it to.
+const RESERVATION_TTL_MINUTES = 15;
+function makeConfig(): ConfigService<Env, true> {
+  return { get: () => RESERVATION_TTL_MINUTES } as unknown as ConfigService<Env, true>;
+}
 
 function succeededEvent(providerPaymentIntentId: string, eventId: string): VerifiedWebhookEvent {
   return {
@@ -36,7 +46,7 @@ describe("reservation expiry vs. payment-success — real Postgres", () => {
   beforeAll(async () => {
     db = await startTestDatabase();
     shop = await seedShopFixture(db.prisma);
-    reservationExpiry = new ReservationExpiryService(db.prisma);
+    reservationExpiry = new ReservationExpiryService(db.prisma, makeConfig());
     // PendingEmailProvider — no real SMTP container in this integration
     // harness (TESTING.md §3), same posture as
     // notifications.integration.spec.ts. NotificationsService never throws,
@@ -229,5 +239,86 @@ describe("reservation expiry vs. payment-success — real Postgres", () => {
 
     const finalOrder = await db.prisma.order.findUniqueOrThrow({ where: { id: order.orderId } });
     expect(finalOrder.status).toBe(OrderStatus.CONFIRMED);
+  });
+
+  // Abandoned-checkout handling for orders no StockReservation ever covers:
+  // a fully made-to-order order (every line tracksStock: false) never gets
+  // one at all (checkout.service.ts only reserves finite-stock lines), so
+  // without this branch it would sit in PENDING_PAYMENT forever regardless
+  // of how long ago it was placed. Real Postgres is what actually exercises
+  // the `items: { every: { reservation: null } }` filter — a mocked Prisma
+  // client can't verify that query shape against real relations.
+  describe("abandoned checkout — orders with no reservation at all (real Postgres)", () => {
+    it("cancels a made-to-order order that's sat in PENDING_PAYMENT past the reservation TTL", async () => {
+      const madeToOrderVariant = await seedVariant(db.prisma, shop.taxClassId, {
+        tracksStock: false,
+        productionTimeDays: 21,
+      });
+      const order = await seedPendingOrder(db.prisma, shop, madeToOrderVariant, {
+        madeToOrder: { productionTimeDaysSnapshot: 21 },
+      });
+      expect(order.stockReservationId).toBeNull();
+
+      // Backdate past the TTL directly — seedPendingOrder always uses
+      // createdAt: now(), and this is the one field this test needs to
+      // control that the shared fixture deliberately doesn't expose.
+      await db.prisma.order.update({
+        where: { id: order.orderId },
+        data: { createdAt: new Date(Date.now() - (RESERVATION_TTL_MINUTES + 1) * 60_000) },
+      });
+
+      const result = await reservationExpiry.releaseExpiredReservations();
+      expect(result.canceledOrders).toBeGreaterThanOrEqual(1);
+
+      const finalOrder = await db.prisma.order.findUniqueOrThrow({ where: { id: order.orderId } });
+      expect(finalOrder.status).toBe(OrderStatus.CANCELED);
+      expect(finalOrder.canceledAt).not.toBeNull();
+
+      // Idempotent, same as the reservation-driven branch: a second sweep
+      // finds nothing left to cancel for this order.
+      const second = await reservationExpiry.releaseExpiredReservations();
+      const stillCanceled = await db.prisma.order.findUniqueOrThrow({ where: { id: order.orderId } });
+      expect(stillCanceled.status).toBe(OrderStatus.CANCELED);
+      expect(second.canceledOrders).toBe(0);
+    });
+
+    it("leaves a made-to-order order alone while still within the reservation TTL window", async () => {
+      const madeToOrderVariant = await seedVariant(db.prisma, shop.taxClassId, {
+        tracksStock: false,
+        productionTimeDays: 21,
+      });
+      const order = await seedPendingOrder(db.prisma, shop, madeToOrderVariant, {
+        madeToOrder: { productionTimeDaysSnapshot: 21 },
+      });
+
+      await reservationExpiry.releaseExpiredReservations();
+
+      const finalOrder = await db.prisma.order.findUniqueOrThrow({ where: { id: order.orderId } });
+      expect(finalOrder.status).toBe(OrderStatus.PENDING_PAYMENT); // untouched — not yet stale
+    });
+
+    it("never touches a mixed order (has a real reservation) via the no-reservation branch", async () => {
+      // A regular, reservation-backed order that's also old enough to be
+      // "stale" by createdAt alone must still only ever be canceled by the
+      // reservation-driven branch (its reservation expiring), never
+      // double-processed by the no-reservation branch too — `items: {
+      // every: { reservation: null } }` must correctly exclude it.
+      const order = await seedPendingOrder(db.prisma, shop, variant, {
+        reservationExpiresAt: new Date(Date.now() + 60 * 60_000), // not expired
+      });
+      await db.prisma.order.update({
+        where: { id: order.orderId },
+        data: { createdAt: new Date(Date.now() - (RESERVATION_TTL_MINUTES + 1) * 60_000) },
+      });
+
+      await reservationExpiry.releaseExpiredReservations();
+
+      const finalOrder = await db.prisma.order.findUniqueOrThrow({ where: { id: order.orderId } });
+      expect(finalOrder.status).toBe(OrderStatus.PENDING_PAYMENT); // its own reservation isn't expired yet
+      const reservation = await db.prisma.stockReservation.findUniqueOrThrow({
+        where: { id: order.stockReservationId! },
+      });
+      expect(reservation.status).toBe(StockReservationStatus.PENDING); // untouched
+    });
   });
 });

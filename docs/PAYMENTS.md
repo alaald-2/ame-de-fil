@@ -141,7 +141,11 @@ Full and partial refunds are issued through the provider (`refund()`), recorded 
 
 ## 7. Abandoned checkout
 
-`PENDING_PAYMENT` orders whose reservation expires without a `PAID` webhook transition to `CANCELED` automatically — **implemented** via `ReservationExpiryScheduler` (`apps/api/src/checkout/reservation-expiry.scheduler.ts`), not a BullMQ job as originally sketched (see `DECISIONS.md` for why). If a payment succeeds anyway *after* this cancellation already ran, the order does not stay `CANCELED` — see §4a for that race and why it resolves to `PAYMENT_SUCCEEDED_STOCK_LOST` instead. A separate, lower-priority "abandoned cart" email job (distinct from checkout abandonment) may re-engage customers who left items in `Cart` without ever starting checkout — product decision, not built in v1 unless confirmed.
+`PENDING_PAYMENT` orders whose reservation expires without a `PAID` webhook transition to `CANCELED` automatically — **implemented** via `ReservationExpiryScheduler` (`apps/api/src/checkout/reservation-expiry.scheduler.ts`), not a BullMQ job as originally sketched (see `DECISIONS.md` for why). If a payment succeeds anyway *after* this cancellation already ran, the order does not stay `CANCELED` — see §4a for that race and why it resolves to `PAYMENT_SUCCEEDED_STOCK_LOST` instead.
+
+**A fully made-to-order order gets no `StockReservation` at all** (every line has `tracksStock: false`, so `CheckoutService.initiate` never creates one — `DATABASE.md` §4), which left it invisible to the reservation-driven sweep above regardless of how long it sat in `PENDING_PAYMENT`. `ReservationExpiryService.releaseExpiredReservations` now has a second, independent branch for exactly this: any `PENDING_PAYMENT` order older than `CHECKOUT_RESERVATION_TTL_MINUTES` (measured from `Order.createdAt`) with no reservation on any of its lines (`items: { every: { reservation: null } }`) is canceled the same way, folded into the same `canceledOrders` result — no new config value, since "how long we wait for the customer to pay" applies whether or not stock is actually reserved. A mixed order (some tracked lines, some made-to-order) is unaffected by this branch and continues to be canceled by the reservation-driven path once its real reservation expires.
+
+A separate, lower-priority "abandoned cart" email job (distinct from checkout abandonment) may re-engage customers who left items in `Cart` without ever starting checkout — product decision, not built in v1 unless confirmed.
 
 ## 8. Security notes (cross-ref `SECURITY.md`)
 
