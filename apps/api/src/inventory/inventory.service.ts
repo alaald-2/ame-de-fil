@@ -14,6 +14,27 @@ const ITEM_INCLUDE = {
   variant: { include: { product: { include: { translations: true } } } },
 } as const;
 
+// Only finite-stock items with a threshold actually set can ever be "low
+// stock" — a made-to-order line (tracksStock=false) has no ceiling to run
+// low on, and an item with lowStockThreshold: null has nothing to compare
+// against (Postgres's own NULL semantics already make "(onHand - reserved)
+// < NULL" false, but the explicit clause below documents that intent
+// rather than relying on it implicitly). "onHand - reserved <
+// lowStockThreshold" compares two columns to each other, which Prisma's
+// declarative `where` filters can't express at all (only column-to-
+// literal) — raw SQL is the same, already-established escape hatch
+// stock-lock.ts uses for the identical class of problem, parameterized via
+// Prisma.sql exactly the same way (SECURITY.md §5). Hoisted to module
+// scope (not just listLowStock's own local const) so countLowStock below
+// — added for the dashboard-metrics checkpoint's alert count, a bare
+// number with no list/pagination — shares the identical predicate rather
+// than risking the two definitions drifting apart.
+const LOW_STOCK_CONDITION = Prisma.sql`
+  "tracksStock" = true
+  AND "lowStockThreshold" IS NOT NULL
+  AND ("onHand" - "reserved") < "lowStockThreshold"
+`;
+
 @Injectable()
 export class InventoryService {
   constructor(
@@ -40,24 +61,7 @@ export class InventoryService {
     };
   }
 
-  // Only finite-stock items with a threshold actually set can ever be "low
-  // stock" — a made-to-order line (tracksStock=false) has no ceiling to run
-  // low on, and an item with lowStockThreshold: null has nothing to compare
-  // against (Postgres's own NULL semantics already make "(onHand -
-  // reserved) < NULL" false, but the explicit clause below documents that
-  // intent rather than relying on it implicitly). "onHand - reserved <
-  // lowStockThreshold" compares two columns to each other, which Prisma's
-  // declarative `where` filters can't express at all (only column-to-
-  // literal) — raw SQL is the same, already-established escape hatch
-  // stock-lock.ts uses for the identical class of problem, parameterized
-  // via Prisma.sql exactly the same way (SECURITY.md §5).
   async listLowStock(page: number, pageSize: number) {
-    const LOW_STOCK_CONDITION = Prisma.sql`
-      "tracksStock" = true
-      AND "lowStockThreshold" IS NOT NULL
-      AND ("onHand" - "reserved") < "lowStockThreshold"
-    `;
-
     const [countRows, idRows] = await Promise.all([
       this.prisma.$queryRaw<{ count: number }[]>(
         Prisma.sql`SELECT COUNT(*)::int AS count FROM "InventoryItem" WHERE ${LOW_STOCK_CONDITION}`,
@@ -96,6 +100,20 @@ export class InventoryService {
       pageSize,
       total,
     };
+  }
+
+  // Bare count only, no list/pagination — the dashboard-metrics
+  // checkpoint's alert figure, which reuses this predicate rather than
+  // duplicating it so the two counts can never drift apart. Surfaced there
+  // behind `dashboard.view`, not `inventory.view` — a deliberate choice
+  // (SECURITY.md §2): this method itself has no permission check of its
+  // own (that's each caller's controller's job), same as every other
+  // service in this codebase.
+  async countLowStock(): Promise<number> {
+    const rows = await this.prisma.$queryRaw<{ count: number }[]>(
+      Prisma.sql`SELECT COUNT(*)::int AS count FROM "InventoryItem" WHERE ${LOW_STOCK_CONDITION}`,
+    );
+    return rows[0]?.count ?? 0;
   }
 
   async getByVariantId(variantId: string) {

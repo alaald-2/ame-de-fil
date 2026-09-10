@@ -674,6 +674,13 @@ model Order {
 
   @@index([status])
   @@index([userId])
+  // Dashboard-metrics checkpoint: every revenue/order-count aggregation
+  // filters on one of these two columns (createdAt for order-count
+  // breakdowns, confirmedAt for revenue — DATABASE.md §10), both
+  // previously unindexed, meaning a full table scan on every dashboard
+  // request regardless of the requested date range's size.
+  @@index([createdAt])
+  @@index([confirmedAt])
 }
 
 // Guest-checkout authorization credential for the unauthenticated order-status
@@ -757,6 +764,9 @@ model Payment {
 
   @@index([orderId])
   @@index([status])
+  // Dashboard-metrics checkpoint: payment-count-by-status is scoped by
+  // createdAt.
+  @@index([createdAt])
 }
 
 model PaymentAttempt {
@@ -788,6 +798,12 @@ model Refund {
   initiatedBy User?   @relation("RefundInitiatedBy", fields: [initiatedByUserId], references: [id], onDelete: SetNull)
 
   @@index([paymentId])
+  // Dashboard-metrics checkpoint: refund-count-by-status is scoped by
+  // createdAt (when initiated); the revenue-netting figure is scoped by
+  // processedAt (when a SUCCEEDED refund's money actually moved) — the two
+  // are deliberately different columns (DATABASE.md §10), so both are indexed.
+  @@index([createdAt])
+  @@index([processedAt])
 }
 
 // ─────────────────────────────────────────────────────────────────────────

@@ -111,3 +111,13 @@ One additive migration, `20260909205338_add_oauth_account`, generated for real v
 
 - `User.passwordHash` becomes nullable (`String?`, was `String`) — a Google-only account never sets one. `AuthService.login`'s existing `user?.passwordHash ?? <dummy hash>` fallback already treats `null` exactly like `undefined` (a nonexistent user), so a password-login attempt against a Google-only account fails with the same generic `InvalidCredentials` response as a wrong password — no code change was needed for this to be safe.
 - New `OAuthAccount` model — one row per external identity linked to a `User`: `provider` (plain string, not an enum — mirrors `Notification.type`'s reasoning: a second provider later needs no migration), `providerAccountId` (Google's `sub` claim, never the email, since an account's email can change independently of its identity), `@@unique([provider, providerAccountId])`. A dedicated table rather than a `googleId` column directly on `User`, mirroring how `Session`/`OrderStatusToken` are their own tables rather than columns on the row they belong to — the same reasoning §7 already gives for `OrderStatusToken`.
+
+## 10. Implementation notes (dashboard-metrics checkpoint) — indexing
+
+One additive migration, `20260910190436_add_dashboard_metric_indexes`, generated for real via `prisma migrate dev` against the real local Postgres — five new indexes, no column/table changes:
+
+- `Order.createdAt`, `Order.confirmedAt`
+- `Payment.createdAt`
+- `Refund.createdAt`, `Refund.processedAt`
+
+`DashboardService.getOverview` (`apps/api/src/dashboard/`) is the sole reason these exist: every revenue/order/payment/refund aggregation it runs filters on exactly one of these five columns, none of which were previously indexed (`Order` only had `@@index([status])`/`@@index([userId])`; `Payment` only `@@index([orderId])`/`@@index([status])`; `Refund` only `@@index([paymentId])`) — without them, every dashboard request was a full-table scan on `Order`/`Payment`/`Refund` regardless of how narrow the requested date range was (the *range's* size doesn't bound the scan cost at all; total row count does). `confirmedAt` and `createdAt` are indexed separately, not as a composite, because `DashboardService` never filters on both in the same query (gross revenue uses `confirmedAt` alone; the orders-by-status breakdown uses `createdAt` alone) — the same reasoning applies to `Refund.createdAt` vs `Refund.processedAt` (the by-status breakdown vs. the cash-basis revenue-netting figure, two genuinely different questions — full metric definitions in `ROADMAP.md` Phase 5).
