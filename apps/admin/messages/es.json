@@ -23,7 +23,6 @@
   "Common": {
     "loading": "Cargando…",
     "skipToContent": "Saltar al contenido",
-    "comingSoon": "Esta sección todavía no está implementada.",
     "signOut": "Cerrar sesión",
     "signOutError": "No se pudo cerrar sesión. Inténtalo de nuevo.",
     "languageSwitcherLabel": "Idioma"

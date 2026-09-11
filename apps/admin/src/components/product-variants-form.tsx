@@ -133,7 +133,7 @@ export function ProductVariantsForm({ productId, variants }: ProductVariantsForm
             <div className="flex flex-wrap items-baseline justify-between gap-2">
               <Heading level={3}>{variant.sku}</Heading>
               {Object.keys(variant.selectedOptionValues).length > 0 ? (
-                <Text size="sm" className="text-neutral-600">
+                <Text size="sm" tone="muted">
                   {Object.entries(variant.selectedOptionValues)
                     .map(([key, value]) => `${key}: ${value}`)
                     .join(" · ")}
@@ -142,7 +142,7 @@ export function ProductVariantsForm({ productId, variants }: ProductVariantsForm
             </div>
 
             {variant.inventory ? (
-              <Text size="sm" className="text-neutral-600">
+              <Text size="sm" tone="muted">
                 {t("stockOnHand", { count: variant.inventory.onHand })} ·{" "}
                 {t("stockReserved", { count: variant.inventory.reserved })}
               </Text>

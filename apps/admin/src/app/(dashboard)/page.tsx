@@ -26,7 +26,7 @@ interface StatProps {
 function Stat({ label, value, size = "sm" }: StatProps) {
   return (
     <div>
-      <Text size="sm" className="text-xs tracking-wide text-neutral-600 uppercase">
+      <Text size="sm" tone="muted" className="text-xs tracking-wide uppercase">
         {label}
       </Text>
       <p
@@ -57,7 +57,7 @@ interface BreakdownItem {
 function StatusBreakdown({ items, emptyLabel }: { items: BreakdownItem[]; emptyLabel: string }) {
   if (items.length === 0) {
     return (
-      <Text size="sm" className="text-neutral-600">
+      <Text size="sm" tone="muted">
         {emptyLabel}
       </Text>
     );
@@ -146,9 +146,9 @@ export default async function DashboardPage() {
     <div>
       <div className="flex flex-wrap items-baseline justify-between gap-x-6 gap-y-1">
         <Heading level={1}>{tNav("dashboard")}</Heading>
-        <Text className="text-neutral-600">{t("periodLabel")}</Text>
+        <Text tone="muted">{t("periodLabel")}</Text>
       </div>
-      <Text size="sm" className="mt-1 text-neutral-600">
+      <Text size="sm" tone="muted" className="mt-1">
         {t("periodRange", {
           from: formatDate(data.period.from, locale),
           to: formatDate(data.period.to, locale),
@@ -160,7 +160,7 @@ export default async function DashboardPage() {
           {alertLines.join(" · ")}
         </Alert>
       ) : (
-        <Text size="sm" className="mt-6 text-neutral-600">
+        <Text size="sm" tone="muted" className="mt-6">
           {t("alerts.allClear")}
         </Text>
       )}
@@ -201,7 +201,7 @@ export default async function DashboardPage() {
             <Heading level={3} className="mb-2">
               {tNav("orders")}
             </Heading>
-            <Text size="sm" className="mb-3 text-neutral-600">
+            <Text size="sm" tone="muted" className="mb-3">
               {t("totalInPeriod", { count: data.orders.totalInPeriod })}
             </Text>
             <StatusBreakdown items={ordersByStatus} emptyLabel={t("none")} />
@@ -210,7 +210,7 @@ export default async function DashboardPage() {
             <Heading level={3} className="mb-2">
               {t("activity.payments")}
             </Heading>
-            <Text size="sm" className="mb-3 text-neutral-600">
+            <Text size="sm" tone="muted" className="mb-3">
               {t("totalInPeriod", { count: data.payments.totalInPeriod })}
             </Text>
             <StatusBreakdown items={paymentsByStatus} emptyLabel={t("none")} />
@@ -219,7 +219,7 @@ export default async function DashboardPage() {
             <Heading level={3} className="mb-2">
               {t("activity.refunds")}
             </Heading>
-            <Text size="sm" className="mb-3 text-neutral-600">
+            <Text size="sm" tone="muted" className="mb-3">
               {t("totalInPeriod", { count: data.refunds.totalInPeriod })}
             </Text>
             <StatusBreakdown items={refundsByStatus} emptyLabel={t("none")} />

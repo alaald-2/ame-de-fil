@@ -79,12 +79,12 @@ export function ReservationsTable({ reservations, locale }: ReservationsTablePro
                 {t(`reservationStatus.${reservation.status}`)}
               </Badge>
             </div>
-            <Text size="sm" className="mt-0.5 text-neutral-600">
+            <Text size="sm" tone="muted" className="mt-0.5">
               {reservation.sku}
             </Text>
             <div className="mt-3 grid grid-cols-3 gap-2">
               <div>
-                <Text size="sm" className="text-neutral-600">
+                <Text size="sm" tone="muted">
                   {t("columnQuantity")}
                 </Text>
                 <Text size="sm" className="tabular-nums">
@@ -92,13 +92,13 @@ export function ReservationsTable({ reservations, locale }: ReservationsTablePro
                 </Text>
               </div>
               <div>
-                <Text size="sm" className="text-neutral-600">
+                <Text size="sm" tone="muted">
                   {t("columnExpires")}
                 </Text>
                 <Text size="sm">{formatDateTime(reservation.expiresAt, locale)}</Text>
               </div>
               <div>
-                <Text size="sm" className="text-neutral-600">
+                <Text size="sm" tone="muted">
                   {t("columnOrder")}
                 </Text>
                 <Link

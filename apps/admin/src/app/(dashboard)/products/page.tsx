@@ -11,8 +11,7 @@ interface ProductsPageProps {
   searchParams: Promise<{ page?: string }>;
 }
 
-// Real GET /admin/products data (products.view-gated server-side) — the
-// first real Products admin page; replaces the ComingSoon stub. Mirrors
+// Real GET /admin/products data (products.view-gated server-side). Mirrors
 // Orders/Inventory's own list conventions (see orders/page.tsx).
 export default async function ProductsPage({ searchParams }: ProductsPageProps) {
   const session = await requireSession();
@@ -52,7 +51,7 @@ export default async function ProductsPage({ searchParams }: ProductsPageProps) 
     <div>
       <div className="flex flex-wrap items-baseline justify-between gap-x-6 gap-y-1">
         <Heading level={1}>{tNav("products")}</Heading>
-        <Text className="text-neutral-600">{t("resultsCount", { count: data.total })}</Text>
+        <Text tone="muted">{t("resultsCount", { count: data.total })}</Text>
       </div>
 
       {canCreate ? (

@@ -84,7 +84,7 @@ export default async function OrderDetailPage({ params }: OrderDetailPageProps) 
         </div>
       </div>
 
-      <Text className="mt-1 text-neutral-600">
+      <Text tone="muted" className="mt-1">
         {order.customer.name ?? order.customer.email} · {formatDate(order.createdAt, locale)}
       </Text>
 
@@ -140,7 +140,7 @@ export default async function OrderDetailPage({ params }: OrderDetailPageProps) 
               {td("payments")}
             </Heading>
             {order.payments.length === 0 ? (
-              <Text className="text-neutral-600">{td("noPayments")}</Text>
+              <Text tone="muted">{td("noPayments")}</Text>
             ) : (
               <div className="overflow-x-auto">
                 <Table>
@@ -232,7 +232,7 @@ export default async function OrderDetailPage({ params }: OrderDetailPageProps) 
             </div>
           </div>
           <div className="mt-4 border-t border-neutral-200 pt-4">
-            <Text size="sm" className="text-neutral-600">
+            <Text size="sm" tone="muted">
               {td("shippingMethod")}
             </Text>
             <Text size="sm">{order.shippingMethodName}</Text>
@@ -246,7 +246,7 @@ export default async function OrderDetailPage({ params }: OrderDetailPageProps) 
 function SummaryRow({ label, value }: { label: string; value: string }) {
   return (
     <div className="flex justify-between">
-      <Text size="sm" className="text-neutral-600">
+      <Text size="sm" tone="muted">
         {label}
       </Text>
       <Text size="sm" className="tabular-nums">

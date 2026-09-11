@@ -88,7 +88,7 @@ export default async function UserDetailPage({ params }: UserDetailPageProps) {
         // user, and a bare dash as the sole content of its own line reads
         // as a rendering error, not "no data" the way it does inline in a
         // table cell.
-        return fullName ? <Text className="mt-1 text-neutral-600">{fullName}</Text> : null;
+        return fullName ? <Text tone="muted" className="mt-1">{fullName}</Text> : null;
       })()}
 
       <div className="mt-8 grid gap-8 lg:grid-cols-[1fr_320px]">
@@ -102,7 +102,7 @@ export default async function UserDetailPage({ params }: UserDetailPageProps) {
             {td("effectivePermissions")}
           </Heading>
           {user.permissions.length === 0 ? (
-            <Text size="sm" className="text-neutral-600">
+            <Text size="sm" tone="muted">
               {td("noPermissions")}
             </Text>
           ) : (
@@ -138,7 +138,7 @@ export default async function UserDetailPage({ params }: UserDetailPageProps) {
 function InfoRow({ label, value }: { label: string; value: string }) {
   return (
     <div className="flex justify-between gap-3">
-      <Text size="sm" className="text-neutral-600">
+      <Text size="sm" tone="muted">
         {label}
       </Text>
       <Text size="sm" className="text-right">

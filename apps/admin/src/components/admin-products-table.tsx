@@ -96,7 +96,7 @@ export function AdminProductsTable({ products, locale }: AdminProductsTableProps
               </div>
               <div className="mt-3 grid grid-cols-3 gap-2">
                 <div>
-                  <Text size="sm" className="text-neutral-600">
+                  <Text size="sm" tone="muted">
                     {t("columnVariants")}
                   </Text>
                   <Text size="sm" className="tabular-nums">
@@ -104,7 +104,7 @@ export function AdminProductsTable({ products, locale }: AdminProductsTableProps
                   </Text>
                 </div>
                 <div>
-                  <Text size="sm" className="text-neutral-600">
+                  <Text size="sm" tone="muted">
                     {t("columnPrice")}
                   </Text>
                   <Text size="sm" className="tabular-nums">
@@ -112,7 +112,7 @@ export function AdminProductsTable({ products, locale }: AdminProductsTableProps
                   </Text>
                 </div>
                 <div>
-                  <Text size="sm" className="text-neutral-600">
+                  <Text size="sm" tone="muted">
                     {t("columnUpdated")}
                   </Text>
                   <Text size="sm">{formatDate(product.updatedAt, locale)}</Text>

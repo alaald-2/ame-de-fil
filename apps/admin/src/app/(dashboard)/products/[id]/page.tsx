@@ -84,7 +84,7 @@ export default async function ProductDetailPage({ params }: ProductDetailPagePro
         {canUpdate ? <ProductStatusAction productId={product.id} status={product.status} /> : null}
       </div>
 
-      <Text className="mt-1 text-neutral-600">
+      <Text tone="muted" className="mt-1">
         {td("updated")}: {formatDateTime(product.updatedAt, locale)}
       </Text>
 
@@ -102,7 +102,7 @@ export default async function ProductDetailPage({ params }: ProductDetailPagePro
             collections={collections}
           />
         ) : (
-          <Text size="sm" className="text-neutral-600">
+          <Text size="sm" tone="muted">
             {td("readOnlyNotice")}
           </Text>
         )}

@@ -105,7 +105,7 @@ export function AdminUsersTable({ users, locale }: AdminUsersTableProps) {
                   {user.status === "ACTIVE" ? t("statusActive") : t("statusDisabled")}
                 </Badge>
               </div>
-              <Text size="sm" className="mt-0.5 text-neutral-600">
+              <Text size="sm" tone="muted" className="mt-0.5">
                 {fullName(user) ?? t("nameFallback")}
               </Text>
               <div className="mt-2">
@@ -113,13 +113,13 @@ export function AdminUsersTable({ users, locale }: AdminUsersTableProps) {
               </div>
               <div className="mt-3 grid grid-cols-2 gap-2">
                 <div>
-                  <Text size="sm" className="text-neutral-600">
+                  <Text size="sm" tone="muted">
                     {t("columnJoined")}
                   </Text>
                   <Text size="sm">{formatDate(user.createdAt, locale)}</Text>
                 </div>
                 <div>
-                  <Text size="sm" className="text-neutral-600">
+                  <Text size="sm" tone="muted">
                     {t("columnLastActive")}
                   </Text>
                   <Text size="sm">{user.lastLoginAt ? formatDate(user.lastLoginAt, locale) : t("never")}</Text>

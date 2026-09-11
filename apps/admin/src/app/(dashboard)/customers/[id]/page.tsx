@@ -69,7 +69,7 @@ export default async function CustomerDetailPage({ params }: CustomerDetailPageP
         // Omitted entirely when neither name is set, rather than falling
         // back to a lone "-" — same reasoning as the Administration user
         // detail page's own identical pattern.
-        return fullName ? <Text className="mt-1 text-neutral-600">{fullName}</Text> : null;
+        return fullName ? <Text tone="muted" className="mt-1">{fullName}</Text> : null;
       })()}
 
       <div className="mt-8 grid gap-8 lg:grid-cols-[1fr_320px]">

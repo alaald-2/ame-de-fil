@@ -123,7 +123,7 @@ export function OrdersTable({ orders, locale }: OrdersTableProps) {
               </div>
               <div className="mt-3 grid grid-cols-3 gap-2">
                 <div>
-                  <Text size="sm" className="text-neutral-600">
+                  <Text size="sm" tone="muted">
                     {t("columnPayment")}
                   </Text>
                   <Text size="sm">
@@ -131,7 +131,7 @@ export function OrdersTable({ orders, locale }: OrdersTableProps) {
                   </Text>
                 </div>
                 <div>
-                  <Text size="sm" className="text-neutral-600">
+                  <Text size="sm" tone="muted">
                     {t("columnTotal")}
                   </Text>
                   <Text size="sm" className="tabular-nums">
@@ -139,7 +139,7 @@ export function OrdersTable({ orders, locale }: OrdersTableProps) {
                   </Text>
                 </div>
                 <div>
-                  <Text size="sm" className="text-neutral-600">
+                  <Text size="sm" tone="muted">
                     {t("columnPlaced")}
                   </Text>
                   <Text size="sm">{formatDate(order.createdAt, locale)}</Text>

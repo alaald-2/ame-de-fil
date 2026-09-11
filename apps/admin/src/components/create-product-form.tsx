@@ -382,7 +382,7 @@ export function CreateProductForm({ categories, collections }: CreateProductForm
             {t("addOption")}
           </Button>
         </div>
-        <Text size="sm" className="mt-1 text-neutral-600">
+        <Text size="sm" tone="muted" className="mt-1">
           {t("optionsHint")}
         </Text>
         <div className="mt-4 flex flex-col gap-4">

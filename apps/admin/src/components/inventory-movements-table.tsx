@@ -96,12 +96,12 @@ export function MovementsTable({ movements, locale }: MovementsTableProps) {
               <Text className="truncate font-medium text-neutral-900">{movement.productName}</Text>
               <Badge tone={movementTypeTone(movement.type)}>{t(`movementType.${movement.type}`)}</Badge>
             </div>
-            <Text size="sm" className="mt-0.5 text-neutral-600">
+            <Text size="sm" tone="muted" className="mt-0.5">
               {movement.sku}
             </Text>
             <div className="mt-3 grid grid-cols-3 gap-2">
               <div>
-                <Text size="sm" className="text-neutral-600">
+                <Text size="sm" tone="muted">
                   {t("columnQuantity")}
                 </Text>
                 <Text size="sm" className="tabular-nums">
@@ -109,7 +109,7 @@ export function MovementsTable({ movements, locale }: MovementsTableProps) {
                 </Text>
               </div>
               <div>
-                <Text size="sm" className="text-neutral-600">
+                <Text size="sm" tone="muted">
                   {t("columnOrder")}
                 </Text>
                 {movement.orderId && movement.orderNumber ? (
@@ -124,7 +124,7 @@ export function MovementsTable({ movements, locale }: MovementsTableProps) {
                 )}
               </div>
               <div>
-                <Text size="sm" className="text-neutral-600">
+                <Text size="sm" tone="muted">
                   {t("columnDate")}
                 </Text>
                 <Text size="sm">{formatDateTime(movement.createdAt, locale)}</Text>

@@ -23,7 +23,6 @@
   "Common": {
     "loading": "Laddar…",
     "skipToContent": "Hoppa till innehåll",
-    "comingSoon": "Den här sektionen är inte implementerad ännu.",
     "signOut": "Logga ut",
     "signOutError": "Det gick inte att logga ut. Försök igen.",
     "languageSwitcherLabel": "Språk"

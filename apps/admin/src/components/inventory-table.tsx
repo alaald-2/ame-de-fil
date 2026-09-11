@@ -71,12 +71,12 @@ export function InventoryTable({ items }: InventoryTableProps) {
                 {item.availableQuantity !== null ? ` (${item.availableQuantity})` : ""}
               </Badge>
             </div>
-            <Text size="sm" className="mt-0.5 text-neutral-600">
+            <Text size="sm" tone="muted" className="mt-0.5">
               {item.sku}
             </Text>
             <div className="mt-3 grid grid-cols-3 gap-2">
               <div>
-                <Text size="sm" className="text-neutral-600">
+                <Text size="sm" tone="muted">
                   {t("columnOnHand")}
                 </Text>
                 <Text size="sm" className="tabular-nums">
@@ -84,7 +84,7 @@ export function InventoryTable({ items }: InventoryTableProps) {
                 </Text>
               </div>
               <div>
-                <Text size="sm" className="text-neutral-600">
+                <Text size="sm" tone="muted">
                   {t("columnReserved")}
                 </Text>
                 <Text size="sm" className="tabular-nums">
@@ -92,7 +92,7 @@ export function InventoryTable({ items }: InventoryTableProps) {
                 </Text>
               </div>
               <div>
-                <Text size="sm" className="text-neutral-600">
+                <Text size="sm" tone="muted">
                   {t("columnThreshold")}
                 </Text>
                 <Text size="sm" className="tabular-nums">

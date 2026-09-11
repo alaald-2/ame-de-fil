@@ -53,7 +53,7 @@ export default async function InventoryPage({ searchParams }: InventoryPageProps
     <div>
       <div className="flex flex-wrap items-baseline justify-between gap-x-6 gap-y-1">
         <Heading level={1}>{tNav("inventory")}</Heading>
-        <Text className="text-neutral-600">{t("resultsCount", { count: data.total })}</Text>
+        <Text tone="muted">{t("resultsCount", { count: data.total })}</Text>
       </div>
 
       <div className="mt-6">

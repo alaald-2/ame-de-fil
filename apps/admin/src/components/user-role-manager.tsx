@@ -105,7 +105,7 @@ export function UserRoleManager({ userId, currentRoles, assignableRoles }: UserR
       ) : null}
 
       {currentRoles.length === 0 ? (
-        <Text size="sm" className="text-neutral-600">
+        <Text size="sm" tone="muted">
           {t("noRoles")}
         </Text>
       ) : (
@@ -148,7 +148,7 @@ export function UserRoleManager({ userId, currentRoles, assignableRoles }: UserR
             })}
           </ul>
           {currentRoles.length === 1 ? (
-            <Text size="sm" className="mt-1.5 text-neutral-600">
+            <Text size="sm" tone="muted" className="mt-1.5">
               {t("cannotRemoveLastRole")}
             </Text>
           ) : null}

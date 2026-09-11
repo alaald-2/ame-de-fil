@@ -114,14 +114,14 @@ export function AuditLogTable({ entries, locale }: AuditLogTableProps) {
           <li key={entry.id} className="px-1 py-4">
             <div className="flex items-center justify-between gap-3">
               <Text className="truncate font-medium text-neutral-900">{entry.action}</Text>
-              <Text size="sm" className="text-neutral-600">
+              <Text size="sm" tone="muted">
                 {formatDateTime(entry.createdAt, locale)}
               </Text>
             </div>
-            <Text size="sm" className="mt-0.5 text-neutral-600">
+            <Text size="sm" tone="muted" className="mt-0.5">
               {entry.entityType} · {entry.entityId}
             </Text>
-            <Text size="sm" className="mt-1 text-neutral-600">
+            <Text size="sm" tone="muted" className="mt-1">
               {entry.actorEmail ?? t("systemActor")}
               {entry.ipAddress ? ` · ${entry.ipAddress}` : ""}
             </Text>
