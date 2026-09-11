@@ -48,7 +48,7 @@ export function SidebarNav({ permissions }: SidebarNavProps) {
   return (
     <nav
       aria-label={t("dashboard")}
-      className="-mx-1 mt-3 flex gap-1 overflow-x-auto px-1 md:mx-0 md:mt-0 md:flex-col md:overflow-visible md:px-0"
+      className="-mx-1 mt-3 flex items-center gap-1 overflow-x-auto px-1 md:mx-0 md:mt-0 md:flex-col md:items-stretch md:overflow-visible md:px-0"
     >
       {visibleItems.map((item) => (
         <NavLink
@@ -60,6 +60,21 @@ export function SidebarNav({ permissions }: SidebarNavProps) {
           {item.label}
         </NavLink>
       ))}
+      {/* "More to scroll" hint for the horizontal mobile row only (this
+          nav becomes a vertical column at md+, where it never overflows).
+          A plain character, not an icon library — matches this codebase's
+          existing convention of plain HTML entities for small glyphs
+          (&larr;/&times; elsewhere) rather than adding an icon dependency.
+          `sticky right-0` pins it to the visible edge while there's still
+          more to scroll, then settles in-flow right after the last item
+          once the row is short enough to fit or is scrolled to the end —
+          it never overlays real content. */}
+      <span
+        aria-hidden="true"
+        className="sticky right-0 ml-1 shrink-0 pr-1 text-neutral-500 md:hidden"
+      >
+        &rsaquo;
+      </span>
     </nav>
   );
 }

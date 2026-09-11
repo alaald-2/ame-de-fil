@@ -3,6 +3,7 @@ import { Heading, Text, Pagination, EmptyState, ErrorState } from "@ame-de-fil/u
 import { requireSession } from "../../../lib/dal";
 import { getServerApiClient } from "../../../lib/server-api";
 import { OrdersTable } from "../../../components/orders-table";
+import type { AdminLocale } from "../../../i18n/config";
 
 const PAGE_SIZE = 20;
 
@@ -20,7 +21,7 @@ export default async function OrdersPage({ searchParams }: OrdersPageProps) {
 
   const t = await getTranslations("Orders");
   const tNav = await getTranslations("Navigation");
-  const locale = (await getLocale()) as "sv-SE" | "en";
+  const locale = (await getLocale()) as AdminLocale;
   const client = await getServerApiClient();
 
   const { data, error, response } = await client.GET("/api/v1/admin/orders", {

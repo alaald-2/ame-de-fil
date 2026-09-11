@@ -39,12 +39,7 @@ export function Pagination({
         <ChevronLeftIcon aria-hidden="true" className="h-4 w-4" />
         {previousLabel}
       </PaginationLink>
-      {/* Not tone="muted" (--color-neutral-500 on neutral-50 is a known,
-          pre-existing 3.78:1 contrast failure below the 4.5:1 AA minimum for
-          normal text — tracked separately, out of scope to fix in shared
-          tokens this checkpoint); neutral-600 keeps the same quiet weight
-          while passing AA (5.98:1). */}
-      <Text size="sm" className="text-neutral-600">
+      <Text size="sm" tone="muted">
         {pageLabel(page, totalPages)}
       </Text>
       <PaginationLink href={hasNext ? makeHref(page + 1) : undefined} disabled={!hasNext}>

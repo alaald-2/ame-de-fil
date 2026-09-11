@@ -51,9 +51,7 @@ export default async function CustomersPage({ searchParams }: CustomersPageProps
     <div>
       <div className="flex flex-wrap items-baseline justify-between gap-x-6 gap-y-1">
         <Heading level={1}>{tNav("customers")}</Heading>
-        {/* text-neutral-600, not tone="muted" — see customers-table.tsx's
-            comment on the same pre-existing contrast issue. */}
-        <Text className="text-neutral-600">{t("registeredCount", { count: data.total })}</Text>
+        <Text tone="muted">{t("registeredCount", { count: data.total })}</Text>
       </div>
 
       {data.items.length === 0 ? (

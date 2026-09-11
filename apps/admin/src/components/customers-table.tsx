@@ -38,12 +38,6 @@ function formatDate(iso: string, locale: string): string {
 // is a link" pattern: one real anchor per item, not a link wrapping every
 // cell (bad for keyboard/screen-reader navigation) or an onClick handler on
 // a non-interactive element (inaccessible, unusable without JS).
-//
-// Supporting text below uses text-neutral-600 directly, not Text's own
-// tone="muted" (--color-neutral-500 on neutral-50 is a known 3.78:1
-// contrast failure, below the 4.5:1 AA minimum — see Table.tsx's
-// TableHeaderCell for the same fix and reasoning; out of scope to fix in
-// the shared token itself this checkpoint).
 export function CustomersTable({ customers, locale }: CustomersTableProps) {
   const t = useTranslations("Customers");
 
@@ -98,12 +92,12 @@ export function CustomersTable({ customers, locale }: CustomersTableProps) {
                   {customer.status === "ACTIVE" ? t("statusActive") : t("statusDisabled")}
                 </Badge>
               </div>
-              <Text size="sm" className="mt-0.5 text-neutral-600">
+              <Text size="sm" tone="muted" className="mt-0.5">
                 {customer.name ?? t("nameFallback")}
               </Text>
               <div className="mt-3 grid grid-cols-3 gap-2">
                 <div>
-                  <Text size="sm" className="text-neutral-600">
+                  <Text size="sm" tone="muted">
                     {t("columnOrders")}
                   </Text>
                   <Text size="sm" className="tabular-nums">
@@ -111,13 +105,13 @@ export function CustomersTable({ customers, locale }: CustomersTableProps) {
                   </Text>
                 </div>
                 <div>
-                  <Text size="sm" className="text-neutral-600">
+                  <Text size="sm" tone="muted">
                     {t("columnJoined")}
                   </Text>
                   <Text size="sm">{formatDate(customer.createdAt, locale)}</Text>
                 </div>
                 <div>
-                  <Text size="sm" className="text-neutral-600">
+                  <Text size="sm" tone="muted">
                     {t("columnLastActive")}
                   </Text>
                   <Text size="sm">

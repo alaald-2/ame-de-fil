@@ -44,10 +44,9 @@ export function TableHeaderCell({ className, ...props }: ComponentPropsWithoutRe
   return (
     <th
       scope="col"
-      // neutral-600, not neutral-500 (--color-neutral-500 on neutral-50 is
-      // a known 3.78:1 contrast failure, below the 4.5:1 AA minimum —
-      // tracked separately, out of scope for shared-token changes this
-      // checkpoint) — neutral-600 passes AA (5.98:1) at this small size.
+      // A raw <th>, not Text, so it can't take `tone="muted"` — kept in
+      // sync with that tone's own value (Text.tsx) by hand: neutral-600,
+      // which passes AA (5.98:1) against neutral-50.
       className={cn(
         "px-4 py-3 font-sans text-xs font-medium tracking-wide text-neutral-600 uppercase",
         className,

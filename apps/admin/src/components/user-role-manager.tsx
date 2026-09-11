@@ -124,15 +124,21 @@ export function UserRoleManager({ userId, currentRoles, assignableRoles }: UserR
               const isOnlyRole = currentRoles.length === 1;
               return (
                 <li key={role.id}>
-                  <Badge className="gap-1.5 pr-1">
+                  <Badge className="gap-1">
                     {role.name}
+                    {/* Explicit 24x24 CSS px hit target (DESIGN_SYSTEM.md
+                        §7's WCAG 2.2 minimum, "including on dense admin
+                        UI") around the same small "x" glyph — the badge
+                        itself grows slightly to fit this one interactive
+                        variant, informational (non-removable) badges
+                        elsewhere are unaffected. */}
                     <button
                       type="button"
                       onClick={() => handleRemove(role.id)}
                       disabled={isOnlyRole || pendingRoleId === role.id}
                       aria-label={t("removeRole", { role: role.name })}
                       title={isOnlyRole ? t("cannotRemoveLastRole") : undefined}
-                      className="rounded-sm px-1 text-neutral-500 hover:text-danger focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent-500 disabled:opacity-50 disabled:hover:text-neutral-500"
+                      className="inline-flex h-6 w-6 shrink-0 items-center justify-center rounded-sm text-neutral-500 hover:text-danger focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent-500 disabled:opacity-50 disabled:hover:text-neutral-500"
                     >
                       &times;
                     </button>

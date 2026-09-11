@@ -81,9 +81,15 @@ export default async function UserDetailPage({ params }: UserDetailPageProps) {
         {canManageStatus ? <UserStatusAction userId={user.id} status={user.status} /> : null}
       </div>
 
-      <Text className="mt-1 text-neutral-600">
-        {[user.firstName, user.lastName].filter(Boolean).join(" ") || t("nameFallback")}
-      </Text>
+      {(() => {
+        const fullName = [user.firstName, user.lastName].filter(Boolean).join(" ");
+        // Omitted entirely when neither name is set, rather than falling
+        // back to a lone "-" — the email above already identifies the
+        // user, and a bare dash as the sole content of its own line reads
+        // as a rendering error, not "no data" the way it does inline in a
+        // table cell.
+        return fullName ? <Text className="mt-1 text-neutral-600">{fullName}</Text> : null;
+      })()}
 
       <div className="mt-8 grid gap-8 lg:grid-cols-[1fr_320px]">
         <div>

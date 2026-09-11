@@ -25,6 +25,7 @@ import {
 } from "../../../../lib/order-status";
 import { OrderFulfillmentActions } from "../../../../components/order-fulfillment-actions";
 import { RefundDialog } from "../../../../components/refund-dialog";
+import type { AdminLocale } from "../../../../i18n/config";
 
 interface OrderDetailPageProps {
   params: Promise<{ orderId: string }>;
@@ -42,7 +43,7 @@ export default async function OrderDetailPage({ params }: OrderDetailPageProps) 
 
   const t = await getTranslations("Orders");
   const td = await getTranslations("Orders.detail");
-  const locale = (await getLocale()) as "sv-SE" | "en";
+  const locale = (await getLocale()) as AdminLocale;
   const client = await getServerApiClient();
 
   const { data: order, error, response } = await client.GET("/api/v1/admin/orders/{orderId}", {
@@ -96,7 +97,7 @@ export default async function OrderDetailPage({ params }: OrderDetailPageProps) 
             <Table>
               <TableHead>
                 <TableRow>
-                  <TableHeaderCell>{t("columnOrder")}</TableHeaderCell>
+                  <TableHeaderCell>{td("columnProduct")}</TableHeaderCell>
                   <TableHeaderCell className="text-right">{td("quantityAbbr")}</TableHeaderCell>
                   <TableHeaderCell className="text-right">{td("total")}</TableHeaderCell>
                 </TableRow>

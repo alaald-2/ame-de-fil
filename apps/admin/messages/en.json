@@ -25,7 +25,8 @@
     "skipToContent": "Skip to content",
     "comingSoon": "This section isn't implemented yet.",
     "signOut": "Sign out",
-    "signOutError": "Couldn't sign out. Please try again."
+    "signOutError": "Couldn't sign out. Please try again.",
+    "languageSwitcherLabel": "Language"
   },
   "Errors": {
     "notFoundTitle": "Page not found",
@@ -115,6 +116,7 @@
     "detail": {
       "backToOrders": "Back to orders",
       "items": "Items",
+      "columnProduct": "Product",
       "quantityAbbr": "Qty",
       "madeToOrder": "Made to order",
       "shippingAddress": "Shipping address",
@@ -308,7 +310,25 @@
       "forbiddenTitle": "You don't have access to this page",
       "forbiddenDescription": "Viewing the audit log requires the Audit log permission. Ask an administrator if you need access.",
       "errorTitle": "Couldn't load the audit log",
-      "errorDescription": "Something went wrong while loading the audit log."
+      "errorDescription": "Something went wrong while loading the audit log.",
+      "fields": {
+        "status": "Status",
+        "paymentStatus": "Payment status",
+        "orderStatus": "Order status",
+        "amountMinor": "Amount",
+        "email": "Email",
+        "initialRoleIds": "Initial roles",
+        "role": "Role",
+        "carrierName": "Carrier",
+        "trackingNumber": "Tracking number",
+        "onHand": "Stock on hand",
+        "delta": "Adjustment",
+        "reason": "Reason",
+        "translations": "Translations",
+        "skus": "SKUs",
+        "releasedReservations": "Reservations released",
+        "canceledOrders": "Orders canceled"
+      }
     }
   },
   "Dashboard": {

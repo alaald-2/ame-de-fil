@@ -22,11 +22,7 @@ export function ErrorState({ title, description, retryHref, retryLabel, classNam
   return (
     <div className={cn("flex flex-col items-center gap-2 py-20 text-center", className)}>
       <Heading level={3}>{title}</Heading>
-      {description ? (
-        // neutral-600, not tone="muted" (neutral-500 fails AA contrast at
-        // 3.78:1 against neutral-50 — tracked separately, see Table.tsx).
-        <Text className="max-w-sm text-neutral-600">{description}</Text>
-      ) : null}
+      {description ? <Text tone="muted" className="max-w-sm">{description}</Text> : null}
       {retryHref && retryLabel ? (
         <Link href={retryHref} className="mt-4">
           {retryLabel}

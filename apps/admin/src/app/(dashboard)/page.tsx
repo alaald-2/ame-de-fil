@@ -4,6 +4,7 @@ import { requireSession } from "../../lib/dal";
 import { getServerApiClient } from "../../lib/server-api";
 import { formatMoney } from "../../lib/format-money";
 import { orderStatusTone, paymentStatusTone, refundStatusTone, type BadgeTone } from "../../lib/order-status";
+import type { AdminLocale } from "../../i18n/config";
 
 function formatDate(iso: string, locale: string): string {
   return new Intl.DateTimeFormat(locale, { dateStyle: "medium" }).format(new Date(iso));
@@ -138,7 +139,7 @@ export default async function DashboardPage() {
       label: tr(row.status),
       count: row.count,
       tone: refundStatusTone(row.status),
-      amount: formatMoney(row.amountMinor, locale as "sv-SE" | "en"),
+      amount: formatMoney(row.amountMinor, locale as AdminLocale),
     }));
 
   return (
@@ -171,20 +172,20 @@ export default async function DashboardPage() {
         <Stat
           size="lg"
           label={t("revenue.net")}
-          value={formatMoney(data.revenue.netMinor, locale as "sv-SE" | "en")}
+          value={formatMoney(data.revenue.netMinor, locale as AdminLocale)}
         />
         <div className="mt-6 grid grid-cols-2 gap-6 sm:grid-cols-4">
-          <Stat label={t("revenue.gross")} value={formatMoney(data.revenue.grossMinor, locale as "sv-SE" | "en")} />
+          <Stat label={t("revenue.gross")} value={formatMoney(data.revenue.grossMinor, locale as AdminLocale)} />
           <Stat
             label={t("revenue.refunds")}
-            value={formatMoney(data.revenue.refundsMinor, locale as "sv-SE" | "en")}
+            value={formatMoney(data.revenue.refundsMinor, locale as AdminLocale)}
           />
           <Stat
             label={t("revenue.averageOrderValue")}
             value={
               data.revenue.averageOrderValueMinor === null
                 ? t("none")
-                : formatMoney(data.revenue.averageOrderValueMinor, locale as "sv-SE" | "en")
+                : formatMoney(data.revenue.averageOrderValueMinor, locale as AdminLocale)
             }
           />
           <Stat label={t("revenue.confirmedOrders")} value={String(data.revenue.confirmedOrderCount)} />

@@ -13,6 +13,7 @@ import {
 } from "@ame-de-fil/ui";
 import { orderStatusTone, paymentStatusTone } from "../lib/order-status";
 import { formatMoney } from "../lib/format-money";
+import type { AdminLocale } from "../i18n/config";
 
 export interface OrderListItem {
   orderId: string;
@@ -26,7 +27,7 @@ export interface OrderListItem {
 
 interface OrdersTableProps {
   orders: OrderListItem[];
-  locale: "sv-SE" | "en";
+  locale: AdminLocale;
 }
 
 function formatDate(iso: string, locale: string): string {
@@ -108,7 +109,13 @@ export function OrdersTable({ orders, locale }: OrdersTableProps) {
               className="block rounded-sm px-1 py-4 transition-colors hover:bg-neutral-100/60 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-accent-500"
             >
               <div className="flex items-center justify-between gap-3">
-                <Text className="font-medium text-neutral-900">{order.orderNumber}</Text>
+                {/* min-w-0 lets truncate actually shrink inside this flex
+                    row instead of pushing the badge out — real order
+                    numbers are a fixed short shape, but nothing here
+                    should assume that and wrap/overflow if one isn't. */}
+                <Text className="min-w-0 flex-1 truncate font-medium text-neutral-900">
+                  {order.orderNumber}
+                </Text>
                 <Badge tone={orderStatusTone(order.status)}>{t(`status.${order.status}`)}</Badge>
               </div>
               <div className="mt-1">

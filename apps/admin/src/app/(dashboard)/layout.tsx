@@ -2,6 +2,7 @@ import type { ReactNode } from "react";
 import { getCurrentUser } from "../../lib/dal";
 import { SidebarNav } from "../../components/sidebar-nav";
 import { SignOutButton } from "../../components/sign-out-button";
+import { LanguageSwitcher } from "../../components/language-switcher";
 
 // Protected admin shell — proxy.ts's optimistic cookie-presence check keeps
 // a definitely-anonymous request out before it ever reaches this layout,
@@ -25,8 +26,12 @@ export default async function DashboardLayout({ children }: { children: ReactNod
             <SignOutButton />
           </div>
         </div>
+        <div className="mt-3 md:hidden">
+          <LanguageSwitcher />
+        </div>
         <SidebarNav permissions={session?.user.permissions ?? []} />
-        <div className="mt-auto hidden pt-4 md:block">
+        <div className="mt-auto hidden flex-col gap-4 pt-4 md:flex">
+          <LanguageSwitcher />
           <SignOutButton />
         </div>
       </aside>

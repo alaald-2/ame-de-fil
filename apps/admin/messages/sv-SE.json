@@ -25,7 +25,8 @@
     "skipToContent": "Hoppa till innehåll",
     "comingSoon": "Den här sektionen är inte implementerad ännu.",
     "signOut": "Logga ut",
-    "signOutError": "Det gick inte att logga ut. Försök igen."
+    "signOutError": "Det gick inte att logga ut. Försök igen.",
+    "languageSwitcherLabel": "Språk"
   },
   "Errors": {
     "notFoundTitle": "Sidan kunde inte hittas",
@@ -115,6 +116,7 @@
     "detail": {
       "backToOrders": "Tillbaka till ordrar",
       "items": "Artiklar",
+      "columnProduct": "Produkt",
       "quantityAbbr": "Antal",
       "madeToOrder": "Tillverkas på beställning",
       "shippingAddress": "Leveransadress",
@@ -308,7 +310,25 @@
       "forbiddenTitle": "Du har inte åtkomst till den här sidan",
       "forbiddenDescription": "Att visa granskningsloggen kräver behörigheten Granskningslogg. Kontakta en administratör om du behöver åtkomst.",
       "errorTitle": "Det gick inte att läsa in granskningsloggen",
-      "errorDescription": "Något gick fel när granskningsloggen skulle läsas in."
+      "errorDescription": "Något gick fel när granskningsloggen skulle läsas in.",
+      "fields": {
+        "status": "Status",
+        "paymentStatus": "Betalningsstatus",
+        "orderStatus": "Orderstatus",
+        "amountMinor": "Belopp",
+        "email": "E-post",
+        "initialRoleIds": "Ursprungliga roller",
+        "role": "Roll",
+        "carrierName": "Fraktbolag",
+        "trackingNumber": "Spårningsnummer",
+        "onHand": "I lager",
+        "delta": "Justering",
+        "reason": "Anledning",
+        "translations": "Översättningar",
+        "skus": "Artikelnummer",
+        "releasedReservations": "Frisläppta reservationer",
+        "canceledOrders": "Avbrutna ordrar"
+      }
     }
   },
   "Dashboard": {

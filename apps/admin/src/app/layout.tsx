@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import type { ReactNode } from "react";
 import { Fraunces, Inter } from "next/font/google";
 import { NextIntlClientProvider } from "next-intl";
-import { getMessages, getTranslations } from "next-intl/server";
+import { getMessages, getTranslations, getLocale } from "next-intl/server";
 import "./globals.css";
 
 const fraunces = Fraunces({
@@ -20,9 +20,14 @@ export async function generateMetadata(): Promise<Metadata> {
 export default async function RootLayout({ children }: { children: ReactNode }) {
   const messages = await getMessages();
   const t = await getTranslations("Common");
+  // Was hardcoded to "sv-SE" regardless of the actual admin_locale cookie
+  // (i18n/request.ts) — every page's *content* was already correctly
+  // localized, but a screen reader was always told the document is
+  // Swedish even while displaying English or Spanish.
+  const locale = await getLocale();
 
   return (
-    <html lang="sv-SE" className={`${fraunces.variable} ${inter.variable}`}>
+    <html lang={locale} className={`${fraunces.variable} ${inter.variable}`}>
       <body className="min-h-screen font-sans">
         <NextIntlClientProvider messages={messages}>
           <a

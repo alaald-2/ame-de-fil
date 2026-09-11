@@ -4,6 +4,7 @@ import { requireSession } from "../../../../lib/dal";
 import { getServerApiClient } from "../../../../lib/server-api";
 import { AdministrationTabs } from "../../../../components/administration-tabs";
 import { AuditLogTable } from "../../../../components/audit-log-table";
+import type { AdminLocale } from "../../../../i18n/config";
 
 const PAGE_SIZE = 20;
 
@@ -24,7 +25,7 @@ export default async function AuditLogPage({ searchParams }: AuditLogPageProps) 
 
   const t = await getTranslations("Administration.auditLog");
   const tNav = await getTranslations("Navigation");
-  const locale = await getLocale();
+  const locale = (await getLocale()) as AdminLocale;
   const client = await getServerApiClient();
 
   const { data, error, response } = await client.GET("/api/v1/admin/audit-log", {
