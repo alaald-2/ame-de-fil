@@ -6,6 +6,7 @@ import { useTranslations } from "next-intl";
 import { Heading, Button, Alert, FormField, Input, Textarea, Spinner } from "@ame-de-fil/ui";
 import { api } from "../lib/api-client";
 import { readCsrfCookie } from "../lib/csrf";
+import { PRODUCT_CONTENT_PLACEHOLDERS } from "../lib/product-content-placeholders";
 import type { TaxonomyOption } from "./create-product-form";
 
 interface TranslationDraft {
@@ -158,6 +159,7 @@ export function ProductDetailsForm({
               {(fieldProps) => (
                 <Input
                   {...fieldProps}
+                  placeholder={PRODUCT_CONTENT_PLACEHOLDERS[locale].name}
                   value={drafts[locale].name}
                   onChange={(e) => updateField(locale, "name", e.target.value)}
                 />
@@ -178,6 +180,7 @@ export function ProductDetailsForm({
               {(fieldProps) => (
                 <Textarea
                   {...fieldProps}
+                  placeholder={PRODUCT_CONTENT_PLACEHOLDERS[locale].description}
                   value={drafts[locale].description}
                   onChange={(e) => updateField(locale, "description", e.target.value)}
                 />
@@ -189,6 +192,7 @@ export function ProductDetailsForm({
               {(fieldProps) => (
                 <Textarea
                   {...fieldProps}
+                  placeholder={PRODUCT_CONTENT_PLACEHOLDERS[locale].story}
                   value={drafts[locale].story}
                   onChange={(e) => updateField(locale, "story", e.target.value)}
                 />
@@ -200,6 +204,7 @@ export function ProductDetailsForm({
               {(fieldProps) => (
                 <Textarea
                   {...fieldProps}
+                  placeholder={PRODUCT_CONTENT_PLACEHOLDERS[locale].careInstructions}
                   value={drafts[locale].careInstructions}
                   onChange={(e) => updateField(locale, "careInstructions", e.target.value)}
                 />
@@ -209,6 +214,7 @@ export function ProductDetailsForm({
               {(fieldProps) => (
                 <Input
                   {...fieldProps}
+                  placeholder={PRODUCT_CONTENT_PLACEHOLDERS[locale].materials}
                   value={drafts[locale].materials}
                   onChange={(e) => updateField(locale, "materials", e.target.value)}
                 />
@@ -220,6 +226,7 @@ export function ProductDetailsForm({
               {(fieldProps) => (
                 <Input
                   {...fieldProps}
+                  placeholder={PRODUCT_CONTENT_PLACEHOLDERS[locale].metaTitle}
                   value={drafts[locale].metaTitle}
                   onChange={(e) => updateField(locale, "metaTitle", e.target.value)}
                 />
@@ -229,6 +236,7 @@ export function ProductDetailsForm({
               {(fieldProps) => (
                 <Textarea
                   {...fieldProps}
+                  placeholder={PRODUCT_CONTENT_PLACEHOLDERS[locale].metaDescription}
                   value={drafts[locale].metaDescription}
                   onChange={(e) => updateField(locale, "metaDescription", e.target.value)}
                 />

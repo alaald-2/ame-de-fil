@@ -156,6 +156,7 @@ export function CreateUserDialog({ assignableRoles }: CreateUserDialogProps) {
                     {...fieldProps}
                     type="email"
                     required
+                    placeholder={t("emailPlaceholder")}
                     value={email}
                     onChange={(e) => setEmail(e.target.value)}
                   />
@@ -163,12 +164,22 @@ export function CreateUserDialog({ assignableRoles }: CreateUserDialogProps) {
               </FormField>
               <FormField label={t("firstNameLabel")}>
                 {(fieldProps) => (
-                  <Input {...fieldProps} value={firstName} onChange={(e) => setFirstName(e.target.value)} />
+                  <Input
+                    {...fieldProps}
+                    placeholder={t("firstNamePlaceholder")}
+                    value={firstName}
+                    onChange={(e) => setFirstName(e.target.value)}
+                  />
                 )}
               </FormField>
               <FormField label={t("lastNameLabel")}>
                 {(fieldProps) => (
-                  <Input {...fieldProps} value={lastName} onChange={(e) => setLastName(e.target.value)} />
+                  <Input
+                    {...fieldProps}
+                    placeholder={t("lastNamePlaceholder")}
+                    value={lastName}
+                    onChange={(e) => setLastName(e.target.value)}
+                  />
                 )}
               </FormField>
               <fieldset>

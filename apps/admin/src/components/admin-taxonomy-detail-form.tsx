@@ -18,6 +18,7 @@ import {
 } from "@ame-de-fil/ui";
 import { api } from "../lib/api-client";
 import { readCsrfCookie } from "../lib/csrf";
+import { TAXONOMY_CONTENT_PLACEHOLDERS } from "../lib/taxonomy-content-placeholders";
 
 interface TranslationDraft {
   name: string;
@@ -171,6 +172,7 @@ export function AdminTaxonomyDetailForm({ kind, id, translations, productCount, 
                 {(fieldProps) => (
                   <Input
                     {...fieldProps}
+                    placeholder={TAXONOMY_CONTENT_PLACEHOLDERS[kind][locale].name}
                     value={drafts[locale].name}
                     onChange={(e) => updateField(locale, "name", e.target.value)}
                   />
@@ -191,6 +193,7 @@ export function AdminTaxonomyDetailForm({ kind, id, translations, productCount, 
                 {(fieldProps) => (
                   <Textarea
                     {...fieldProps}
+                    placeholder={TAXONOMY_CONTENT_PLACEHOLDERS[kind][locale].description}
                     value={drafts[locale].description}
                     onChange={(e) => updateField(locale, "description", e.target.value)}
                   />
@@ -202,6 +205,7 @@ export function AdminTaxonomyDetailForm({ kind, id, translations, productCount, 
                 {(fieldProps) => (
                   <Input
                     {...fieldProps}
+                    placeholder={TAXONOMY_CONTENT_PLACEHOLDERS[kind][locale].metaTitle}
                     value={drafts[locale].metaTitle}
                     onChange={(e) => updateField(locale, "metaTitle", e.target.value)}
                   />
@@ -211,6 +215,7 @@ export function AdminTaxonomyDetailForm({ kind, id, translations, productCount, 
                 {(fieldProps) => (
                   <Textarea
                     {...fieldProps}
+                    placeholder={TAXONOMY_CONTENT_PLACEHOLDERS[kind][locale].metaDescription}
                     value={drafts[locale].metaDescription}
                     onChange={(e) => updateField(locale, "metaDescription", e.target.value)}
                   />

@@ -132,12 +132,36 @@ async function seedTaxClasses(prisma: PrismaClient): Promise<void> {
   console.log(`Ensured the "${taxClass.code}" tax class and its current rate exist.`);
 }
 
+// Same gap as seedTaxClasses above, same fix — only apps/api/src/test/fixtures.ts
+// ever created a ShippingMethod, for integration tests only. Order.shippingMethodId
+// is a required, non-nullable FK, so checkout cannot complete on a genuinely
+// fresh environment without at least one row here. Matches that fixture's
+// exact code/name/price/delivery-window, not a new business decision made here.
+async function seedShippingMethods(prisma: PrismaClient): Promise<void> {
+  const shippingMethod = await prisma.shippingMethod.upsert({
+    where: { code: "STANDARD" },
+    update: {},
+    create: {
+      code: "STANDARD",
+      nameSv: "Standardfrakt",
+      nameEn: "Standard shipping",
+      priceMinor: 4900,
+      minDeliveryDays: 2,
+      maxDeliveryDays: 5,
+      isActive: true,
+    },
+  });
+
+  console.log(`Ensured the "${shippingMethod.code}" shipping method exists.`);
+}
+
 async function main(): Promise<void> {
   const prisma = new PrismaClient({ adapter: new PrismaPg({ connectionString: requireDatabaseUrl() }) });
   try {
     await seedPermissionsAndAdminRole(prisma);
     await seedBootstrapAdminIfConfigured(prisma);
     await seedTaxClasses(prisma);
+    await seedShippingMethods(prisma);
   } finally {
     await prisma.$disconnect();
   }

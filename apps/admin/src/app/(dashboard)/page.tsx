@@ -1,5 +1,5 @@
 import { getTranslations, getLocale } from "next-intl/server";
-import { Heading, Text, Alert, ErrorState } from "@ame-de-fil/ui";
+import { Heading, Text, Alert, Card, Link, ErrorState } from "@ame-de-fil/ui";
 import { requireSession } from "../../lib/dal";
 import { getServerApiClient } from "../../lib/server-api";
 import { formatMoney } from "../../lib/format-money";
@@ -121,17 +121,36 @@ export default async function DashboardPage({ searchParams }: DashboardPageProps
     );
   }
 
-  const alertLines = [
+  // Every alert now links somewhere real: low-stock to the existing
+  // low-stock list, disputed payments/failed refunds to the Orders list
+  // filtered by GET /admin/orders' own paymentStatus/refundStatus params
+  // (admin-orders.service.ts) — a gap this checkpoint closed; previously
+  // there was no drill-down for either (ROADMAP.md's "deliberately not
+  // built: drill-down list endpoints for any alert").
+  const alertLinkClassName = "text-danger underline underline-offset-4 hover:no-underline";
+  const alertNodes = [
     data.alerts.lowStockCount > 0
-      ? t("alerts.lowStock", { count: data.alerts.lowStockCount })
+      ? (
+          <Link key="lowStock" href="/inventory/low-stock" className={alertLinkClassName}>
+            {t("alerts.lowStock", { count: data.alerts.lowStockCount })}
+          </Link>
+        )
       : null,
     data.alerts.disputedPaymentsCount > 0
-      ? t("alerts.disputedPayments", { count: data.alerts.disputedPaymentsCount })
+      ? (
+          <Link key="disputedPayments" href="/orders?paymentStatus=DISPUTED" className={alertLinkClassName}>
+            {t("alerts.disputedPayments", { count: data.alerts.disputedPaymentsCount })}
+          </Link>
+        )
       : null,
     data.alerts.failedRefundsCount > 0
-      ? t("alerts.failedRefunds", { count: data.alerts.failedRefundsCount })
+      ? (
+          <Link key="failedRefunds" href="/orders?refundStatus=FAILED" className={alertLinkClassName}>
+            {t("alerts.failedRefunds", { count: data.alerts.failedRefundsCount })}
+          </Link>
+        )
       : null,
-  ].filter((line): line is string => line !== null);
+  ].filter((node): node is NonNullable<typeof node> => node !== null);
 
   const ordersByStatus: BreakdownItem[] = [...data.orders.byStatus]
     .sort((a, b) => b.count - a.count)
@@ -159,11 +178,16 @@ export default async function DashboardPage({ searchParams }: DashboardPageProps
           to: formatDate(data.period.to, locale),
         })}
       </Text>
-      <DashboardDateRangeForm from={data.period.from} to={data.period.to} />
+      <DashboardDateRangeForm key={`${data.period.from}-${data.period.to}`} from={data.period.from} to={data.period.to} />
 
-      {alertLines.length > 0 ? (
+      {alertNodes.length > 0 ? (
         <Alert tone="danger" className="mt-6">
-          {alertLines.join(" · ")}
+          {alertNodes.map((node, index) => (
+            <span key={index}>
+              {index > 0 ? " · " : ""}
+              {node}
+            </span>
+          ))}
         </Alert>
       ) : (
         <Text size="sm" tone="muted" className="mt-6">
@@ -175,35 +199,37 @@ export default async function DashboardPage({ searchParams }: DashboardPageProps
         <Heading level={2} className="mb-4">
           {t("revenue.title")}
         </Heading>
-        <Stat
-          size="lg"
-          label={t("revenue.net")}
-          value={formatMoney(data.revenue.netMinor, locale as AdminLocale)}
-        />
-        <div className="mt-6 grid grid-cols-2 gap-6 sm:grid-cols-4">
-          <Stat label={t("revenue.gross")} value={formatMoney(data.revenue.grossMinor, locale as AdminLocale)} />
+        <Card>
           <Stat
-            label={t("revenue.refunds")}
-            value={formatMoney(data.revenue.refundsMinor, locale as AdminLocale)}
+            size="lg"
+            label={t("revenue.net")}
+            value={formatMoney(data.revenue.netMinor, locale as AdminLocale)}
           />
-          <Stat
-            label={t("revenue.averageOrderValue")}
-            value={
-              data.revenue.averageOrderValueMinor === null
-                ? t("none")
-                : formatMoney(data.revenue.averageOrderValueMinor, locale as AdminLocale)
-            }
-          />
-          <Stat label={t("revenue.confirmedOrders")} value={String(data.revenue.confirmedOrderCount)} />
-        </div>
+          <div className="mt-6 grid grid-cols-2 gap-6 border-t border-neutral-200 pt-6 sm:grid-cols-4">
+            <Stat label={t("revenue.gross")} value={formatMoney(data.revenue.grossMinor, locale as AdminLocale)} />
+            <Stat
+              label={t("revenue.refunds")}
+              value={formatMoney(data.revenue.refundsMinor, locale as AdminLocale)}
+            />
+            <Stat
+              label={t("revenue.averageOrderValue")}
+              value={
+                data.revenue.averageOrderValueMinor === null
+                  ? t("none")
+                  : formatMoney(data.revenue.averageOrderValueMinor, locale as AdminLocale)
+              }
+            />
+            <Stat label={t("revenue.confirmedOrders")} value={String(data.revenue.confirmedOrderCount)} />
+          </div>
+        </Card>
       </div>
 
       <div className="mt-10">
         <Heading level={2} className="mb-4">
           {t("activity.title")}
         </Heading>
-        <div className="grid gap-8 sm:grid-cols-3">
-          <div>
+        <div className="grid gap-6 sm:grid-cols-3">
+          <Card>
             <Heading level={3} className="mb-2">
               {tNav("orders")}
             </Heading>
@@ -211,8 +237,8 @@ export default async function DashboardPage({ searchParams }: DashboardPageProps
               {t("totalInPeriod", { count: data.orders.totalInPeriod })}
             </Text>
             <StatusBreakdown items={ordersByStatus} emptyLabel={t("none")} />
-          </div>
-          <div>
+          </Card>
+          <Card>
             <Heading level={3} className="mb-2">
               {t("activity.payments")}
             </Heading>
@@ -220,8 +246,8 @@ export default async function DashboardPage({ searchParams }: DashboardPageProps
               {t("totalInPeriod", { count: data.payments.totalInPeriod })}
             </Text>
             <StatusBreakdown items={paymentsByStatus} emptyLabel={t("none")} />
-          </div>
-          <div>
+          </Card>
+          <Card>
             <Heading level={3} className="mb-2">
               {t("activity.refunds")}
             </Heading>
@@ -229,12 +255,12 @@ export default async function DashboardPage({ searchParams }: DashboardPageProps
               {t("totalInPeriod", { count: data.refunds.totalInPeriod })}
             </Text>
             <StatusBreakdown items={refundsByStatus} emptyLabel={t("none")} />
-          </div>
+          </Card>
         </div>
       </div>
 
-      <div className="mt-10 grid gap-8 sm:grid-cols-2">
-        <div>
+      <div className="mt-10 grid gap-6 sm:grid-cols-2">
+        <Card>
           <Heading level={2} className="mb-4">
             {t("customers.title")}
           </Heading>
@@ -242,13 +268,13 @@ export default async function DashboardPage({ searchParams }: DashboardPageProps
             <Stat label={t("customers.totalRegistered")} value={String(data.customers.totalRegistered)} />
             <Stat label={t("customers.newInPeriod")} value={String(data.customers.newInPeriod)} />
           </div>
-        </div>
-        <div>
+        </Card>
+        <Card>
           <Heading level={2} className="mb-4">
             {t("inventory.title")}
           </Heading>
           <Stat label={t("inventory.lowStock")} value={String(data.inventory.lowStockCount)} />
-        </div>
+        </Card>
       </div>
     </div>
   );

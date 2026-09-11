@@ -1,5 +1,6 @@
 import { useTranslations } from "next-intl";
 import { Table, TableHead, TableBody, TableRow, TableHeaderCell, TableCell, Badge, Text } from "@ame-de-fil/ui";
+import { AdjustStockDialog } from "./adjust-stock-dialog";
 
 export interface InventoryListItem {
   variantId: string;
@@ -17,16 +18,19 @@ export interface InventoryListItem {
 
 interface InventoryTableProps {
   items: InventoryListItem[];
+  canAdjust: boolean;
 }
 
 // No detail page exists for a single inventory item (ROADMAP.md's Phase 5
 // inventory checkpoints are all read-only lists — no per-item drill-down
 // was built), so unlike OrdersTable/CustomersTable this has no row link at
 // all: plain cells on desktop, plain (non-anchor) stacked records on
-// mobile. Shared by both the overview list and the low-stock list — same
-// response shape (InventoryController_list/listLowStock), just a different
-// filtered/sorted query.
-export function InventoryTable({ items }: InventoryTableProps) {
+// mobile. The one exception is the "Adjust" action itself (a dialog, not a
+// navigation) — see adjust-stock-dialog.tsx for why that was missing
+// everywhere until now. Shared by both the overview list and the low-stock
+// list — same response shape (InventoryController_list/listLowStock), just
+// a different filtered/sorted query.
+export function InventoryTable({ items, canAdjust }: InventoryTableProps) {
   const t = useTranslations("Inventory");
 
   return (
@@ -40,6 +44,7 @@ export function InventoryTable({ items }: InventoryTableProps) {
             <TableHeaderCell className="text-right">{t("columnReserved")}</TableHeaderCell>
             <TableHeaderCell>{t("columnAvailable")}</TableHeaderCell>
             <TableHeaderCell className="text-right">{t("columnThreshold")}</TableHeaderCell>
+            {canAdjust ? <TableHeaderCell>{t("columnActions")}</TableHeaderCell> : null}
           </TableRow>
         </TableHead>
         <TableBody>
@@ -56,6 +61,18 @@ export function InventoryTable({ items }: InventoryTableProps) {
                 </Badge>
               </TableCell>
               <TableCell numeric>{item.lowStockThreshold ?? t("none")}</TableCell>
+              {canAdjust ? (
+                <TableCell>
+                  {item.tracksStock ? (
+                    <AdjustStockDialog
+                      variantId={item.variantId}
+                      productName={item.productName}
+                      sku={item.sku}
+                      onHand={item.onHand}
+                    />
+                  ) : null}
+                </TableCell>
+              ) : null}
             </TableRow>
           ))}
         </TableBody>
@@ -100,6 +117,16 @@ export function InventoryTable({ items }: InventoryTableProps) {
                 </Text>
               </div>
             </div>
+            {canAdjust && item.tracksStock ? (
+              <div className="mt-3">
+                <AdjustStockDialog
+                  variantId={item.variantId}
+                  productName={item.productName}
+                  sku={item.sku}
+                  onHand={item.onHand}
+                />
+              </div>
+            ) : null}
           </li>
         ))}
       </ul>

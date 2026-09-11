@@ -18,9 +18,9 @@ import { RequirePermissions } from "../common/decorators/require-permissions.dec
 import { ZodValidationPipe } from "../common/pipes/zod-validation.pipe.ts";
 import { ApiErrorResponses } from "../common/api-error-responses.ts";
 import { ApiZodParam, ApiZodQuery, toOpenApiSchema } from "../common/zod-openapi.ts";
-import { paginationQuerySchema, type PaginationQuery } from "../common/dto/pagination.schema.ts";
 import type { AuthContext } from "../common/types/auth-context.ts";
 import { AdminOrdersService } from "./admin-orders.service.ts";
+import { listAdminOrdersQuerySchema, type ListAdminOrdersQuery } from "./dto/list-orders-query.dto.ts";
 import { orderIdParamSchema, type OrderIdParam } from "./dto/order-id.param.ts";
 import { markShippedSchema, type MarkShippedInput } from "./dto/mark-shipped.dto.ts";
 import { fulfillmentResponseSchema } from "./dto/fulfillment-response.ts";
@@ -48,12 +48,15 @@ export class AdminOrdersController {
 
   @Get()
   @RequirePermissions("orders.view")
-  @ApiOperation({ summary: "List orders, most recent first" })
-  @ApiZodQuery(paginationQuerySchema)
+  @ApiOperation({
+    summary:
+      "List orders, most recent first — optionally filtered to those with a matching payment/refund status",
+  })
+  @ApiZodQuery(listAdminOrdersQuerySchema)
   @ApiOkResponse({ schema: toOpenApiSchema(listAdminOrdersResponseSchema) })
   @ApiErrorResponses(400, 401, 403)
-  async list(@Query(new ZodValidationPipe(paginationQuerySchema)) query: PaginationQuery) {
-    return this.adminOrders.listOrders(query.page, query.pageSize);
+  async list(@Query(new ZodValidationPipe(listAdminOrdersQuerySchema)) query: ListAdminOrdersQuery) {
+    return this.adminOrders.listOrders(query.page, query.pageSize, query.paymentStatus, query.refundStatus);
   }
 
   @Get(":orderId")

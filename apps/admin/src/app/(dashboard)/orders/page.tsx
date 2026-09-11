@@ -1,5 +1,5 @@
 import { getTranslations, getLocale } from "next-intl/server";
-import { Heading, Text, Pagination, EmptyState, ErrorState } from "@ame-de-fil/ui";
+import { Heading, Text, Link, Pagination, EmptyState, ErrorState } from "@ame-de-fil/ui";
 import { requireSession } from "../../../lib/dal";
 import { getServerApiClient } from "../../../lib/server-api";
 import { OrdersTable } from "../../../components/orders-table";
@@ -7,25 +7,45 @@ import type { AdminLocale } from "../../../i18n/config";
 
 const PAGE_SIZE = 20;
 
+type PaymentStatusFilter =
+  | "PENDING"
+  | "AUTHORIZED"
+  | "PAID"
+  | "FAILED"
+  | "CANCELED"
+  | "REFUNDED"
+  | "PARTIALLY_REFUNDED"
+  | "DISPUTED";
+type RefundStatusFilter = "PENDING" | "SUCCEEDED" | "FAILED";
+
 interface OrdersPageProps {
-  searchParams: Promise<{ page?: string }>;
+  searchParams: Promise<{ page?: string; paymentStatus?: string; refundStatus?: string }>;
 }
 
 // Real GET /admin/orders data (orders.view-gated server-side) — mirrors
 // customers/page.tsx's structure exactly (same real-data/pagination/
 // permission/state conventions), see that file for the fuller rationale.
+// paymentStatus/refundStatus are optional drill-down filters that exist
+// only so the Dashboard's own alert lines (disputed payments, failed
+// refunds) have somewhere real to land — see admin-orders.service.ts's
+// listOrders. No filter UI is built here beyond that entry point; this
+// page only reads and preserves whichever filter is already in the URL.
 export default async function OrdersPage({ searchParams }: OrdersPageProps) {
   await requireSession();
-  const { page: pageParam } = await searchParams;
+  const { page: pageParam, paymentStatus: paymentStatusParam, refundStatus: refundStatusParam } =
+    await searchParams;
   const page = Math.max(1, Number(pageParam ?? "1") || 1);
+  const paymentStatus = paymentStatusParam as PaymentStatusFilter | undefined;
+  const refundStatus = refundStatusParam as RefundStatusFilter | undefined;
 
   const t = await getTranslations("Orders");
   const tNav = await getTranslations("Navigation");
+  const tRefundStatus = await getTranslations("Dashboard.refundStatus");
   const locale = (await getLocale()) as AdminLocale;
   const client = await getServerApiClient();
 
   const { data, error, response } = await client.GET("/api/v1/admin/orders", {
-    params: { query: { page, pageSize: PAGE_SIZE } },
+    params: { query: { page, pageSize: PAGE_SIZE, paymentStatus, refundStatus } },
   });
 
   if (error) {
@@ -46,6 +66,11 @@ export default async function OrdersPage({ searchParams }: OrdersPageProps) {
   }
 
   const totalPages = Math.max(1, Math.ceil(data.total / data.pageSize));
+  const filterParams = new URLSearchParams();
+  if (paymentStatus) filterParams.set("paymentStatus", paymentStatus);
+  if (refundStatus) filterParams.set("refundStatus", refundStatus);
+  const filterQueryString = filterParams.toString();
+  const isFiltered = filterQueryString.length > 0;
 
   return (
     <div>
@@ -54,8 +79,24 @@ export default async function OrdersPage({ searchParams }: OrdersPageProps) {
         <Text tone="muted">{t("resultsCount", { count: data.total })}</Text>
       </div>
 
+      {isFiltered ? (
+        <Text size="sm" tone="muted" className="mt-1">
+          {paymentStatus
+            ? t("filteredByPaymentStatus", { status: t(`paymentStatus.${paymentStatus}`) })
+            : t("filteredByRefundStatus", {
+                status: refundStatus ? tRefundStatus(refundStatus) : "",
+              })}
+          {" · "}
+          <Link href="/orders">{t("clearFilter")}</Link>
+        </Text>
+      ) : null}
+
       {data.items.length === 0 ? (
-        <EmptyState className="mt-6" title={t("emptyTitle")} description={t("emptyDescription")} />
+        <EmptyState
+          className="mt-6"
+          title={isFiltered ? t("emptyFilteredTitle") : t("emptyTitle")}
+          description={isFiltered ? t("emptyFilteredDescription") : t("emptyDescription")}
+        />
       ) : (
         <>
           <div className="mt-8">
@@ -66,7 +107,9 @@ export default async function OrdersPage({ searchParams }: OrdersPageProps) {
               className="mt-8"
               page={data.page}
               totalPages={totalPages}
-              makeHref={(targetPage) => `/orders?page=${targetPage}`}
+              makeHref={(targetPage) =>
+                isFiltered ? `/orders?page=${targetPage}&${filterQueryString}` : `/orders?page=${targetPage}`
+              }
               previousLabel={t("paginationPrevious")}
               nextLabel={t("paginationNext")}
               pageLabel={(current, total) => t("paginationPage", { page: current, totalPages: total })}

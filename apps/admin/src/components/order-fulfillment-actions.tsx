@@ -33,6 +33,8 @@ export function OrderFulfillmentActions({ orderId, status }: OrderFulfillmentAct
   const router = useRouter();
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [errorKind, setErrorKind] = useState<ActionErrorKind>(null);
+  const [isReadyToShipDialogOpen, setIsReadyToShipDialogOpen] = useState(false);
+  const [isDeliverDialogOpen, setIsDeliverDialogOpen] = useState(false);
   const [isShipDialogOpen, setIsShipDialogOpen] = useState(false);
   const [carrierName, setCarrierName] = useState("");
   const [trackingNumber, setTrackingNumber] = useState("");
@@ -56,6 +58,7 @@ export function OrderFulfillmentActions({ orderId, status }: OrderFulfillmentAct
       setErrorKind(response.status === 409 ? "conflict" : "generic");
       return;
     }
+    setIsReadyToShipDialogOpen(false);
     router.refresh();
   }
 
@@ -71,6 +74,7 @@ export function OrderFulfillmentActions({ orderId, status }: OrderFulfillmentAct
       setErrorKind(response.status === 409 ? "conflict" : "generic");
       return;
     }
+    setIsDeliverDialogOpen(false);
     router.refresh();
   }
 
@@ -99,16 +103,35 @@ export function OrderFulfillmentActions({ orderId, status }: OrderFulfillmentAct
   if (canMarkReadyToShip(status)) {
     return (
       <div>
-        {errorAlert}
-        <Button onClick={handleReadyToShip} disabled={isSubmitting}>
-          {isSubmitting ? (
-            <>
-              <Spinner className="h-4 w-4" /> {t("working")}
-            </>
-          ) : (
-            t("markReadyToShip")
-          )}
-        </Button>
+        <Dialog
+          open={isReadyToShipDialogOpen}
+          onOpenChange={(open) => {
+            setIsReadyToShipDialogOpen(open);
+            if (!open) setErrorKind(null);
+          }}
+        >
+          <DialogTrigger asChild>
+            <Button>{t("markReadyToShip")}</Button>
+          </DialogTrigger>
+          <DialogContent
+            title={t("confirmReadyToShipTitle")}
+            description={t("confirmReadyToShipDescription")}
+            closeLabel={t("close")}
+          >
+            {errorAlert}
+            <div className="flex justify-end">
+              <Button onClick={handleReadyToShip} disabled={isSubmitting}>
+                {isSubmitting ? (
+                  <>
+                    <Spinner className="h-4 w-4" /> {t("working")}
+                  </>
+                ) : (
+                  t("confirm")
+                )}
+              </Button>
+            </div>
+          </DialogContent>
+        </Dialog>
       </div>
     );
   }
@@ -184,16 +207,35 @@ export function OrderFulfillmentActions({ orderId, status }: OrderFulfillmentAct
   if (canMarkDelivered(status)) {
     return (
       <div>
-        {errorAlert}
-        <Button onClick={handleDeliver} disabled={isSubmitting}>
-          {isSubmitting ? (
-            <>
-              <Spinner className="h-4 w-4" /> {t("working")}
-            </>
-          ) : (
-            t("markDelivered")
-          )}
-        </Button>
+        <Dialog
+          open={isDeliverDialogOpen}
+          onOpenChange={(open) => {
+            setIsDeliverDialogOpen(open);
+            if (!open) setErrorKind(null);
+          }}
+        >
+          <DialogTrigger asChild>
+            <Button>{t("markDelivered")}</Button>
+          </DialogTrigger>
+          <DialogContent
+            title={t("confirmDeliverTitle")}
+            description={t("confirmDeliverDescription")}
+            closeLabel={t("close")}
+          >
+            {errorAlert}
+            <div className="flex justify-end">
+              <Button onClick={handleDeliver} disabled={isSubmitting}>
+                {isSubmitting ? (
+                  <>
+                    <Spinner className="h-4 w-4" /> {t("working")}
+                  </>
+                ) : (
+                  t("confirm")
+                )}
+              </Button>
+            </div>
+          </DialogContent>
+        </Dialog>
       </div>
     );
   }

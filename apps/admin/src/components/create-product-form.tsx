@@ -6,6 +6,8 @@ import { useTranslations } from "next-intl";
 import { Heading, Text, Button, Alert, FormField, Input, Textarea, Card, Spinner } from "@ame-de-fil/ui";
 import { api } from "../lib/api-client";
 import { readCsrfCookie } from "../lib/csrf";
+import { slugify } from "../lib/slugify";
+import { PRODUCT_CONTENT_PLACEHOLDERS } from "../lib/product-content-placeholders";
 
 export interface TaxonomyOption {
   id: string;
@@ -116,6 +118,14 @@ export function CreateProductForm({ categories, collections, taxClasses }: Creat
     en: { ...EMPTY_TRANSLATION },
   });
   const [showEnglish, setShowEnglish] = useState(false);
+  // Tracks whether the admin has ever typed into Slug directly, per locale —
+  // until they do, Slug auto-follows Name (new product, no existing slug to
+  // protect). The moment they touch Slug themselves, auto-generation stops
+  // for that locale so their edit is never silently overwritten.
+  const [slugTouched, setSlugTouched] = useState<Record<"sv-SE" | "en", boolean>>({
+    "sv-SE": false,
+    en: false,
+  });
   const [options, setOptions] = useState<OptionDraft[]>([]);
   const [variants, setVariants] = useState<VariantDraft[]>([emptyVariant(defaultTaxClassCode)]);
   const [categoryIds, setCategoryIds] = useState<string[]>([]);
@@ -124,7 +134,16 @@ export function CreateProductForm({ categories, collections, taxClasses }: Creat
   const [errorKind, setErrorKind] = useState<CreateErrorKind>(null);
 
   function updateTranslation(locale: "sv-SE" | "en", field: keyof TranslationDraft, value: string) {
-    setTranslations((current) => ({ ...current, [locale]: { ...current[locale], [field]: value } }));
+    if (field === "slug") {
+      setSlugTouched((current) => ({ ...current, [locale]: true }));
+    }
+    setTranslations((current) => {
+      const next = { ...current[locale], [field]: value };
+      if (field === "name" && !slugTouched[locale]) {
+        next.slug = slugify(value);
+      }
+      return { ...current, [locale]: next };
+    });
   }
 
   function addOption() {
@@ -220,15 +239,17 @@ export function CreateProductForm({ categories, collections, taxClasses }: Creat
             {(fieldProps) => (
               <Input
                 {...fieldProps}
+                placeholder={PRODUCT_CONTENT_PLACEHOLDERS[locale].name}
                 value={translations[locale].name}
                 onChange={(e) => updateTranslation(locale, "name", e.target.value)}
               />
             )}
           </FormField>
-          <FormField label={t("slugLabel")} required={locale === "sv-SE"}>
+          <FormField label={t("slugLabel")} required={locale === "sv-SE"} hint={t("slugHint")}>
             {(fieldProps) => (
               <Input
                 {...fieldProps}
+                placeholder={t("slugPlaceholder")}
                 value={translations[locale].slug}
                 onChange={(e) => updateTranslation(locale, "slug", e.target.value)}
               />
@@ -240,6 +261,7 @@ export function CreateProductForm({ categories, collections, taxClasses }: Creat
             {(fieldProps) => (
               <Textarea
                 {...fieldProps}
+                placeholder={PRODUCT_CONTENT_PLACEHOLDERS[locale].description}
                 value={translations[locale].description}
                 onChange={(e) => updateTranslation(locale, "description", e.target.value)}
               />
@@ -251,6 +273,7 @@ export function CreateProductForm({ categories, collections, taxClasses }: Creat
             {(fieldProps) => (
               <Textarea
                 {...fieldProps}
+                placeholder={PRODUCT_CONTENT_PLACEHOLDERS[locale].story}
                 value={translations[locale].story}
                 onChange={(e) => updateTranslation(locale, "story", e.target.value)}
               />
@@ -262,6 +285,7 @@ export function CreateProductForm({ categories, collections, taxClasses }: Creat
             {(fieldProps) => (
               <Textarea
                 {...fieldProps}
+                placeholder={PRODUCT_CONTENT_PLACEHOLDERS[locale].careInstructions}
                 value={translations[locale].careInstructions}
                 onChange={(e) => updateTranslation(locale, "careInstructions", e.target.value)}
               />
@@ -271,6 +295,7 @@ export function CreateProductForm({ categories, collections, taxClasses }: Creat
             {(fieldProps) => (
               <Input
                 {...fieldProps}
+                placeholder={PRODUCT_CONTENT_PLACEHOLDERS[locale].materials}
                 value={translations[locale].materials}
                 onChange={(e) => updateTranslation(locale, "materials", e.target.value)}
               />
@@ -282,6 +307,7 @@ export function CreateProductForm({ categories, collections, taxClasses }: Creat
             {(fieldProps) => (
               <Input
                 {...fieldProps}
+                placeholder={PRODUCT_CONTENT_PLACEHOLDERS[locale].metaTitle}
                 value={translations[locale].metaTitle}
                 onChange={(e) => updateTranslation(locale, "metaTitle", e.target.value)}
               />
@@ -291,6 +317,7 @@ export function CreateProductForm({ categories, collections, taxClasses }: Creat
             {(fieldProps) => (
               <Textarea
                 {...fieldProps}
+                placeholder={PRODUCT_CONTENT_PLACEHOLDERS[locale].metaDescription}
                 value={translations[locale].metaDescription}
                 onChange={(e) => updateTranslation(locale, "metaDescription", e.target.value)}
               />
@@ -512,6 +539,7 @@ export function CreateProductForm({ categories, collections, taxClasses }: Creat
                     <Input
                       {...fieldProps}
                       required
+                      placeholder={t("skuPlaceholder")}
                       value={variant.sku}
                       onChange={(e) => updateVariant(variant.clientId, "sku", e.target.value)}
                     />
@@ -525,8 +553,21 @@ export function CreateProductForm({ categories, collections, taxClasses }: Creat
                       min="0"
                       step="0.01"
                       required
+                      placeholder="0.00"
                       value={variant.priceMinor}
                       onChange={(e) => updateVariant(variant.clientId, "priceMinor", e.target.value)}
+                    />
+                  )}
+                </FormField>
+                <FormField label={t("initialStockLabel")} hint={!variant.tracksStock ? t("initialStockDisabledHint") : undefined}>
+                  {(fieldProps) => (
+                    <Input
+                      {...fieldProps}
+                      type="number"
+                      min="0"
+                      value={variant.initialStock}
+                      onChange={(e) => updateVariant(variant.clientId, "initialStock", e.target.value)}
+                      disabled={!variant.tracksStock}
                     />
                   )}
                 </FormField>
@@ -554,20 +595,9 @@ export function CreateProductForm({ categories, collections, taxClasses }: Creat
                       {...fieldProps}
                       type="number"
                       min="1"
+                      placeholder={t("weightGramsPlaceholder")}
                       value={variant.weightGrams}
                       onChange={(e) => updateVariant(variant.clientId, "weightGrams", e.target.value)}
-                    />
-                  )}
-                </FormField>
-                <FormField label={t("initialStockLabel")}>
-                  {(fieldProps) => (
-                    <Input
-                      {...fieldProps}
-                      type="number"
-                      min="0"
-                      value={variant.initialStock}
-                      onChange={(e) => updateVariant(variant.clientId, "initialStock", e.target.value)}
-                      disabled={!variant.tracksStock}
                     />
                   )}
                 </FormField>
@@ -577,6 +607,7 @@ export function CreateProductForm({ categories, collections, taxClasses }: Creat
                       {...fieldProps}
                       type="number"
                       min="1"
+                      placeholder={t("productionTimeDaysPlaceholder")}
                       value={variant.productionTimeDays}
                       onChange={(e) => updateVariant(variant.clientId, "productionTimeDays", e.target.value)}
                     />

@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from "vitest";
 import { ConflictException, NotFoundException } from "@nestjs/common";
-import { Currency, Locale, OrderStatus, PaymentStatus, ShipmentStatus } from "@ame-de-fil/database";
+import { Currency, Locale, OrderStatus, PaymentStatus, RefundStatus, ShipmentStatus } from "@ame-de-fil/database";
 import type { ConfigService } from "@nestjs/config";
 import type { Env } from "@ame-de-fil/config";
 import { AdminOrdersService } from "./admin-orders.service.ts";
@@ -147,12 +147,13 @@ describe("AdminOrdersService.listOrders", () => {
     const result = await service.listOrders(1, 20);
 
     expect(findMany).toHaveBeenCalledWith({
+      where: {},
       select: ADMIN_ORDER_LIST_SELECT,
       orderBy: { createdAt: "desc" },
       skip: 0,
       take: 20,
     });
-    expect(count).toHaveBeenCalledTimes(1);
+    expect(count).toHaveBeenCalledWith({ where: {} });
     expect(result).toEqual({
       items: [
         {
@@ -195,6 +196,40 @@ describe("AdminOrdersService.listOrders", () => {
     expect(
       (prisma as unknown as { order: { findMany: ReturnType<typeof vi.fn> } }).order.findMany,
     ).toHaveBeenCalledWith(expect.objectContaining({ skip: 20, take: 10 }));
+  });
+
+  it("filters by paymentStatus via a payments.some clause, when provided", async () => {
+    const { prisma, orderFindMany, orderCount } = makePrismaMock();
+    const service = new AdminOrdersService(
+      prisma,
+      makeNotificationsMock(),
+      new AuditService(prisma),
+      makeUnusedPaymentProviderMock(),
+      makeUnusedConfigMock(),
+    );
+
+    await service.listOrders(1, 20, PaymentStatus.DISPUTED);
+
+    const expectedWhere = { payments: { some: { status: PaymentStatus.DISPUTED } } };
+    expect(orderFindMany).toHaveBeenCalledWith(expect.objectContaining({ where: expectedWhere }));
+    expect(orderCount).toHaveBeenCalledWith({ where: expectedWhere });
+  });
+
+  it("filters by refundStatus via a nested payments.refunds.some clause, when provided", async () => {
+    const { prisma, orderFindMany, orderCount } = makePrismaMock();
+    const service = new AdminOrdersService(
+      prisma,
+      makeNotificationsMock(),
+      new AuditService(prisma),
+      makeUnusedPaymentProviderMock(),
+      makeUnusedConfigMock(),
+    );
+
+    await service.listOrders(1, 20, undefined, RefundStatus.FAILED);
+
+    const expectedWhere = { payments: { some: { refunds: { some: { status: RefundStatus.FAILED } } } } };
+    expect(orderFindMany).toHaveBeenCalledWith(expect.objectContaining({ where: expectedWhere }));
+    expect(orderCount).toHaveBeenCalledWith({ where: expectedWhere });
   });
 });
 

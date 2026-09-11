@@ -16,7 +16,8 @@ interface LowStockPageProps {
 // lowStockThreshold" filter and "most urgent first" ordering
 // (inventory.service.ts's listLowStock), not a client-side filter.
 export default async function LowStockPage({ searchParams }: LowStockPageProps) {
-  await requireSession();
+  const session = await requireSession();
+  const canAdjust = session.user.permissions.includes("inventory.adjust");
   const { page: pageParam } = await searchParams;
   const page = Math.max(1, Number(pageParam ?? "1") || 1);
 
@@ -70,7 +71,7 @@ export default async function LowStockPage({ searchParams }: LowStockPageProps) 
       ) : (
         <>
           <div className="mt-8">
-            <InventoryTable items={data.items} />
+            <InventoryTable items={data.items} canAdjust={canAdjust} />
           </div>
           {totalPages > 1 ? (
             <Pagination

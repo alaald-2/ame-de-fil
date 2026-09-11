@@ -127,7 +127,7 @@ describe("GET /admin/orders — authorization", () => {
       .set("Cookie", "ame_session=token");
 
     expect(response.status).toBe(200);
-    expect(booted.listOrders).toHaveBeenCalledWith(1, 20);
+    expect(booted.listOrders).toHaveBeenCalledWith(1, 20, undefined, undefined);
   });
 
   it("passes page/pageSize query params through to the service", async () => {
@@ -139,7 +139,31 @@ describe("GET /admin/orders — authorization", () => {
       .set("Cookie", "ame_session=token");
 
     expect(response.status).toBe(200);
-    expect(booted.listOrders).toHaveBeenCalledWith(2, 5);
+    expect(booted.listOrders).toHaveBeenCalledWith(2, 5, undefined, undefined);
+  });
+
+  it("passes paymentStatus/refundStatus filters through to the service", async () => {
+    const booted = await bootApp(async () => AUTH_WITH_VIEW);
+    app = booted.app;
+
+    const response = await supertest(app.getHttpServer())
+      .get("/admin/orders?paymentStatus=DISPUTED&refundStatus=FAILED")
+      .set("Cookie", "ame_session=token");
+
+    expect(response.status).toBe(200);
+    expect(booted.listOrders).toHaveBeenCalledWith(1, 20, "DISPUTED", "FAILED");
+  });
+
+  it("returns 400 for an invalid paymentStatus value", async () => {
+    const booted = await bootApp(async () => AUTH_WITH_VIEW);
+    app = booted.app;
+
+    const response = await supertest(app.getHttpServer())
+      .get("/admin/orders?paymentStatus=NOT_A_REAL_STATUS")
+      .set("Cookie", "ame_session=token");
+
+    expect(response.status).toBe(400);
+    expect(booted.listOrders).not.toHaveBeenCalled();
   });
 
   it("returns 400 for a pageSize over the cap", async () => {

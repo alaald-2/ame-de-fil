@@ -6,6 +6,8 @@ import { useTranslations } from "next-intl";
 import { Button, Alert, Dialog, DialogTrigger, DialogContent, FormField, Input, Textarea, Spinner } from "@ame-de-fil/ui";
 import { api } from "../lib/api-client";
 import { readCsrfCookie } from "../lib/csrf";
+import { slugify } from "../lib/slugify";
+import { TAXONOMY_CONTENT_PLACEHOLDERS } from "../lib/taxonomy-content-placeholders";
 
 interface TranslationDraft {
   name: string;
@@ -38,14 +40,30 @@ export function CreateTaxonomyDialog({ kind }: CreateTaxonomyDialogProps) {
   });
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [errorKind, setErrorKind] = useState<ErrorKind>(null);
+  // Same "auto-follow Name until Slug is touched directly" behavior as
+  // create-product-form.tsx — see that file's own comment.
+  const [slugTouched, setSlugTouched] = useState<Record<"sv-SE" | "en", boolean>>({
+    "sv-SE": false,
+    en: false,
+  });
 
   function reset() {
     setDrafts({ "sv-SE": EMPTY_DRAFT, en: EMPTY_DRAFT });
+    setSlugTouched({ "sv-SE": false, en: false });
     setErrorKind(null);
   }
 
   function updateField(locale: "sv-SE" | "en", field: keyof TranslationDraft, value: string) {
-    setDrafts((current) => ({ ...current, [locale]: { ...current[locale], [field]: value } }));
+    if (field === "slug") {
+      setSlugTouched((current) => ({ ...current, [locale]: true }));
+    }
+    setDrafts((current) => {
+      const next = { ...current[locale], [field]: value };
+      if (field === "name" && !slugTouched[locale]) {
+        next.slug = slugify(value);
+      }
+      return { ...current, [locale]: next };
+    });
   }
 
   async function handleSubmit(event: FormEvent) {
@@ -120,15 +138,17 @@ export function CreateTaxonomyDialog({ kind }: CreateTaxonomyDialogProps) {
                     {(fieldProps) => (
                       <Input
                         {...fieldProps}
+                        placeholder={TAXONOMY_CONTENT_PLACEHOLDERS[kind][locale].name}
                         value={drafts[locale].name}
                         onChange={(e) => updateField(locale, "name", e.target.value)}
                       />
                     )}
                   </FormField>
-                  <FormField label={t("slugLabel")} required={locale === "sv-SE"}>
+                  <FormField label={t("slugLabel")} required={locale === "sv-SE"} hint={t("slugHint")}>
                     {(fieldProps) => (
                       <Input
                         {...fieldProps}
+                        placeholder={t("slugPlaceholder")}
                         value={drafts[locale].slug}
                         onChange={(e) => updateField(locale, "slug", e.target.value)}
                       />
@@ -139,6 +159,7 @@ export function CreateTaxonomyDialog({ kind }: CreateTaxonomyDialogProps) {
                   {(fieldProps) => (
                     <Textarea
                       {...fieldProps}
+                      placeholder={TAXONOMY_CONTENT_PLACEHOLDERS[kind][locale].description}
                       value={drafts[locale].description}
                       onChange={(e) => updateField(locale, "description", e.target.value)}
                     />
@@ -149,6 +170,7 @@ export function CreateTaxonomyDialog({ kind }: CreateTaxonomyDialogProps) {
                     {(fieldProps) => (
                       <Input
                         {...fieldProps}
+                        placeholder={TAXONOMY_CONTENT_PLACEHOLDERS[kind][locale].metaTitle}
                         value={drafts[locale].metaTitle}
                         onChange={(e) => updateField(locale, "metaTitle", e.target.value)}
                       />
@@ -158,6 +180,7 @@ export function CreateTaxonomyDialog({ kind }: CreateTaxonomyDialogProps) {
                     {(fieldProps) => (
                       <Textarea
                         {...fieldProps}
+                        placeholder={TAXONOMY_CONTENT_PLACEHOLDERS[kind][locale].metaDescription}
                         value={drafts[locale].metaDescription}
                         onChange={(e) => updateField(locale, "metaDescription", e.target.value)}
                       />

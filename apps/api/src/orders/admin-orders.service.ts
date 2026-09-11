@@ -86,15 +86,33 @@ export class AdminOrdersService {
   // both queries use an explicit `select` (never a bare relation include),
   // so a User row can only ever surface id/email/firstName/lastName here,
   // regardless of what's added to the User model later.
-  async listOrders(page: number, pageSize: number) {
+  // paymentStatus/refundStatus are optional drill-down filters for the
+  // Dashboard's own alert lines (disputed payments, failed refunds) — those
+  // alerts previously had nowhere to link to (ROADMAP.md's "deliberately
+  // not built: drill-down list endpoints for any alert"). Refund lives on
+  // Payment, not Order, hence the nested `some` — an order can have more
+  // than one payment/refund, and "any of them matches" is the intended
+  // semantics for both filters.
+  async listOrders(
+    page: number,
+    pageSize: number,
+    paymentStatus?: PaymentStatus,
+    refundStatus?: RefundStatus,
+  ) {
+    const where: Prisma.OrderWhereInput = {
+      ...(paymentStatus ? { payments: { some: { status: paymentStatus } } } : {}),
+      ...(refundStatus ? { payments: { some: { refunds: { some: { status: refundStatus } } } } } : {}),
+    };
+
     const [rows, total] = await Promise.all([
       this.prisma.order.findMany({
+        where,
         select: ADMIN_ORDER_LIST_SELECT,
         orderBy: { createdAt: "desc" },
         skip: (page - 1) * pageSize,
         take: pageSize,
       }),
-      this.prisma.order.count(),
+      this.prisma.order.count({ where }),
     ]);
 
     return {
