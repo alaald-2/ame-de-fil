@@ -1,5 +1,31 @@
-import { Body, Controller, Get, HttpCode, HttpStatus, Param, Patch, Post, Query, Req } from "@nestjs/common";
-import { ApiBody, ApiCookieAuth, ApiCreatedResponse, ApiOkResponse, ApiOperation, ApiTags } from "@nestjs/swagger";
+import {
+  BadRequestException,
+  Body,
+  Controller,
+  Delete,
+  Get,
+  HttpCode,
+  HttpStatus,
+  Param,
+  Patch,
+  Post,
+  Query,
+  Req,
+  UploadedFile,
+  UseInterceptors,
+} from "@nestjs/common";
+import { FileInterceptor } from "@nestjs/platform-express";
+import type { Express } from "express";
+import {
+  ApiBody,
+  ApiConsumes,
+  ApiCookieAuth,
+  ApiCreatedResponse,
+  ApiNoContentResponse,
+  ApiOkResponse,
+  ApiOperation,
+  ApiTags,
+} from "@nestjs/swagger";
 import type { Request } from "express";
 import { CurrentUser } from "../common/decorators/current-user.decorator.ts";
 import { RequirePermissions } from "../common/decorators/require-permissions.decorator.ts";
@@ -12,9 +38,12 @@ import { AdminProductsService } from "./admin-products.service.ts";
 import { createProductSchema, type CreateProductInput } from "./dto/create-product.dto.ts";
 import { updateProductSchema, type UpdateProductInput } from "./dto/update-product.dto.ts";
 import { productIdParamSchema, type ProductIdParam } from "./dto/product-id.param.ts";
+import { productImageIdParamSchema, type ProductImageIdParam } from "./dto/product-image-id.param.ts";
+import { productImageAltTextSchema, type ProductImageAltTextInput } from "./dto/product-image.dto.ts";
 import {
   createProductResponseSchema,
   adminProductResponseSchema,
+  adminProductImageResponseSchema,
   listAdminProductsResponseSchema,
 } from "./dto/responses.ts";
 
@@ -85,5 +114,75 @@ export class AdminProductsController {
     @Req() request: Request,
   ) {
     return this.adminProducts.update(params.id, body, auth.userId, request.ip);
+  }
+
+  @Post(":id/images")
+  @RequirePermissions("products.update")
+  @HttpCode(HttpStatus.CREATED)
+  @UseInterceptors(FileInterceptor("file", { limits: { fileSize: 5 * 1024 * 1024 } }))
+  @ApiOperation({ summary: "Upload a product image (JPEG/PNG/WebP, 5MB max)" })
+  @ApiZodParam(productIdParamSchema)
+  @ApiConsumes("multipart/form-data")
+  @ApiBody({
+    schema: {
+      type: "object",
+      required: ["file"],
+      properties: {
+        file: { type: "string", format: "binary" },
+        altTextSv: { type: "string" },
+        altTextEn: { type: "string" },
+      },
+    },
+  })
+  @ApiCreatedResponse({ schema: toOpenApiSchema(adminProductImageResponseSchema) })
+  @ApiErrorResponses(400, 401, 403, 404)
+  async uploadImage(
+    @Param(new ZodValidationPipe(productIdParamSchema)) params: ProductIdParam,
+    @UploadedFile() file: Express.Multer.File | undefined,
+    @Body(new ZodValidationPipe(productImageAltTextSchema)) body: ProductImageAltTextInput,
+    @CurrentUser() auth: AuthContext,
+    @Req() request: Request,
+  ) {
+    if (!file) {
+      throw new BadRequestException({ error: "MissingFile", message: "An image file is required" });
+    }
+    return this.adminProducts.uploadImage(
+      params.id,
+      { buffer: file.buffer, mimetype: file.mimetype },
+      body,
+      auth.userId,
+      request.ip,
+    );
+  }
+
+  @Patch(":id/images/:imageId")
+  @RequirePermissions("products.update")
+  @ApiOperation({ summary: "Update a product image's alt text" })
+  @ApiZodParam(productImageIdParamSchema)
+  @ApiBody({ schema: toOpenApiSchema(productImageAltTextSchema) })
+  @ApiOkResponse({ schema: toOpenApiSchema(adminProductImageResponseSchema) })
+  @ApiErrorResponses(400, 401, 403, 404)
+  async updateImage(
+    @Param(new ZodValidationPipe(productImageIdParamSchema)) params: ProductImageIdParam,
+    @Body(new ZodValidationPipe(productImageAltTextSchema)) body: ProductImageAltTextInput,
+    @CurrentUser() auth: AuthContext,
+    @Req() request: Request,
+  ) {
+    return this.adminProducts.updateImage(params.id, params.imageId, body, auth.userId, request.ip);
+  }
+
+  @Delete(":id/images/:imageId")
+  @RequirePermissions("products.update")
+  @HttpCode(HttpStatus.NO_CONTENT)
+  @ApiOperation({ summary: "Delete a product image" })
+  @ApiZodParam(productImageIdParamSchema)
+  @ApiNoContentResponse()
+  @ApiErrorResponses(401, 403, 404)
+  async deleteImage(
+    @Param(new ZodValidationPipe(productImageIdParamSchema)) params: ProductImageIdParam,
+    @CurrentUser() auth: AuthContext,
+    @Req() request: Request,
+  ) {
+    await this.adminProducts.deleteImage(params.id, params.imageId, auth.userId, request.ip);
   }
 }

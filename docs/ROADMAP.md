@@ -87,4 +87,6 @@ Gift cards/store credit, BankID login, wholesale/B2B, subscriptions, native mobi
 
 **Resolved 2026-09-08:** market/locale scope (Sweden-only, `sv-SE`+`en`, SEK-only — ADR-021) and payment-integration scope (Stripe-unified Klarna/Swish — ADR-014) are now confirmed and reflected throughout `docs/`.
 
-**Still deferred, by your explicit choice:** deployment target (ADR-020), image storage vendor, email vendor, and shipping carrier — PostNord/DHL/Bring/other (ADR-022). None of these block starting the Prisma schema draft or monorepo scaffold; `ShippingProvider`'s v1 `ManualShippingProvider` needs no carrier chosen. They block finalizing the env-var schema and containerization specifics, and — for the carrier specifically — nothing until a real `ShippingProvider` adapter is built (post-v1).
+**Resolved 2026-09-11:** image storage vendor — Cloudinary (ADR-034). Admin product image upload/edit/delete now ships end-to-end (backend-mediated upload, no direct-browser-to-Cloudinary path).
+
+**Still deferred, by your explicit choice:** deployment target (ADR-020), email vendor, and shipping carrier — PostNord/DHL/Bring/other (ADR-022). None of these block starting the Prisma schema draft or monorepo scaffold; `ShippingProvider`'s v1 `ManualShippingProvider` needs no carrier chosen. They block finalizing the env-var schema and containerization specifics, and — for the carrier specifically — nothing until a real `ShippingProvider` adapter is built (post-v1).

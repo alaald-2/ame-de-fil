@@ -27,6 +27,7 @@ export const ADMIN_PRODUCT_INCLUDE = {
       taxClass: true,
     },
   },
+  images: { orderBy: { position: "asc" } },
 } as const;
 
 export type AdminProductWithRelations = Prisma.ProductGetPayload<{
@@ -81,6 +82,14 @@ export interface AdminProductVariantResponse {
   } | null;
 }
 
+export interface AdminProductImageResponse {
+  id: string;
+  url: string;
+  altTextSv: string | null;
+  altTextEn: string | null;
+  position: number;
+}
+
 export interface AdminProductResponse {
   id: string;
   status: string;
@@ -92,6 +101,26 @@ export interface AdminProductResponse {
   categoryIds: string[];
   collectionIds: string[];
   variants: AdminProductVariantResponse[];
+  images: AdminProductImageResponse[];
+}
+
+// Also used standalone by AdminProductsService's uploadImage/updateImage,
+// which persist and return a single ProductImage row without loading the
+// rest of the product.
+export function mapAdminProductImage(image: {
+  id: string;
+  url: string;
+  altTextSv: string | null;
+  altTextEn: string | null;
+  position: number;
+}): AdminProductImageResponse {
+  return {
+    id: image.id,
+    url: image.url,
+    altTextSv: image.altTextSv,
+    altTextEn: image.altTextEn,
+    position: image.position,
+  };
 }
 
 export interface AdminProductListItemResponse {
@@ -168,6 +197,7 @@ export function mapAdminProduct(product: AdminProductWithRelations): AdminProduc
     categoryIds: product.categories.map((pc) => pc.categoryId),
     collectionIds: product.collections.map((pc) => pc.collectionId),
     variants: product.variants.map(mapAdminVariant),
+    images: product.images.map(mapAdminProductImage),
   };
 }
 

@@ -80,6 +80,18 @@ function nextClientId(): string {
   return `c${clientIdCounter}`;
 }
 
+interface StagedImage {
+  clientId: string;
+  file: File;
+  previewUrl: string;
+}
+
+// Mirrors admin-products.service.ts's own upload validation exactly — a
+// frontend-only nicety (reject before spending a round trip), not a new
+// rule; the backend still enforces this regardless.
+const ALLOWED_IMAGE_TYPES = new Set(["image/jpeg", "image/png", "image/webp"]);
+const MAX_IMAGE_BYTES = 5 * 1024 * 1024;
+
 function emptyVariant(defaultTaxClassCode: string): VariantDraft {
   return {
     clientId: nextClientId(),
@@ -132,6 +144,23 @@ export function CreateProductForm({ categories, collections, taxClasses }: Creat
   const [collectionIds, setCollectionIds] = useState<string[]>([]);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [errorKind, setErrorKind] = useState<CreateErrorKind>(null);
+
+  // Images can only be attached to a product that already exists (the
+  // upload endpoint is productId-scoped) — there's no backend change here.
+  // Files picked on this page are staged locally (never uploaded yet) and
+  // only sent, one request per file, right after the product is created
+  // successfully. A file rejected by size/type is dropped before staging so
+  // the admin sees the problem immediately, not after an otherwise-successful
+  // create. Skipping images entirely (stagedImages stays empty) changes
+  // nothing about the existing create-then-redirect behavior below.
+  const [stagedImages, setStagedImages] = useState<StagedImage[]>([]);
+  const [rejectedImageNames, setRejectedImageNames] = useState<string[]>([]);
+  // Set only when the product was created but one or more staged images
+  // failed to upload — the form is replaced with a summary instead of
+  // staying interactive, since resubmitting it would create a duplicate
+  // product (the real one already exists at this point).
+  const [createdProductId, setCreatedProductId] = useState<string | null>(null);
+  const [failedImageNames, setFailedImageNames] = useState<string[]>([]);
 
   function updateTranslation(locale: "sv-SE" | "en", field: keyof TranslationDraft, value: string) {
     if (field === "slug") {
@@ -225,6 +254,29 @@ export function CreateProductForm({ categories, collections, taxClasses }: Creat
 
   function toggleId(list: string[], id: string): string[] {
     return list.includes(id) ? list.filter((x) => x !== id) : [...list, id];
+  }
+
+  function handleImagesSelected(fileList: FileList | null) {
+    if (!fileList) return;
+    const accepted: StagedImage[] = [];
+    const rejected: string[] = [];
+    for (const file of Array.from(fileList)) {
+      if (!ALLOWED_IMAGE_TYPES.has(file.type) || file.size > MAX_IMAGE_BYTES) {
+        rejected.push(file.name);
+        continue;
+      }
+      accepted.push({ clientId: nextClientId(), file, previewUrl: URL.createObjectURL(file) });
+    }
+    setStagedImages((current) => [...current, ...accepted]);
+    setRejectedImageNames(rejected);
+  }
+
+  function removeStagedImage(clientId: string) {
+    setStagedImages((current) => {
+      const target = current.find((img) => img.clientId === clientId);
+      if (target) URL.revokeObjectURL(target.previewUrl);
+      return current.filter((img) => img.clientId !== clientId);
+    });
   }
 
   // Shared between the always-visible Swedish fields and the English ones
@@ -375,9 +427,8 @@ export function CreateProductForm({ categories, collections, taxClasses }: Creat
       body,
     });
 
-    setIsSubmitting(false);
-
     if (error) {
+      setIsSubmitting(false);
       if (response.status === 400) {
         const code = (error as { error?: string }).error;
         if (code === "DuplicateSku") setErrorKind("duplicateSku");
@@ -392,8 +443,76 @@ export function CreateProductForm({ categories, collections, taxClasses }: Creat
       return;
     }
 
+    // The product now exists — skip the image step entirely when nothing
+    // was staged (the common case, and today's exact prior behavior).
+    if (stagedImages.length === 0) {
+      setIsSubmitting(false);
+      router.push(`/products/${data.id}`);
+      router.refresh();
+      return;
+    }
+
+    const uploadResults = await Promise.allSettled(
+      stagedImages.map((staged) => {
+        const formData = new FormData();
+        formData.append("file", staged.file);
+        return api.POST("/api/v1/admin/products/{id}/images", {
+          params: { path: { id: data.id } },
+          headers: { "x-csrf-token": readCsrfCookie() },
+          body: formData as unknown as { file: string },
+        });
+      }),
+    );
+
+    setIsSubmitting(false);
+
+    // One failed image is never a reason to fail the others — the product
+    // is real either way, so every upload is attempted independently and a
+    // failure just gets named in the summary below instead of retried.
+    const failed = stagedImages
+      .filter((_, index) => {
+        const result = uploadResults[index];
+        return result?.status === "rejected" || (result?.status === "fulfilled" && Boolean(result.value.error));
+      })
+      .map((staged) => staged.file.name);
+
+    if (failed.length > 0) {
+      setCreatedProductId(data.id);
+      setFailedImageNames(failed);
+      return;
+    }
+
     router.push(`/products/${data.id}`);
     router.refresh();
+  }
+
+  // The product already exists at this point — re-rendering the create form
+  // would let a duplicate be submitted by mistake, so it's replaced outright
+  // rather than merely disabled.
+  if (createdProductId && failedImageNames.length > 0) {
+    return (
+      <div className="mt-8 flex flex-col gap-4">
+        <Alert tone="danger">
+          {t("imageUploadPartialFailure", {
+            failed: failedImageNames.length,
+            total: stagedImages.length,
+          })}
+        </Alert>
+        <Text size="sm" tone="muted">
+          {failedImageNames.join(", ")}
+        </Text>
+        <div>
+          <Button
+            onClick={() => {
+              router.push(`/products/${createdProductId}`);
+              router.refresh();
+            }}
+          >
+            {t("continueToProductButton")}
+          </Button>
+        </div>
+      </div>
+    );
   }
 
   return (
@@ -666,6 +785,56 @@ export function CreateProductForm({ categories, collections, taxClasses }: Creat
             </Card>
           ))}
         </div>
+      </section>
+
+      <section>
+        <Heading level={2} className="mb-1">
+          {t("imagesHeading")}
+        </Heading>
+        <Text size="sm" tone="muted" className="mb-4">
+          {t("imagesHint")}
+        </Text>
+
+        {rejectedImageNames.length > 0 ? (
+          <Alert tone="danger" className="mb-4">
+            {t("invalidImageTypeError", { names: rejectedImageNames.join(", ") })}
+          </Alert>
+        ) : null}
+
+        {stagedImages.length > 0 ? (
+          <div className="mb-4 grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-4">
+            {stagedImages.map((staged) => (
+              <div key={staged.clientId} className="flex flex-col gap-2">
+                {/* Local object URL preview only — nothing has been
+                    uploaded yet, so there is no real image.url to show. */}
+                <img
+                  src={staged.previewUrl}
+                  alt=""
+                  className="aspect-square w-full rounded-sm border border-neutral-200 object-cover"
+                />
+                <Button type="button" variant="ghost" onClick={() => removeStagedImage(staged.clientId)}>
+                  {t("removeImageButton")}
+                </Button>
+              </div>
+            ))}
+          </div>
+        ) : null}
+
+        <FormField label={t("chooseImagesLabel")}>
+          {(fieldProps) => (
+            <input
+              {...fieldProps}
+              type="file"
+              accept="image/jpeg,image/png,image/webp"
+              multiple
+              onChange={(e) => {
+                handleImagesSelected(e.target.files);
+                e.target.value = "";
+              }}
+              className="rounded-sm border border-neutral-300 text-sm text-neutral-800 file:mr-3 file:rounded-sm file:border file:border-neutral-300 file:bg-white file:px-3 file:py-1.5 file:text-sm file:font-medium"
+            />
+          )}
+        </FormField>
       </section>
 
       {categories.length > 0 || collections.length > 0 ? (

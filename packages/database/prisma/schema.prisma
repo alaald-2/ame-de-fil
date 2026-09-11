@@ -330,6 +330,11 @@ model ProductImage {
   position  Int     @default(0)
   altTextSv String?
   altTextEn String?
+  // Nullable for migration safety on any pre-existing rows; every row
+  // created through the admin upload endpoint always sets it — needed to
+  // delete/transform the asset in Cloudinary later (deriving a public_id
+  // back out of a URL is fragile, so it's stored explicitly).
+  cloudinaryPublicId String?
 
   product Product @relation(fields: [productId], references: [id], onDelete: Cascade)
 

@@ -41,11 +41,29 @@ async function bootApp(validateSession: (token: string) => Promise<AuthContext |
   const list = vi.fn().mockResolvedValue({ items: [], page: 1, pageSize: 20, total: 0 });
   const getOne = vi.fn().mockResolvedValue({ id: "prod-1", status: "DRAFT" });
   const update = vi.fn().mockResolvedValue({ id: "prod-1", status: "PUBLISHED" });
+  const uploadImage = vi.fn().mockResolvedValue({
+    id: "img-1",
+    url: "https://res.cloudinary.com/x/y.jpg",
+    altTextSv: null,
+    altTextEn: null,
+    position: 0,
+  });
+  const updateImage = vi.fn().mockResolvedValue({
+    id: "img-1",
+    url: "https://res.cloudinary.com/x/y.jpg",
+    altTextSv: "En tröja",
+    altTextEn: null,
+    position: 0,
+  });
+  const deleteImage = vi.fn().mockResolvedValue(undefined);
 
   const moduleRef = await Test.createTestingModule({
     controllers: [AdminProductsController],
     providers: [
-      { provide: AdminProductsService, useValue: { createProduct, list, getOne, update } },
+      {
+        provide: AdminProductsService,
+        useValue: { createProduct, list, getOne, update, uploadImage, updateImage, deleteImage },
+      },
       { provide: SessionService, useValue: { validateSession } },
       {
         provide: ConfigService,
@@ -62,7 +80,7 @@ async function bootApp(validateSession: (token: string) => Promise<AuthContext |
   app.use(cookieParser());
   app.useGlobalFilters(new AllExceptionsFilter());
   await app.init();
-  return { app, createProduct, list, getOne, update };
+  return { app, createProduct, list, getOne, update, uploadImage, updateImage, deleteImage };
 }
 
 describe("POST /admin/products — authorization", () => {
@@ -298,5 +316,176 @@ describe("PATCH /admin/products/:id — authorization", () => {
 
     expect(response.status).toBe(400);
     expect(booted.update).not.toHaveBeenCalled();
+  });
+});
+
+describe("POST /admin/products/:id/images — authorization", () => {
+  let app: INestApplication | undefined;
+
+  afterEach(async () => {
+    await app?.close();
+    app = undefined;
+  });
+
+  it("returns 403 for a valid session lacking products.update", async () => {
+    const booted = await bootApp(async () => ({
+      userId: "user-1",
+      sessionId: "sess-1",
+      csrfToken: "csrf",
+      permissions: ["products.view"],
+    }));
+    app = booted.app;
+
+    const response = await supertest(app.getHttpServer())
+      .post("/admin/products/prod-1/images")
+      .set("Cookie", "ame_session=some-token")
+      .attach("file", Buffer.from("fake-image-bytes"), "photo.jpg");
+
+    expect(response.status).toBe(403);
+    expect(booted.uploadImage).not.toHaveBeenCalled();
+  });
+
+  it("returns 201 and calls the service for a valid session with products.update", async () => {
+    const booted = await bootApp(async () => ({
+      userId: "user-1",
+      sessionId: "sess-1",
+      csrfToken: "csrf",
+      permissions: ["products.update"],
+    }));
+    app = booted.app;
+
+    const response = await supertest(app.getHttpServer())
+      .post("/admin/products/prod-1/images")
+      .set("Cookie", "ame_session=some-token")
+      .field("altTextSv", "En tröja")
+      .attach("file", Buffer.from("fake-image-bytes"), "photo.jpg");
+
+    expect(response.status).toBe(201);
+    expect(response.body).toEqual({
+      id: "img-1",
+      url: "https://res.cloudinary.com/x/y.jpg",
+      altTextSv: null,
+      altTextEn: null,
+      position: 0,
+    });
+    expect(booted.uploadImage).toHaveBeenCalledWith(
+      "prod-1",
+      expect.objectContaining({ mimetype: "image/jpeg" }),
+      { altTextSv: "En tröja" },
+      "user-1",
+      expect.anything(),
+    );
+  });
+
+  it("returns 400 when no file is attached, before the service is ever called", async () => {
+    const booted = await bootApp(async () => ({
+      userId: "user-1",
+      sessionId: "sess-1",
+      csrfToken: "csrf",
+      permissions: ["products.update"],
+    }));
+    app = booted.app;
+
+    const response = await supertest(app.getHttpServer())
+      .post("/admin/products/prod-1/images")
+      .set("Cookie", "ame_session=some-token")
+      .field("altTextSv", "En tröja");
+
+    expect(response.status).toBe(400);
+    expect(booted.uploadImage).not.toHaveBeenCalled();
+  });
+});
+
+describe("PATCH /admin/products/:id/images/:imageId — authorization", () => {
+  let app: INestApplication | undefined;
+
+  afterEach(async () => {
+    await app?.close();
+    app = undefined;
+  });
+
+  it("returns 403 for a valid session lacking products.update", async () => {
+    const booted = await bootApp(async () => ({
+      userId: "user-1",
+      sessionId: "sess-1",
+      csrfToken: "csrf",
+      permissions: ["products.view"],
+    }));
+    app = booted.app;
+
+    const response = await supertest(app.getHttpServer())
+      .patch("/admin/products/prod-1/images/img-1")
+      .set("Cookie", "ame_session=some-token")
+      .send({ altTextSv: "En tröja" });
+
+    expect(response.status).toBe(403);
+    expect(booted.updateImage).not.toHaveBeenCalled();
+  });
+
+  it("returns 200 and calls the service for a valid session with products.update", async () => {
+    const booted = await bootApp(async () => ({
+      userId: "user-1",
+      sessionId: "sess-1",
+      csrfToken: "csrf",
+      permissions: ["products.update"],
+    }));
+    app = booted.app;
+
+    const response = await supertest(app.getHttpServer())
+      .patch("/admin/products/prod-1/images/img-1")
+      .set("Cookie", "ame_session=some-token")
+      .send({ altTextSv: "En tröja" });
+
+    expect(response.status).toBe(200);
+    expect(booted.updateImage).toHaveBeenCalledWith(
+      "prod-1",
+      "img-1",
+      { altTextSv: "En tröja" },
+      "user-1",
+      expect.anything(),
+    );
+  });
+});
+
+describe("DELETE /admin/products/:id/images/:imageId — authorization", () => {
+  let app: INestApplication | undefined;
+
+  afterEach(async () => {
+    await app?.close();
+    app = undefined;
+  });
+
+  it("returns 403 for a valid session lacking products.update", async () => {
+    const booted = await bootApp(async () => ({
+      userId: "user-1",
+      sessionId: "sess-1",
+      csrfToken: "csrf",
+      permissions: ["products.view"],
+    }));
+    app = booted.app;
+
+    const response = await supertest(app.getHttpServer())
+      .delete("/admin/products/prod-1/images/img-1")
+      .set("Cookie", "ame_session=some-token");
+
+    expect(response.status).toBe(403);
+    expect(booted.deleteImage).not.toHaveBeenCalled();
+  });
+
+  it("returns 204 and calls the service for a valid session with products.update", async () => {
+    const booted = await bootApp(async () => ({
+      userId: "user-1",
+      sessionId: "sess-1",
+      csrfToken: "csrf",
+      permissions: ["products.update"],
+    }));
+    app = booted.app;
+
+    const response = await supertest(app.getHttpServer())
+      .delete("/admin/products/prod-1/images/img-1")
+      .set("Cookie", "ame_session=some-token");
+
+    expect(response.status).toBe(204);
+    expect(booted.deleteImage).toHaveBeenCalledWith("prod-1", "img-1", "user-1", expect.anything());
   });
 });

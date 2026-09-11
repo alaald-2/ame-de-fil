@@ -7,6 +7,7 @@ import { productStatusTone } from "../../../../lib/product-status";
 import { ProductStatusAction } from "../../../../components/product-status-action";
 import { ProductDetailsForm } from "../../../../components/product-details-form";
 import { ProductVariantsForm } from "../../../../components/product-variants-form";
+import { ProductImagesForm } from "../../../../components/product-images-form";
 
 interface ProductDetailPageProps {
   params: Promise<{ id: string }>;
@@ -103,6 +104,19 @@ export default async function ProductDetailPage({ params }: ProductDetailPagePro
             categories={categories}
             collections={collections}
           />
+        ) : (
+          <Text size="sm" tone="muted">
+            {td("readOnlyNotice")}
+          </Text>
+        )}
+      </div>
+
+      <div className="mt-10">
+        <Heading level={2} className="mb-4">
+          {td("imagesHeading")}
+        </Heading>
+        {canUpdate ? (
+          <ProductImagesForm productId={product.id} images={product.images} />
         ) : (
           <Text size="sm" tone="muted">
             {td("readOnlyNotice")}

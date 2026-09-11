@@ -114,6 +114,16 @@ export const envSchema = z.object({
   // than failing to boot the feature at all.
   STOREFRONT_BASE_URL: z.url().optional(),
 
+  // Product image storage (DECISIONS.md ADR-034) — Cloudinary. Optional at
+  // the schema level: unset means CatalogModule's image upload falls back
+  // to PendingImageStorageProvider (a clear "not configured" error, not a
+  // silent failure), the same "disclosed rather than faked" posture as
+  // Stripe/SMTP/Google above. Required together in practice, checked in
+  // the factory rather than enforced here.
+  CLOUDINARY_CLOUD_NAME: optionalSecret(),
+  CLOUDINARY_API_KEY: optionalSecret(),
+  CLOUDINARY_API_SECRET: optionalSecret(),
+
   LOG_LEVEL: z.enum(["fatal", "error", "warn", "info", "debug", "trace"]).default("info"),
 
   RATE_LIMIT_WINDOW_MS: z.coerce.number().int().positive().default(60_000),

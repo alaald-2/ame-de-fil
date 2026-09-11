@@ -136,6 +136,18 @@ const adminProductVariantResponseSchema = z.object({
   inventory: adminProductVariantInventoryResponseSchema.nullable(),
 });
 
+// Distinct from the public productImageResponseSchema above — admin editing
+// needs both locale columns separately (to redisplay in an edit form),
+// never a single resolved altText, and needs the row id to target
+// PATCH/DELETE /admin/products/:id/images/:imageId.
+export const adminProductImageResponseSchema = z.object({
+  id: z.string(),
+  url: z.string(),
+  altTextSv: z.string().nullable(),
+  altTextEn: z.string().nullable(),
+  position: z.number().int(),
+});
+
 export const adminProductResponseSchema = z.object({
   id: z.string(),
   status: z.string(),
@@ -147,6 +159,7 @@ export const adminProductResponseSchema = z.object({
   categoryIds: z.array(z.string()),
   collectionIds: z.array(z.string()),
   variants: z.array(adminProductVariantResponseSchema),
+  images: z.array(adminProductImageResponseSchema),
 });
 
 export const adminProductListItemResponseSchema = z.object({
