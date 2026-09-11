@@ -19,6 +19,8 @@ type ErrorKind = "conflict" | "generic" | null;
 // order-fulfillment-actions.tsx's own "one action per state" posture — the
 // backend's LEGAL_STATUS_TRANSITIONS (admin-products.service.ts) is the
 // real enforcement, this only decides which single button to render.
+// ARCHIVED's one legal move is back to PUBLISHED (same "publish" request,
+// different label so an admin doesn't read "Publish" as "first release").
 export function ProductStatusAction({ productId, status }: ProductStatusActionProps) {
   const t = useTranslations("Products.detail");
   const router = useRouter();
@@ -61,7 +63,7 @@ export function ProductStatusAction({ productId, status }: ProductStatusActionPr
             <Spinner className="h-4 w-4" /> {t("working")}
           </>
         ) : next === "PUBLISHED" ? (
-          t("publish")
+          status === "ARCHIVED" ? t("republish") : t("publish")
         ) : (
           t("archive")
         )}

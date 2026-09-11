@@ -32,9 +32,9 @@ import { RequirePermissions } from "../common/decorators/require-permissions.dec
 import { ZodValidationPipe } from "../common/pipes/zod-validation.pipe.ts";
 import { ApiErrorResponses } from "../common/api-error-responses.ts";
 import { ApiZodParam, ApiZodQuery, toOpenApiSchema } from "../common/zod-openapi.ts";
-import { paginationQuerySchema, type PaginationQuery } from "../common/dto/pagination.schema.ts";
 import type { AuthContext } from "../common/types/auth-context.ts";
 import { AdminProductsService } from "./admin-products.service.ts";
+import { listAdminProductsQuerySchema, type ListAdminProductsQuery } from "./dto/list-products-query.dto.ts";
 import { createProductSchema, type CreateProductInput } from "./dto/create-product.dto.ts";
 import { updateProductSchema, type UpdateProductInput } from "./dto/update-product.dto.ts";
 import { productIdParamSchema, type ProductIdParam } from "./dto/product-id.param.ts";
@@ -48,14 +48,17 @@ import {
 } from "./dto/responses.ts";
 
 // No @Public()/@OptionalAuth() — admin-only, default-deny, same posture as
-// every other admin controller. Three permissions could have gated this
-// (view/create/update, mirroring inventory.view/.adjust or orders.view/
-// .fulfill/.refund), but products.create already existed as its own
-// permission before this checkpoint; adding products.view (read) and
-// products.update (translations/status/categories/collections/variant
-// fields) alongside it, without folding status transitions into a further
-// separate permission — a status change here isn't money-moving or as
-// operationally distinct as e.g. orders' fulfill/refund split.
+// every other admin controller. Four permissions gate this (view/create/
+// update/delete, mirroring inventory.view/.adjust or orders.view/.fulfill/
+// .refund); products.create already existed as its own permission before
+// this checkpoint, and products.view (read) and products.update
+// (translations/status/categories/collections/variant fields) were added
+// alongside it without folding status transitions into a further separate
+// permission — a status change here isn't money-moving or as operationally
+// distinct as e.g. orders' fulfill/refund split. products.delete is its own
+// permission (not folded into .update) because it's the one irreversible
+// operation on this controller — an admin can be trusted to edit or
+// archive products without being trusted to permanently remove them.
 @ApiTags("admin")
 @ApiCookieAuth("ame_session")
 @Controller("admin/products")
@@ -64,12 +67,14 @@ export class AdminProductsController {
 
   @Get()
   @RequirePermissions("products.view")
-  @ApiOperation({ summary: "List products in every status (admin), most recently updated first" })
-  @ApiZodQuery(paginationQuerySchema)
+  @ApiOperation({
+    summary: "List products (admin), most recently updated first — optionally filtered to one status",
+  })
+  @ApiZodQuery(listAdminProductsQuerySchema)
   @ApiOkResponse({ schema: toOpenApiSchema(listAdminProductsResponseSchema) })
   @ApiErrorResponses(400, 401, 403)
-  async list(@Query(new ZodValidationPipe(paginationQuerySchema)) query: PaginationQuery) {
-    return this.adminProducts.list(query.page, query.pageSize);
+  async list(@Query(new ZodValidationPipe(listAdminProductsQuerySchema)) query: ListAdminProductsQuery) {
+    return this.adminProducts.list(query.page, query.pageSize, query.status);
   }
 
   @Get(":id")
@@ -184,5 +189,23 @@ export class AdminProductsController {
     @Req() request: Request,
   ) {
     await this.adminProducts.deleteImage(params.id, params.imageId, auth.userId, request.ip);
+  }
+
+  @Delete(":id")
+  @RequirePermissions("products.delete")
+  @HttpCode(HttpStatus.NO_CONTENT)
+  @ApiOperation({
+    summary:
+      "Delete a product outright (only when it has never been ordered or added to a live cart — use status=ARCHIVED instead for anything that has sold)",
+  })
+  @ApiZodParam(productIdParamSchema)
+  @ApiNoContentResponse()
+  @ApiErrorResponses(401, 403, 404, 409)
+  async delete(
+    @Param(new ZodValidationPipe(productIdParamSchema)) params: ProductIdParam,
+    @CurrentUser() auth: AuthContext,
+    @Req() request: Request,
+  ) {
+    await this.adminProducts.deleteProduct(params.id, auth.userId, request.ip);
   }
 }

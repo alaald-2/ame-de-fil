@@ -1,5 +1,5 @@
 import { BadRequestException, ConflictException, Inject, Injectable, NotFoundException } from "@nestjs/common";
-import { Currency, Prisma } from "@ame-de-fil/database";
+import { Currency, Prisma, type ProductStatus } from "@ame-de-fil/database";
 import type { Locale as AppLocale } from "@ame-de-fil/validation";
 import { PrismaService } from "../database/prisma.service.ts";
 import { toPrismaLocale } from "../common/locale.ts";
@@ -30,14 +30,15 @@ const PRODUCT_IMAGE_NOT_FOUND = () =>
 const ALLOWED_IMAGE_MIME_TYPES = new Set(["image/jpeg", "image/png", "image/webp"]);
 const MAX_IMAGE_BYTES = 5 * 1024 * 1024;
 
-// DRAFT -> PUBLISHED -> ARCHIVED only, no going backward — a Zod enum can't
-// express this (it's a state-machine rule, not a shape rule), so it's
-// enforced here the same way admin-orders.service.ts's fulfillment
-// transitions are.
+// DRAFT -> PUBLISHED -> ARCHIVED, with ARCHIVED -> PUBLISHED as the one way
+// back (an admin needs to be able to undo an accidental archive, or bring a
+// discontinued product back) — a Zod enum can't express this (it's a
+// state-machine rule, not a shape rule), so it's enforced here the same way
+// admin-orders.service.ts's fulfillment transitions are.
 const LEGAL_STATUS_TRANSITIONS: Record<string, string[]> = {
   DRAFT: ["PUBLISHED"],
   PUBLISHED: ["ARCHIVED"],
-  ARCHIVED: [],
+  ARCHIVED: ["PUBLISHED"],
 };
 
 @Injectable()
@@ -51,20 +52,24 @@ export class AdminProductsService {
   async list(
     page: number,
     pageSize: number,
+    status?: ProductStatus,
   ): Promise<{
     items: AdminProductListItemResponse[];
     page: number;
     pageSize: number;
     total: number;
   }> {
+    const where: Prisma.ProductWhereInput = { ...(status ? { status } : {}) };
+
     const [rows, total] = await Promise.all([
       this.prisma.product.findMany({
+        where,
         include: ADMIN_PRODUCT_INCLUDE,
         skip: (page - 1) * pageSize,
         take: pageSize,
         orderBy: { updatedAt: "desc" },
       }),
-      this.prisma.product.count(),
+      this.prisma.product.count({ where }),
     ]);
 
     return {
@@ -389,6 +394,76 @@ export class AdminProductsService {
     }
 
     return this.getOne(id);
+  }
+
+  // Deleting a product that has ever sold or is sitting in a live cart
+  // would either falsify order history (ProductVariant->Order is a Restrict
+  // FK for exactly this reason) or pull an item out from under a shopper
+  // mid-checkout — so both are checked up front and rejected with a clear
+  // reason instead of a raw FK-violation 500. There is deliberately no such
+  // guard for status: a never-sold DRAFT or ARCHIVED product can always be
+  // removed outright, which is the point of adding this at all (status
+  // alone gave no way to shrink the list again).
+  async deleteProduct(id: string, actorUserId: string, ipAddress?: string): Promise<void> {
+    const existing = await this.prisma.product.findUnique({
+      where: { id },
+      select: {
+        id: true,
+        status: true,
+        variants: { select: { id: true } },
+        images: { select: { id: true, cloudinaryPublicId: true } },
+      },
+    });
+    if (!existing) throw PRODUCT_NOT_FOUND();
+
+    const variantIds = existing.variants.map((v) => v.id);
+    if (variantIds.length > 0) {
+      const [orderItemCount, cartItemCount] = await Promise.all([
+        this.prisma.orderItem.count({ where: { productVariantId: { in: variantIds } } }),
+        this.prisma.cartItem.count({ where: { productVariantId: { in: variantIds } } }),
+      ]);
+      if (orderItemCount > 0) {
+        throw new ConflictException({
+          error: "ProductHasOrders",
+          message: "This product has existing orders and can't be deleted — archive it instead",
+        });
+      }
+      if (cartItemCount > 0) {
+        throw new ConflictException({
+          error: "ProductInCarts",
+          message: "This product is in a customer's cart right now and can't be deleted",
+        });
+      }
+    }
+
+    // Cloudinary assets aren't covered by the DB cascade below — deleted
+    // the same way deleteImage() removes a single one, just for every
+    // image up front so nothing is orphaned in storage.
+    for (const image of existing.images) {
+      if (image.cloudinaryPublicId) {
+        await this.imageStorage.delete(image.cloudinaryPublicId);
+      }
+    }
+
+    await this.prisma.$transaction(async (tx) => {
+      // ProductVariant->Product is Restrict (unlike translations/images/
+      // categories/collections/options, which cascade from Product), so
+      // variants must go first.
+      await tx.productVariant.deleteMany({ where: { productId: id } });
+      await tx.product.delete({ where: { id } });
+
+      await this.audit.record(
+        {
+          actorUserId,
+          action: "product.deleted",
+          entityType: "Product",
+          entityId: id,
+          before: { status: existing.status, variantCount: variantIds.length },
+          ipAddress,
+        },
+        tx,
+      );
+    });
   }
 
   async createProduct(

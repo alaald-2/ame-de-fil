@@ -229,8 +229,26 @@ describe("AdminProductsService.list/getOne", () => {
     expect(result.total).toBe(1);
     expect(result.items[0]).toMatchObject({ id: "prod-1", status: "DRAFT", name: "Virkad tröja", variantCount: 1 });
     expect(vi.mocked(prisma.product.findMany)).toHaveBeenCalledWith(
-      expect.objectContaining({ orderBy: { updatedAt: "desc" } }),
+      expect.objectContaining({ where: {}, orderBy: { updatedAt: "desc" } }),
     );
+  });
+
+  it("list filters by status when one is given", async () => {
+    const prisma = {
+      product: {
+        findMany: vi.fn().mockResolvedValue([]),
+        count: vi.fn().mockResolvedValue(0),
+      },
+      $transaction: vi.fn(),
+    } as unknown as PrismaService;
+    const service = new AdminProductsService(prisma, new AuditService(prisma), makeImageStorageMock());
+
+    await service.list(1, 20, "ARCHIVED");
+
+    expect(vi.mocked(prisma.product.findMany)).toHaveBeenCalledWith(
+      expect.objectContaining({ where: { status: "ARCHIVED" } }),
+    );
+    expect(vi.mocked(prisma.product.count)).toHaveBeenCalledWith({ where: { status: "ARCHIVED" } });
   });
 
   it("getOne 404s when the product doesn't exist", async () => {
@@ -306,6 +324,42 @@ describe("AdminProductsService.update", () => {
 
     expect(tx.product.update).toHaveBeenCalledWith(
       expect.objectContaining({ data: expect.objectContaining({ status: "PUBLISHED", publishedAt: expect.any(Date) }) }),
+    );
+    expect(result.status).toBe("PUBLISHED");
+  });
+
+  it("rejects an illegal status transition out of ARCHIVED (e.g. back to DRAFT)", async () => {
+    const prisma = {
+      product: {
+        findUnique: vi.fn().mockResolvedValue({ id: "prod-1", status: "ARCHIVED", variants: [] }),
+      },
+      $transaction: vi.fn(),
+    } as unknown as PrismaService;
+    const service = new AdminProductsService(prisma, new AuditService(prisma), makeImageStorageMock());
+
+    await expect(
+      service.update("prod-1", { status: "DRAFT" } as UpdateProductInput, ACTOR_USER_ID),
+    ).rejects.toThrow(ConflictException);
+  });
+
+  it("allows the legal ARCHIVED -> PUBLISHED transition without touching publishedAt", async () => {
+    const tx = makeUpdateTxMock();
+    const finalRow = makeAdminProductRow({ status: "PUBLISHED" });
+    const prisma = {
+      product: {
+        findUnique: vi
+          .fn()
+          .mockResolvedValueOnce({ id: "prod-1", status: "ARCHIVED", variants: [] })
+          .mockResolvedValueOnce(finalRow),
+      },
+      $transaction: vi.fn().mockImplementation((callback: (tx: unknown) => unknown) => callback(tx)),
+    } as unknown as PrismaService;
+    const service = new AdminProductsService(prisma, new AuditService(prisma), makeImageStorageMock());
+
+    const result = await service.update("prod-1", { status: "PUBLISHED" } as UpdateProductInput, ACTOR_USER_ID);
+
+    expect(tx.product.update).toHaveBeenCalledWith(
+      expect.objectContaining({ data: { status: "PUBLISHED" } }),
     );
     expect(result.status).toBe("PUBLISHED");
   });
@@ -627,5 +681,106 @@ describe("AdminProductsService.deleteImage", () => {
 
     expect(imageStorage.delete).not.toHaveBeenCalled();
     expect(tx.productImage.delete).toHaveBeenCalledWith({ where: { id: "img-1" } });
+  });
+});
+
+describe("AdminProductsService.deleteProduct", () => {
+  it("404s when the product doesn't exist", async () => {
+    const prisma = {
+      product: { findUnique: vi.fn().mockResolvedValue(null) },
+    } as unknown as PrismaService;
+    const service = new AdminProductsService(prisma, new AuditService(prisma), makeImageStorageMock());
+
+    await expect(service.deleteProduct("missing", ACTOR_USER_ID)).rejects.toThrow(NotFoundException);
+  });
+
+  it("rejects deletion when a variant has an existing order", async () => {
+    const prisma = {
+      product: {
+        findUnique: vi.fn().mockResolvedValue({
+          id: "prod-1",
+          status: "ARCHIVED",
+          variants: [{ id: "var-1" }],
+          images: [],
+        }),
+      },
+      orderItem: { count: vi.fn().mockResolvedValue(1) },
+      cartItem: { count: vi.fn().mockResolvedValue(0) },
+    } as unknown as PrismaService;
+    const service = new AdminProductsService(prisma, new AuditService(prisma), makeImageStorageMock());
+
+    await expect(service.deleteProduct("prod-1", ACTOR_USER_ID)).rejects.toThrow(ConflictException);
+  });
+
+  it("rejects deletion when a variant is in a live cart, even with no orders", async () => {
+    const prisma = {
+      product: {
+        findUnique: vi.fn().mockResolvedValue({
+          id: "prod-1",
+          status: "DRAFT",
+          variants: [{ id: "var-1" }],
+          images: [],
+        }),
+      },
+      orderItem: { count: vi.fn().mockResolvedValue(0) },
+      cartItem: { count: vi.fn().mockResolvedValue(1) },
+    } as unknown as PrismaService;
+    const service = new AdminProductsService(prisma, new AuditService(prisma), makeImageStorageMock());
+
+    await expect(service.deleteProduct("prod-1", ACTOR_USER_ID)).rejects.toThrow(ConflictException);
+  });
+
+  it("deletes Cloudinary assets, then the variants, then the product, when nothing blocks it", async () => {
+    const tx = {
+      productVariant: { deleteMany: vi.fn().mockResolvedValue({ count: 1 }) },
+      product: { delete: vi.fn().mockResolvedValue({ id: "prod-1" }) },
+      auditLog: { create: vi.fn().mockResolvedValue({}) },
+    };
+    const imageStorage = makeImageStorageMock();
+    const prisma = {
+      product: {
+        findUnique: vi.fn().mockResolvedValue({
+          id: "prod-1",
+          status: "DRAFT",
+          variants: [{ id: "var-1" }],
+          images: [{ id: "img-1", cloudinaryPublicId: "y" }],
+        }),
+      },
+      orderItem: { count: vi.fn().mockResolvedValue(0) },
+      cartItem: { count: vi.fn().mockResolvedValue(0) },
+      $transaction: vi.fn().mockImplementation((callback: (tx: unknown) => unknown) => callback(tx)),
+    } as unknown as PrismaService;
+    const service = new AdminProductsService(prisma, new AuditService(prisma), imageStorage);
+
+    await service.deleteProduct("prod-1", ACTOR_USER_ID);
+
+    expect(imageStorage.delete).toHaveBeenCalledWith("y");
+    expect(tx.productVariant.deleteMany).toHaveBeenCalledWith({ where: { productId: "prod-1" } });
+    expect(tx.product.delete).toHaveBeenCalledWith({ where: { id: "prod-1" } });
+  });
+
+  it("skips the order/cart checks entirely for a product with no variants", async () => {
+    const tx = {
+      productVariant: { deleteMany: vi.fn().mockResolvedValue({ count: 0 }) },
+      product: { delete: vi.fn().mockResolvedValue({ id: "prod-1" }) },
+      auditLog: { create: vi.fn().mockResolvedValue({}) },
+    };
+    const orderItemCount = vi.fn();
+    const cartItemCount = vi.fn();
+    const prisma = {
+      product: {
+        findUnique: vi.fn().mockResolvedValue({ id: "prod-1", status: "DRAFT", variants: [], images: [] }),
+      },
+      orderItem: { count: orderItemCount },
+      cartItem: { count: cartItemCount },
+      $transaction: vi.fn().mockImplementation((callback: (tx: unknown) => unknown) => callback(tx)),
+    } as unknown as PrismaService;
+    const service = new AdminProductsService(prisma, new AuditService(prisma), makeImageStorageMock());
+
+    await service.deleteProduct("prod-1", ACTOR_USER_ID);
+
+    expect(orderItemCount).not.toHaveBeenCalled();
+    expect(cartItemCount).not.toHaveBeenCalled();
+    expect(tx.product.delete).toHaveBeenCalledWith({ where: { id: "prod-1" } });
   });
 });

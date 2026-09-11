@@ -56,13 +56,14 @@ async function bootApp(validateSession: (token: string) => Promise<AuthContext |
     position: 0,
   });
   const deleteImage = vi.fn().mockResolvedValue(undefined);
+  const deleteProduct = vi.fn().mockResolvedValue(undefined);
 
   const moduleRef = await Test.createTestingModule({
     controllers: [AdminProductsController],
     providers: [
       {
         provide: AdminProductsService,
-        useValue: { createProduct, list, getOne, update, uploadImage, updateImage, deleteImage },
+        useValue: { createProduct, list, getOne, update, uploadImage, updateImage, deleteImage, deleteProduct },
       },
       { provide: SessionService, useValue: { validateSession } },
       {
@@ -80,7 +81,7 @@ async function bootApp(validateSession: (token: string) => Promise<AuthContext |
   app.use(cookieParser());
   app.useGlobalFilters(new AllExceptionsFilter());
   await app.init();
-  return { app, createProduct, list, getOne, update, uploadImage, updateImage, deleteImage };
+  return { app, createProduct, list, getOne, update, uploadImage, updateImage, deleteImage, deleteProduct };
 }
 
 describe("POST /admin/products — authorization", () => {
@@ -209,7 +210,24 @@ describe("GET /admin/products — authorization", () => {
       .set("Cookie", "ame_session=some-token");
 
     expect(response.status).toBe(200);
-    expect(booted.list).toHaveBeenCalledWith(1, 20);
+    expect(booted.list).toHaveBeenCalledWith(1, 20, undefined);
+  });
+
+  it("passes a status query param through to the service", async () => {
+    const booted = await bootApp(async () => ({
+      userId: "user-1",
+      sessionId: "sess-1",
+      csrfToken: "csrf",
+      permissions: ["products.view"],
+    }));
+    app = booted.app;
+
+    const response = await supertest(app.getHttpServer())
+      .get("/admin/products?status=ARCHIVED")
+      .set("Cookie", "ame_session=some-token");
+
+    expect(response.status).toBe(200);
+    expect(booted.list).toHaveBeenCalledWith(1, 20, "ARCHIVED");
   });
 });
 
@@ -487,5 +505,48 @@ describe("DELETE /admin/products/:id/images/:imageId — authorization", () => {
 
     expect(response.status).toBe(204);
     expect(booted.deleteImage).toHaveBeenCalledWith("prod-1", "img-1", "user-1", expect.anything());
+  });
+});
+
+describe("DELETE /admin/products/:id — authorization", () => {
+  let app: INestApplication | undefined;
+
+  afterEach(async () => {
+    await app?.close();
+    app = undefined;
+  });
+
+  it("returns 403 for a valid session lacking products.delete (products.update alone isn't enough)", async () => {
+    const booted = await bootApp(async () => ({
+      userId: "user-1",
+      sessionId: "sess-1",
+      csrfToken: "csrf",
+      permissions: ["products.update"],
+    }));
+    app = booted.app;
+
+    const response = await supertest(app.getHttpServer())
+      .delete("/admin/products/prod-1")
+      .set("Cookie", "ame_session=some-token");
+
+    expect(response.status).toBe(403);
+    expect(booted.deleteProduct).not.toHaveBeenCalled();
+  });
+
+  it("returns 204 and calls the service for a valid session with products.delete", async () => {
+    const booted = await bootApp(async () => ({
+      userId: "user-1",
+      sessionId: "sess-1",
+      csrfToken: "csrf",
+      permissions: ["products.delete"],
+    }));
+    app = booted.app;
+
+    const response = await supertest(app.getHttpServer())
+      .delete("/admin/products/prod-1")
+      .set("Cookie", "ame_session=some-token");
+
+    expect(response.status).toBe(204);
+    expect(booted.deleteProduct).toHaveBeenCalledWith("prod-1", "user-1", expect.anything());
   });
 });

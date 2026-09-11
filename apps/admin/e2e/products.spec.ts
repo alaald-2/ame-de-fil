@@ -8,8 +8,9 @@ import AxeBuilder from "@axe-core/playwright";
 // Read-only coverage only — create/update/publish/archive mutations are
 // verified manually against the live stack instead, same rationale as
 // Administration's own precedent: there is no delete-product endpoint (only
-// DRAFT -> PUBLISHED -> ARCHIVED, a one-way lifecycle), so an automated
-// create would permanently accumulate products with no way back.
+// DRAFT -> PUBLISHED -> ARCHIVED, with ARCHIVED -> PUBLISHED as the way
+// back), so an automated create would permanently accumulate products with
+// no way to remove them again.
 //
 // Unlike Customers/Users (the signed-in admin's own account guarantees at
 // least one real row), nothing guarantees a product exists in every

@@ -33,9 +33,9 @@ const updateProductVariantInputSchema = z.object({
   productionTimeDays: z.number().int().positive().optional(),
 });
 
-// DRAFT -> PUBLISHED -> ARCHIVED only, enforced in the service (a Zod enum
-// can't express "no going backward" — that's a state-machine rule, not a
-// shape rule).
+// DRAFT -> PUBLISHED -> ARCHIVED, with ARCHIVED -> PUBLISHED as the way
+// back, enforced in the service (a Zod enum can't express a state-machine
+// rule, only which values are shape-valid at all).
 const productStatusSchema = z.enum(["DRAFT", "PUBLISHED", "ARCHIVED"]);
 
 export const updateProductSchema = z.object({

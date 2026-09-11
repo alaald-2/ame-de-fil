@@ -5,6 +5,7 @@ import { requireSession } from "../../../../lib/dal";
 import { getServerApiClient } from "../../../../lib/server-api";
 import { productStatusTone } from "../../../../lib/product-status";
 import { ProductStatusAction } from "../../../../components/product-status-action";
+import { DeleteProductAction } from "../../../../components/delete-product-action";
 import { ProductDetailsForm } from "../../../../components/product-details-form";
 import { ProductVariantsForm } from "../../../../components/product-variants-form";
 import { ProductImagesForm } from "../../../../components/product-images-form";
@@ -48,6 +49,7 @@ export default async function ProductDetailPage({ params }: ProductDetailPagePro
   }
 
   const canUpdate = permissions.includes("products.update");
+  const canDelete = permissions.includes("products.delete");
   // Same content-locale mapping as products/new/page.tsx — the catalog's
   // own translation rows only ever exist in sv-SE/en (never "es").
   const contentLocale = locale === "sv-SE" ? "sv-SE" : "en";
@@ -84,7 +86,10 @@ export default async function ProductDetailPage({ params }: ProductDetailPagePro
           <Heading level={1}>{displayName}</Heading>
           <Badge tone={productStatusTone(product.status)}>{t(`status.${product.status}`)}</Badge>
         </div>
-        {canUpdate ? <ProductStatusAction productId={product.id} status={product.status} /> : null}
+        <div className="flex items-center gap-3">
+          {canUpdate ? <ProductStatusAction productId={product.id} status={product.status} /> : null}
+          {canDelete ? <DeleteProductAction productId={product.id} /> : null}
+        </div>
       </div>
 
       <Text tone="muted" className="mt-1">

@@ -19,6 +19,7 @@ const PERMISSION_KEYS = [
   "products.create",
   "products.view",
   "products.update",
+  "products.delete",
   "categories.view",
   "categories.manage",
   "collections.view",
