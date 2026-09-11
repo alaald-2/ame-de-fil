@@ -169,7 +169,23 @@
     "errorDescription": "Algo salió mal al cargar la lista de clientes.",
     "paginationPrevious": "Anterior",
     "paginationNext": "Siguiente",
-    "paginationPage": "Página {page} de {totalPages}"
+    "paginationPage": "Página {page} de {totalPages}",
+    "detail": {
+      "backToCustomers": "Volver a clientes",
+      "accountInfoHeading": "Información de la cuenta",
+      "recentOrdersHeading": "Pedidos recientes",
+      "noOrdersYet": "Aún no hay pedidos.",
+      "phoneLabel": "Teléfono",
+      "localeLabel": "Idioma",
+      "emailVerifiedLabel": "Correo verificado",
+      "notVerified": "-",
+      "createdLabel": "Creado",
+      "updatedLabel": "Actualizado",
+      "lastLoginLabel": "Último acceso",
+      "orderCountLabel": "Pedidos realizados",
+      "detailErrorTitle": "No se pudo cargar este cliente",
+      "detailErrorDescription": "Algo salió mal al cargar los detalles de este cliente."
+    }
   },
   "Orders": {
     "resultsCount": "{count} pedidos",

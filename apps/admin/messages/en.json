@@ -169,7 +169,23 @@
     "errorDescription": "Something went wrong while loading the customer list.",
     "paginationPrevious": "Previous",
     "paginationNext": "Next",
-    "paginationPage": "Page {page} of {totalPages}"
+    "paginationPage": "Page {page} of {totalPages}",
+    "detail": {
+      "backToCustomers": "Back to customers",
+      "accountInfoHeading": "Account info",
+      "recentOrdersHeading": "Recent orders",
+      "noOrdersYet": "No orders yet.",
+      "phoneLabel": "Phone",
+      "localeLabel": "Locale",
+      "emailVerifiedLabel": "Email verified",
+      "notVerified": "-",
+      "createdLabel": "Created",
+      "updatedLabel": "Updated",
+      "lastLoginLabel": "Last login",
+      "orderCountLabel": "Orders placed",
+      "detailErrorTitle": "Couldn't load this customer",
+      "detailErrorDescription": "Something went wrong while loading this customer's details."
+    }
   },
   "Orders": {
     "resultsCount": "{count} orders",

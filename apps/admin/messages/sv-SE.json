@@ -169,7 +169,23 @@
     "errorDescription": "Något gick fel när kundlistan skulle läsas in.",
     "paginationPrevious": "Föregående",
     "paginationNext": "Nästa",
-    "paginationPage": "Sida {page} av {totalPages}"
+    "paginationPage": "Sida {page} av {totalPages}",
+    "detail": {
+      "backToCustomers": "Tillbaka till kunder",
+      "accountInfoHeading": "Kontoinformation",
+      "recentOrdersHeading": "Senaste ordrar",
+      "noOrdersYet": "Inga ordrar ännu.",
+      "phoneLabel": "Telefon",
+      "localeLabel": "Språk",
+      "emailVerifiedLabel": "E-post verifierad",
+      "notVerified": "-",
+      "createdLabel": "Skapad",
+      "updatedLabel": "Uppdaterad",
+      "lastLoginLabel": "Senaste inloggning",
+      "orderCountLabel": "Lagda ordrar",
+      "detailErrorTitle": "Kunde inte läsa in den här kunden",
+      "detailErrorDescription": "Något gick fel när kundens uppgifter skulle läsas in."
+    }
   },
   "Orders": {
     "resultsCount": "{count} ordrar",

@@ -20,6 +20,16 @@ test("customers list renders real data, and the whole row navigates to detail", 
   await rowLink.click();
   await expect(page).toHaveURL(/\/customers\/[^/]+$/);
   await expect(page.getByRole("heading", { level: 1 })).toContainText("@");
+  await expect(page.getByRole("heading", { name: "Kontoinformation" })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Senaste ordrar" })).toBeVisible();
+});
+
+test("customer detail has no axe violations", async ({ page }) => {
+  await page.goto("/customers");
+  await page.getByRole("link", { name: /^Visa /i }).first().click();
+  await expect(page.getByRole("heading", { name: "Kontoinformation" })).toBeVisible();
+  const results = await new AxeBuilder({ page }).analyze();
+  expect(results.violations).toEqual([]);
 });
 
 test("pagination query param renders a consistent page (including a deliberately out-of-range one)", async ({
