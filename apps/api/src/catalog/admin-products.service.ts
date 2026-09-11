@@ -64,6 +64,15 @@ export class AdminProductsService {
     };
   }
 
+  // Exists only so a caller creating/editing a product variant knows what's
+  // a valid taxClassCode (AdminTaxClassesController's own reasoning) — not
+  // a Products concern per se, but this is the service every consumer of
+  // that data already depends on.
+  async listTaxClasses(): Promise<{ id: string; code: string; name: string }[]> {
+    const taxClasses = await this.prisma.taxClass.findMany({ orderBy: { code: "asc" } });
+    return taxClasses.map((t) => ({ id: t.id, code: t.code, name: t.name }));
+  }
+
   async getOne(id: string): Promise<AdminProductResponse> {
     const product = await this.prisma.product.findUnique({
       where: { id },

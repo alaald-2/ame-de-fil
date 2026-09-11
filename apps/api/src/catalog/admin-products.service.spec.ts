@@ -386,3 +386,34 @@ describe("AdminProductsService.update", () => {
     ).rejects.toThrow(ConflictException);
   });
 });
+
+describe("AdminProductsService.listTaxClasses", () => {
+  it("maps rows to id/code/name, ordered by code", async () => {
+    const prisma = {
+      taxClass: {
+        findMany: vi
+          .fn()
+          .mockResolvedValue([{ id: "tax-1", code: "STANDARD", name: "Standard 25%" }]),
+      },
+      $transaction: vi.fn(),
+    } as unknown as PrismaService;
+    const service = new AdminProductsService(prisma, new AuditService(prisma));
+
+    const result = await service.listTaxClasses();
+
+    expect(result).toEqual([{ id: "tax-1", code: "STANDARD", name: "Standard 25%" }]);
+    expect(vi.mocked(prisma.taxClass.findMany)).toHaveBeenCalledWith(
+      expect.objectContaining({ orderBy: { code: "asc" } }),
+    );
+  });
+
+  it("returns an empty array when no tax classes exist", async () => {
+    const prisma = {
+      taxClass: { findMany: vi.fn().mockResolvedValue([]) },
+      $transaction: vi.fn(),
+    } as unknown as PrismaService;
+    const service = new AdminProductsService(prisma, new AuditService(prisma));
+
+    expect(await service.listTaxClasses()).toEqual([]);
+  });
+});

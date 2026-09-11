@@ -33,9 +33,16 @@ interface VariantDraft {
   productionTimeDays: string;
 }
 
+export interface TaxClassOption {
+  id: string;
+  code: string;
+  name: string;
+}
+
 interface ProductVariantsFormProps {
   productId: string;
   variants: ProductVariantData[];
+  taxClasses: TaxClassOption[];
 }
 
 function toDraft(variant: ProductVariantData): VariantDraft {
@@ -58,7 +65,7 @@ type ErrorKind = "unknownTaxClass" | "generic" | null;
 // still the only way to define a product's variant matrix); stock levels
 // (onHand/reserved) stay exclusively in the existing Inventory module,
 // shown here read-only for context.
-export function ProductVariantsForm({ productId, variants }: ProductVariantsFormProps) {
+export function ProductVariantsForm({ productId, variants, taxClasses }: ProductVariantsFormProps) {
   const t = useTranslations("Products.detail");
   const router = useRouter();
 
@@ -164,11 +171,20 @@ export function ProductVariantsForm({ productId, variants }: ProductVariantsForm
               </label>
               <label className="flex flex-col gap-1.5 text-sm">
                 <span className="font-medium text-neutral-800">{t("taxClassCodeLabel")}</span>
-                <input
+                <select
                   value={draft.taxClassCode}
                   onChange={(e) => updateDraft(variant.id, "taxClassCode", e.target.value)}
-                  className="rounded-sm border border-neutral-300 bg-neutral-50 px-3 py-2 text-neutral-900 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent-500"
-                />
+                  className="rounded-sm border border-neutral-300 bg-neutral-50 px-3 py-2 font-sans text-sm text-neutral-900 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent-500"
+                >
+                  {taxClasses.every((taxClass) => taxClass.code !== draft.taxClassCode) ? (
+                    <option value={draft.taxClassCode}>{draft.taxClassCode}</option>
+                  ) : null}
+                  {taxClasses.map((taxClass) => (
+                    <option key={taxClass.id} value={taxClass.code}>
+                      {taxClass.name}
+                    </option>
+                  ))}
+                </select>
               </label>
               <label className="flex flex-col gap-1.5 text-sm">
                 <span className="font-medium text-neutral-800">{t("weightGramsLabel")}</span>

@@ -4,6 +4,7 @@ import { requireSession } from "../../lib/dal";
 import { getServerApiClient } from "../../lib/server-api";
 import { formatMoney } from "../../lib/format-money";
 import { orderStatusTone, paymentStatusTone, refundStatusTone, type BadgeTone } from "../../lib/order-status";
+import { DashboardDateRangeForm } from "../../components/dashboard-date-range-form";
 import type { AdminLocale } from "../../i18n/config";
 
 function formatDate(iso: string, locale: string): string {
@@ -87,8 +88,13 @@ function BadgeDot({ tone }: { tone: BadgeTone }) {
   return <span aria-hidden="true" className={`h-2 w-2 shrink-0 rounded-full ${color}`} />;
 }
 
-export default async function DashboardPage() {
+interface DashboardPageProps {
+  searchParams: Promise<{ from?: string; to?: string }>;
+}
+
+export default async function DashboardPage({ searchParams }: DashboardPageProps) {
   await requireSession();
+  const { from, to: toParam } = await searchParams;
 
   const t = await getTranslations("Dashboard");
   const tNav = await getTranslations("Navigation");
@@ -98,7 +104,9 @@ export default async function DashboardPage() {
   const locale = await getLocale();
   const client = await getServerApiClient();
 
-  const { data, error, response } = await client.GET("/api/v1/admin/dashboard");
+  const { data, error, response } = await client.GET("/api/v1/admin/dashboard", {
+    params: { query: from && toParam ? { from, to: toParam } : undefined },
+  });
 
   if (error) {
     return (
@@ -144,16 +152,14 @@ export default async function DashboardPage() {
 
   return (
     <div>
-      <div className="flex flex-wrap items-baseline justify-between gap-x-6 gap-y-1">
-        <Heading level={1}>{tNav("dashboard")}</Heading>
-        <Text tone="muted">{t("periodLabel")}</Text>
-      </div>
+      <Heading level={1}>{tNav("dashboard")}</Heading>
       <Text size="sm" tone="muted" className="mt-1">
         {t("periodRange", {
           from: formatDate(data.period.from, locale),
           to: formatDate(data.period.to, locale),
         })}
       </Text>
+      <DashboardDateRangeForm from={data.period.from} to={data.period.to} />
 
       {alertLines.length > 0 ? (
         <Alert tone="danger" className="mt-6">

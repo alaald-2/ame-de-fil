@@ -51,12 +51,13 @@ export default async function ProductDetailPage({ params }: ProductDetailPagePro
   // own translation rows only ever exist in sv-SE/en (never "es").
   const contentLocale = locale === "sv-SE" ? "sv-SE" : "en";
 
-  const [categoriesResult, collectionsResult] = canUpdate
+  const [categoriesResult, collectionsResult, taxClassesResult] = canUpdate
     ? await Promise.all([
         client.GET("/api/v1/categories", { params: { query: { locale: contentLocale } } }),
         client.GET("/api/v1/collections", { params: { query: { locale: contentLocale } } }),
+        client.GET("/api/v1/admin/tax-classes"),
       ])
-    : [null, null];
+    : [null, null, null];
 
   const categories = categoriesResult && !categoriesResult.error
     ? categoriesResult.data.map((c) => ({ id: c.id, name: c.name }))
@@ -64,6 +65,7 @@ export default async function ProductDetailPage({ params }: ProductDetailPagePro
   const collections = collectionsResult && !collectionsResult.error
     ? collectionsResult.data.map((c) => ({ id: c.id, name: c.name }))
     : [];
+  const taxClasses = taxClassesResult && !taxClassesResult.error ? taxClassesResult.data : [];
 
   const displayName =
     product.translations.find((tr) => tr.locale === contentLocale)?.name ??
@@ -113,7 +115,7 @@ export default async function ProductDetailPage({ params }: ProductDetailPagePro
           {td("variantsHeading")}
         </Heading>
         {canUpdate ? (
-          <ProductVariantsForm productId={product.id} variants={product.variants} />
+          <ProductVariantsForm productId={product.id} variants={product.variants} taxClasses={taxClasses} />
         ) : (
           <ul className="flex flex-col gap-2">
             {product.variants.map((variant) => (

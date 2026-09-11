@@ -106,11 +106,38 @@ async function seedBootstrapAdminIfConfigured(prisma: PrismaClient): Promise<voi
   console.log(`Ensured "${email}" holds the "${ADMIN_ROLE_NAME}" role.`);
 }
 
+// The "STANDARD" tax class was never seeded anywhere in this project's
+// documented bootstrap path — only apps/api/src/test/fixtures.ts created
+// it, for integration tests only. Every real ProductVariant requires a
+// valid taxClassCode, and checkout/tax-rates.ts's SHIPPING_TAX_CLASS_CODE
+// hard-requires this exact code to exist for shipping VAT calculation
+// (throws if missing) — without this, product creation is impossible and
+// checkout itself breaks on a genuinely fresh environment. 25% matches the
+// Swedish standard VAT rate already assumed by that same file's own
+// comment, not a new tax-policy decision made here.
+async function seedTaxClasses(prisma: PrismaClient): Promise<void> {
+  const taxClass = await prisma.taxClass.upsert({
+    where: { code: "STANDARD" },
+    update: {},
+    create: { code: "STANDARD", name: "Standard 25%" },
+  });
+
+  const existingRate = await prisma.taxRate.findFirst({ where: { taxClassId: taxClass.id } });
+  if (!existingRate) {
+    await prisma.taxRate.create({
+      data: { taxClassId: taxClass.id, ratePercent: 25.0, validFrom: new Date() },
+    });
+  }
+
+  console.log(`Ensured the "${taxClass.code}" tax class and its current rate exist.`);
+}
+
 async function main(): Promise<void> {
   const prisma = new PrismaClient({ adapter: new PrismaPg({ connectionString: requireDatabaseUrl() }) });
   try {
     await seedPermissionsAndAdminRole(prisma);
     await seedBootstrapAdminIfConfigured(prisma);
+    await seedTaxClasses(prisma);
   } finally {
     await prisma.$disconnect();
   }

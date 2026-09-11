@@ -1,14 +1,13 @@
 import { getTranslations, getLocale } from "next-intl/server";
-import { Heading, Link, ErrorState } from "@ame-de-fil/ui";
+import { Heading, Text, Link, ErrorState } from "@ame-de-fil/ui";
 import { requireSession } from "../../../../lib/dal";
 import { getServerApiClient } from "../../../../lib/server-api";
 import { CreateProductForm } from "../../../../components/create-product-form";
 
-// Categories/Collections admin CRUD is a deferred follow-up (ROADMAP.md) —
-// this reuses their existing *public* read endpoints (GET /categories,
-// GET /collections, both @Public()) purely to populate the picker, the
-// same way any other consumer of the catalog would. No admin write surface
-// for either exists yet, and none is added here.
+// Categories/Collections have their own admin CRUD (content/*.tsx) — this
+// reuses their existing *public* read endpoints (GET /categories,
+// GET /collections, both @Public()) purely to populate the picker here,
+// the same way any other consumer of the catalog would.
 export default async function NewProductPage() {
   const session = await requireSession();
 
@@ -34,9 +33,10 @@ export default async function NewProductPage() {
     );
   }
 
-  const [categoriesResult, collectionsResult] = await Promise.all([
+  const [categoriesResult, collectionsResult, taxClassesResult] = await Promise.all([
     client.GET("/api/v1/categories", { params: { query: { locale: contentLocale } } }),
     client.GET("/api/v1/collections", { params: { query: { locale: contentLocale } } }),
+    client.GET("/api/v1/admin/tax-classes"),
   ]);
 
   const categories = categoriesResult.error
@@ -45,6 +45,7 @@ export default async function NewProductPage() {
   const collections = collectionsResult.error
     ? []
     : collectionsResult.data.map((c) => ({ id: c.id, name: c.name }));
+  const taxClasses = taxClassesResult.error ? [] : taxClassesResult.data;
 
   return (
     <div>
@@ -54,7 +55,10 @@ export default async function NewProductPage() {
       <Heading level={1} className="mt-4">
         {tCreate("heading")}
       </Heading>
-      <CreateProductForm categories={categories} collections={collections} />
+      <Text tone="muted" className="mt-2 max-w-2xl">
+        {tCreate("intro")}
+      </Text>
+      <CreateProductForm categories={categories} collections={collections} taxClasses={taxClasses} />
     </div>
   );
 }

@@ -12,9 +12,16 @@ export interface TaxonomyOption {
   name: string;
 }
 
+export interface TaxClassOption {
+  id: string;
+  code: string;
+  name: string;
+}
+
 interface CreateProductFormProps {
   categories: TaxonomyOption[];
   collections: TaxonomyOption[];
+  taxClasses: TaxClassOption[];
 }
 
 interface TranslationDraft {
@@ -71,12 +78,12 @@ function nextClientId(): string {
   return `c${clientIdCounter}`;
 }
 
-function emptyVariant(): VariantDraft {
+function emptyVariant(defaultTaxClassCode: string): VariantDraft {
   return {
     clientId: nextClientId(),
     sku: "",
     priceMinor: "",
-    taxClassCode: "STANDARD",
+    taxClassCode: defaultTaxClassCode,
     weightGrams: "",
     selectedOptionValues: {},
     initialStock: "0",
@@ -99,16 +106,18 @@ type CreateErrorKind =
 // (translations + options + variants + category/collection ids all in one
 // request, same as create-product.dto.ts) — there's no draft-save/step
 // wizard, since the backend has no partial-create endpoint to save into.
-export function CreateProductForm({ categories, collections }: CreateProductFormProps) {
+export function CreateProductForm({ categories, collections, taxClasses }: CreateProductFormProps) {
   const t = useTranslations("Products.create");
   const router = useRouter();
+  const defaultTaxClassCode = taxClasses[0]?.code ?? "";
 
   const [translations, setTranslations] = useState<Record<"sv-SE" | "en", TranslationDraft>>({
     "sv-SE": { ...EMPTY_TRANSLATION },
     en: { ...EMPTY_TRANSLATION },
   });
+  const [showEnglish, setShowEnglish] = useState(false);
   const [options, setOptions] = useState<OptionDraft[]>([]);
-  const [variants, setVariants] = useState<VariantDraft[]>([emptyVariant()]);
+  const [variants, setVariants] = useState<VariantDraft[]>([emptyVariant(defaultTaxClassCode)]);
   const [categoryIds, setCategoryIds] = useState<string[]>([]);
   const [collectionIds, setCollectionIds] = useState<string[]>([]);
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -174,7 +183,7 @@ export function CreateProductForm({ categories, collections }: CreateProductForm
   }
 
   function addVariant() {
-    setVariants((current) => [...current, emptyVariant()]);
+    setVariants((current) => [...current, emptyVariant(defaultTaxClassCode)]);
   }
 
   function removeVariant(clientId: string) {
@@ -197,6 +206,99 @@ export function CreateProductForm({ categories, collections }: CreateProductForm
 
   function toggleId(list: string[], id: string): string[] {
     return list.includes(id) ? list.filter((x) => x !== id) : [...list, id];
+  }
+
+  // Shared between the always-visible Swedish fields and the English ones
+  // revealed behind the "Add English content" toggle below — same field
+  // set, only the locale (and whether Swedish's name/slug are required)
+  // differs.
+  function renderTranslationFields(locale: "sv-SE" | "en") {
+    return (
+      <>
+        <div className="grid gap-4 sm:grid-cols-2">
+          <FormField label={t("nameLabel")} required={locale === "sv-SE"}>
+            {(fieldProps) => (
+              <Input
+                {...fieldProps}
+                value={translations[locale].name}
+                onChange={(e) => updateTranslation(locale, "name", e.target.value)}
+              />
+            )}
+          </FormField>
+          <FormField label={t("slugLabel")} required={locale === "sv-SE"}>
+            {(fieldProps) => (
+              <Input
+                {...fieldProps}
+                value={translations[locale].slug}
+                onChange={(e) => updateTranslation(locale, "slug", e.target.value)}
+              />
+            )}
+          </FormField>
+        </div>
+        <div className="mt-4">
+          <FormField label={t("descriptionLabel")}>
+            {(fieldProps) => (
+              <Textarea
+                {...fieldProps}
+                value={translations[locale].description}
+                onChange={(e) => updateTranslation(locale, "description", e.target.value)}
+              />
+            )}
+          </FormField>
+        </div>
+        <div className="mt-4">
+          <FormField label={t("storyLabel")}>
+            {(fieldProps) => (
+              <Textarea
+                {...fieldProps}
+                value={translations[locale].story}
+                onChange={(e) => updateTranslation(locale, "story", e.target.value)}
+              />
+            )}
+          </FormField>
+        </div>
+        <div className="mt-4 grid gap-4 sm:grid-cols-2">
+          <FormField label={t("careInstructionsLabel")}>
+            {(fieldProps) => (
+              <Textarea
+                {...fieldProps}
+                value={translations[locale].careInstructions}
+                onChange={(e) => updateTranslation(locale, "careInstructions", e.target.value)}
+              />
+            )}
+          </FormField>
+          <FormField label={t("materialsLabel")}>
+            {(fieldProps) => (
+              <Input
+                {...fieldProps}
+                value={translations[locale].materials}
+                onChange={(e) => updateTranslation(locale, "materials", e.target.value)}
+              />
+            )}
+          </FormField>
+        </div>
+        <div className="mt-4 grid gap-4 sm:grid-cols-2">
+          <FormField label={t("metaTitleLabel")}>
+            {(fieldProps) => (
+              <Input
+                {...fieldProps}
+                value={translations[locale].metaTitle}
+                onChange={(e) => updateTranslation(locale, "metaTitle", e.target.value)}
+              />
+            )}
+          </FormField>
+          <FormField label={t("metaDescriptionLabel")}>
+            {(fieldProps) => (
+              <Textarea
+                {...fieldProps}
+                value={translations[locale].metaDescription}
+                onChange={(e) => updateTranslation(locale, "metaDescription", e.target.value)}
+              />
+            )}
+          </FormField>
+        </div>
+      </>
+    );
   }
 
   async function handleSubmit(event: FormEvent) {
@@ -285,95 +387,33 @@ export function CreateProductForm({ categories, collections }: CreateProductForm
         </Alert>
       ) : null}
 
-      {(["sv-SE", "en"] as const).map((locale) => (
-        <section key={locale}>
-          <Heading level={2} className="mb-4">
-            {locale === "sv-SE" ? t("translationsSwedish") : t("translationsEnglish")}
-          </Heading>
-          <div className="grid gap-4 sm:grid-cols-2">
-            <FormField label={t("nameLabel")} required={locale === "sv-SE"}>
-              {(fieldProps) => (
-                <Input
-                  {...fieldProps}
-                  value={translations[locale].name}
-                  onChange={(e) => updateTranslation(locale, "name", e.target.value)}
-                />
-              )}
-            </FormField>
-            <FormField label={t("slugLabel")} required={locale === "sv-SE"}>
-              {(fieldProps) => (
-                <Input
-                  {...fieldProps}
-                  value={translations[locale].slug}
-                  onChange={(e) => updateTranslation(locale, "slug", e.target.value)}
-                />
-              )}
-            </FormField>
-          </div>
+      <section>
+        <Heading level={2} className="mb-1">
+          {t("section1Heading")}
+        </Heading>
+        <Text size="sm" tone="muted" className="mb-4">
+          {t("section1Hint")}
+        </Text>
+
+        <Text size="sm" className="mb-2 font-medium text-neutral-800">
+          {t("translationsSwedish")}
+        </Text>
+        {renderTranslationFields("sv-SE")}
+
+        <div className="mt-6">
+          <Button type="button" variant="ghost" onClick={() => setShowEnglish((current) => !current)}>
+            {showEnglish ? t("hideEnglishContent") : t("showEnglishContent")}
+          </Button>
+        </div>
+        {showEnglish ? (
           <div className="mt-4">
-            <FormField label={t("descriptionLabel")}>
-              {(fieldProps) => (
-                <Textarea
-                  {...fieldProps}
-                  value={translations[locale].description}
-                  onChange={(e) => updateTranslation(locale, "description", e.target.value)}
-                />
-              )}
-            </FormField>
+            <Text size="sm" className="mb-2 font-medium text-neutral-800">
+              {t("translationsEnglish")}
+            </Text>
+            {renderTranslationFields("en")}
           </div>
-          <div className="mt-4">
-            <FormField label={t("storyLabel")}>
-              {(fieldProps) => (
-                <Textarea
-                  {...fieldProps}
-                  value={translations[locale].story}
-                  onChange={(e) => updateTranslation(locale, "story", e.target.value)}
-                />
-              )}
-            </FormField>
-          </div>
-          <div className="mt-4 grid gap-4 sm:grid-cols-2">
-            <FormField label={t("careInstructionsLabel")}>
-              {(fieldProps) => (
-                <Textarea
-                  {...fieldProps}
-                  value={translations[locale].careInstructions}
-                  onChange={(e) => updateTranslation(locale, "careInstructions", e.target.value)}
-                />
-              )}
-            </FormField>
-            <FormField label={t("materialsLabel")}>
-              {(fieldProps) => (
-                <Input
-                  {...fieldProps}
-                  value={translations[locale].materials}
-                  onChange={(e) => updateTranslation(locale, "materials", e.target.value)}
-                />
-              )}
-            </FormField>
-          </div>
-          <div className="mt-4 grid gap-4 sm:grid-cols-2">
-            <FormField label={t("metaTitleLabel")}>
-              {(fieldProps) => (
-                <Input
-                  {...fieldProps}
-                  value={translations[locale].metaTitle}
-                  onChange={(e) => updateTranslation(locale, "metaTitle", e.target.value)}
-                />
-              )}
-            </FormField>
-            <FormField label={t("metaDescriptionLabel")}>
-              {(fieldProps) => (
-                <Textarea
-                  {...fieldProps}
-                  value={translations[locale].metaDescription}
-                  onChange={(e) => updateTranslation(locale, "metaDescription", e.target.value)}
-                />
-              )}
-            </FormField>
-          </div>
-        </section>
-      ))}
+        ) : null}
+      </section>
 
       <section>
         <div className="flex items-center justify-between">
@@ -492,12 +532,20 @@ export function CreateProductForm({ categories, collections }: CreateProductForm
                 </FormField>
                 <FormField label={t("taxClassCodeLabel")} required>
                   {(fieldProps) => (
-                    <Input
+                    <select
                       {...fieldProps}
                       required
                       value={variant.taxClassCode}
                       onChange={(e) => updateVariant(variant.clientId, "taxClassCode", e.target.value)}
-                    />
+                      className="rounded-sm border border-neutral-300 bg-neutral-50 px-3 py-2 font-sans text-sm text-neutral-900 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent-500"
+                    >
+                      {taxClasses.length === 0 ? <option value="">{t("noTaxClasses")}</option> : null}
+                      {taxClasses.map((taxClass) => (
+                        <option key={taxClass.id} value={taxClass.code}>
+                          {taxClass.name}
+                        </option>
+                      ))}
+                    </select>
                   )}
                 </FormField>
                 <FormField label={t("weightGramsLabel")}>
@@ -590,7 +638,11 @@ export function CreateProductForm({ categories, collections }: CreateProductForm
       </section>
 
       {categories.length > 0 || collections.length > 0 ? (
-        <section className="grid gap-8 sm:grid-cols-2">
+        <section>
+          <Heading level={2} className="mb-4">
+            {t("categoriesCollectionsHeading")}
+          </Heading>
+          <div className="grid gap-8 sm:grid-cols-2">
           {categories.length > 0 ? (
             <fieldset>
               <legend className="font-sans text-sm font-medium text-neutral-800">
@@ -631,6 +683,7 @@ export function CreateProductForm({ categories, collections }: CreateProductForm
               </div>
             </fieldset>
           ) : null}
+          </div>
         </section>
       ) : null}
 

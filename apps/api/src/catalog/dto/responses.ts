@@ -204,3 +204,16 @@ export const listAdminTaxonomyResponseSchema = z.object({
 });
 
 export const createTaxonomyResponseSchema = z.object({ id: z.string() });
+
+// Exists only so a caller creating/editing a product variant knows what's a
+// valid taxClassCode — same "read-only reference catalog in service of
+// another feature" shape as listAdminRolesResponseSchema
+// (users/dto/admin-user-responses.ts). A plain array, no pagination —
+// there will only ever be a handful of tax classes.
+export const adminTaxClassResponseSchema = z.object({
+  id: z.string(),
+  code: z.string(),
+  name: z.string(),
+});
+
+export const listAdminTaxClassesResponseSchema = z.array(adminTaxClassResponseSchema);

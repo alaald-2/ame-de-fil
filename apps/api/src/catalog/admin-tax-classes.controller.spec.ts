@@ -1,0 +1,97 @@
+import { describe, expect, it, afterEach, vi } from "vitest";
+import { Test } from "@nestjs/testing";
+import type { INestApplication } from "@nestjs/common";
+import { APP_GUARD } from "@nestjs/core";
+import { ConfigService } from "@nestjs/config";
+import cookieParser from "cookie-parser";
+import supertest from "supertest";
+import { AdminTaxClassesController } from "./admin-tax-classes.controller.ts";
+import { AdminProductsService } from "./admin-products.service.ts";
+import { SessionAuthGuard } from "../common/guards/session-auth.guard.ts";
+import { PermissionsGuard } from "../common/guards/permissions.guard.ts";
+import { SessionService } from "../identity/session.service.ts";
+import { AllExceptionsFilter } from "../common/filters/all-exceptions.filter.ts";
+import type { AuthContext } from "../common/types/auth-context.ts";
+
+// Mirrors admin-categories.controller.spec.ts's bootApp convention — real
+// SessionAuthGuard + PermissionsGuard, only SessionService and
+// AdminProductsService (this controller's dependency, per its own
+// "reuses AdminProductsService/products.view" rationale) mocked.
+async function bootApp(validateSession: (token: string) => Promise<AuthContext | null>) {
+  const listTaxClasses = vi.fn().mockResolvedValue([{ id: "tax-1", code: "STANDARD", name: "Standard 25%" }]);
+
+  const moduleRef = await Test.createTestingModule({
+    controllers: [AdminTaxClassesController],
+    providers: [
+      { provide: AdminProductsService, useValue: { listTaxClasses } },
+      { provide: SessionService, useValue: { validateSession } },
+      {
+        provide: ConfigService,
+        useValue: {
+          get: (key: string) => (key === "SESSION_COOKIE_NAME" ? "ame_session" : undefined),
+        },
+      },
+      { provide: APP_GUARD, useClass: SessionAuthGuard },
+      { provide: APP_GUARD, useClass: PermissionsGuard },
+    ],
+  }).compile();
+
+  const app = moduleRef.createNestApplication();
+  app.use(cookieParser());
+  app.useGlobalFilters(new AllExceptionsFilter());
+  await app.init();
+  return { app, listTaxClasses };
+}
+
+describe("GET /admin/tax-classes — authorization", () => {
+  let app: INestApplication | undefined;
+  afterEach(async () => {
+    await app?.close();
+    app = undefined;
+  });
+
+  it("returns 401 with no session cookie at all", async () => {
+    const booted = await bootApp(async () => null);
+    app = booted.app;
+
+    const response = await supertest(app.getHttpServer()).get("/admin/tax-classes");
+
+    expect(response.status).toBe(401);
+    expect(booted.listTaxClasses).not.toHaveBeenCalled();
+  });
+
+  it("returns 403 for a valid session lacking products.view", async () => {
+    const booted = await bootApp(async () => ({
+      userId: "user-1",
+      sessionId: "sess-1",
+      csrfToken: "csrf",
+      permissions: ["orders.view"],
+    }));
+    app = booted.app;
+
+    const response = await supertest(app.getHttpServer())
+      .get("/admin/tax-classes")
+      .set("Cookie", "ame_session=some-token");
+
+    expect(response.status).toBe(403);
+    expect(booted.listTaxClasses).not.toHaveBeenCalled();
+  });
+
+  it("returns 200 and calls the service for a valid session with products.view", async () => {
+    const booted = await bootApp(async () => ({
+      userId: "user-1",
+      sessionId: "sess-1",
+      csrfToken: "csrf",
+      permissions: ["products.view"],
+    }));
+    app = booted.app;
+
+    const response = await supertest(app.getHttpServer())
+      .get("/admin/tax-classes")
+      .set("Cookie", "ame_session=some-token");
+
+    expect(response.status).toBe(200);
+    expect(response.body).toEqual([{ id: "tax-1", code: "STANDARD", name: "Standard 25%" }]);
+    expect(booted.listTaxClasses).toHaveBeenCalledTimes(1);
+  });
+});

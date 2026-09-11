@@ -12,12 +12,15 @@ import { AdminCategoriesController } from "./admin-categories.controller.ts";
 import { AdminCategoriesService } from "./admin-categories.service.ts";
 import { AdminCollectionsController } from "./admin-collections.controller.ts";
 import { AdminCollectionsService } from "./admin-collections.service.ts";
+import { AdminTaxClassesController } from "./admin-tax-classes.controller.ts";
 
 // Products/variants/categories/collections (ARCHITECTURE.md §3). Read
 // endpoints are public; admin mutations (create/update product, and full
 // CRUD on categories/collections) are permission-gated (SECURITY.md §2) —
 // see admin-products.controller.ts / admin-categories.controller.ts /
-// admin-collections.controller.ts.
+// admin-collections.controller.ts. AdminTaxClassesController is a tiny
+// read-only reference catalog reusing AdminProductsService/products.view —
+// see its own top comment.
 @Module({
   imports: [AuditModule],
   controllers: [
@@ -27,6 +30,7 @@ import { AdminCollectionsService } from "./admin-collections.service.ts";
     AdminProductsController,
     AdminCategoriesController,
     AdminCollectionsController,
+    AdminTaxClassesController,
   ],
   providers: [
     ProductsService,
