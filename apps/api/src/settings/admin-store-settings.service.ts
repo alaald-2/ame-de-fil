@@ -36,8 +36,21 @@ export class AdminStoreSettingsService {
       create: { id: SINGLETON_ID },
     });
 
+    // Only the fields actually present in the request, not the whole row —
+    // `updatedAt` (and anything else untouched) would otherwise show up as
+    // a "changed" field in every entry purely because it always ticks
+    // forward, which is never useful audit information.
+    const changedKeys = Object.keys(input) as (keyof UpdateStoreSettingsInput)[];
+
     const updated = await this.prisma.$transaction(async (tx) => {
       const result = await tx.storeSettings.update({ where: { id: SINGLETON_ID }, data: input });
+
+      const beforeSnapshot: Record<string, string | boolean | null> = {};
+      const afterSnapshot: Record<string, string | boolean | null> = {};
+      for (const key of changedKeys) {
+        beforeSnapshot[key] = before[key];
+        afterSnapshot[key] = result[key];
+      }
 
       await this.audit.record(
         {
@@ -45,8 +58,8 @@ export class AdminStoreSettingsService {
           action: "store_settings.updated",
           entityType: "StoreSettings",
           entityId: SINGLETON_ID,
-          before: this.map(before),
-          after: this.map(result),
+          before: beforeSnapshot,
+          after: afterSnapshot,
           ipAddress,
         },
         tx,
