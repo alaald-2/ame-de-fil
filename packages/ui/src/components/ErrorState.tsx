@@ -18,10 +18,13 @@ interface ErrorStateProps {
 // differs per call site. Deliberately not `role="alert"` — this renders as
 // part of the page's own content on load, not an interruption of something
 // already in progress (Alert's own tone="danger" is the interrupting case).
+//
+// level={2}: same reasoning as EmptyState.tsx's own comment — every real
+// usage renders this directly under a page's <h1>, with no <h2> in between.
 export function ErrorState({ title, description, retryHref, retryLabel, className }: ErrorStateProps) {
   return (
     <div className={cn("flex flex-col items-center gap-2 py-20 text-center", className)}>
-      <Heading level={3}>{title}</Heading>
+      <Heading level={2}>{title}</Heading>
       {description ? <Text tone="muted" className="max-w-sm">{description}</Text> : null}
       {retryHref && retryLabel ? (
         <Link href={retryHref} className="mt-4">

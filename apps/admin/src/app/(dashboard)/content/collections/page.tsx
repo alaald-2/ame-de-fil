@@ -1,35 +1,33 @@
 import { getTranslations, getLocale } from "next-intl/server";
 import { Heading, Text, Pagination, EmptyState, ErrorState } from "@ame-de-fil/ui";
-import { requireSession } from "../../../lib/dal";
-import { getServerApiClient } from "../../../lib/server-api";
-import { ContentTabs } from "../../../components/content-tabs";
-import { AdminTaxonomyTable } from "../../../components/admin-taxonomy-table";
-import { CreateTaxonomyDialog } from "../../../components/create-taxonomy-dialog";
-import type { AdminLocale } from "../../../i18n/config";
+import { requireSession } from "../../../../lib/dal";
+import { getServerApiClient } from "../../../../lib/server-api";
+import { ContentTabs } from "../../../../components/content-tabs";
+import { AdminTaxonomyTable } from "../../../../components/admin-taxonomy-table";
+import { CreateTaxonomyDialog } from "../../../../components/create-taxonomy-dialog";
+import type { AdminLocale } from "../../../../i18n/config";
 
 const PAGE_SIZE = 20;
 
-interface CategoriesPageProps {
+interface CollectionsPageProps {
   searchParams: Promise<{ page?: string }>;
 }
 
-// Real GET /admin/categories data (categories.view-gated server-side) — the
-// default "Categories" tab of the two-tab Content section; Collections is
-// the sibling /content/collections route, sharing ContentTabs and every
-// list/create/detail component (Category and Collection are structurally
-// identical — see admin-taxonomy-table.tsx's own comment).
-export default async function CategoriesPage({ searchParams }: CategoriesPageProps) {
+// Mirrors ../page.tsx (Categories) exactly, driving GET /admin/collections
+// instead — see admin-taxonomy-table.tsx's own comment for why Category/
+// Collection share components rather than duplicating this page's logic.
+export default async function CollectionsPage({ searchParams }: CollectionsPageProps) {
   const session = await requireSession();
   const { page: pageParam } = await searchParams;
   const page = Math.max(1, Number(pageParam ?? "1") || 1);
 
-  const t = await getTranslations("Content.categories");
+  const t = await getTranslations("Content.collections");
   const tNav = await getTranslations("Navigation");
   const locale = (await getLocale()) as AdminLocale;
   const client = await getServerApiClient();
   const permissions = session.user.permissions;
 
-  const { data, error, response } = await client.GET("/api/v1/admin/categories", {
+  const { data, error, response } = await client.GET("/api/v1/admin/collections", {
     params: { query: { page, pageSize: PAGE_SIZE } },
   });
 
@@ -49,7 +47,7 @@ export default async function CategoriesPage({ searchParams }: CategoriesPagePro
     );
   }
 
-  const canManage = permissions.includes("categories.manage");
+  const canManage = permissions.includes("collections.manage");
   const totalPages = Math.max(1, Math.ceil(data.total / data.pageSize));
 
   return (
@@ -65,7 +63,7 @@ export default async function CategoriesPage({ searchParams }: CategoriesPagePro
 
       {canManage ? (
         <div className="mt-6 flex justify-end">
-          <CreateTaxonomyDialog kind="categories" />
+          <CreateTaxonomyDialog kind="collections" />
         </div>
       ) : null}
 
@@ -77,8 +75,8 @@ export default async function CategoriesPage({ searchParams }: CategoriesPagePro
             <AdminTaxonomyTable
               items={data.items}
               locale={locale}
-              detailBasePath="/content"
-              namespace="Content.categories"
+              detailBasePath="/content/collections"
+              namespace="Content.collections"
             />
           </div>
           {totalPages > 1 ? (
@@ -86,7 +84,7 @@ export default async function CategoriesPage({ searchParams }: CategoriesPagePro
               className="mt-8"
               page={data.page}
               totalPages={totalPages}
-              makeHref={(targetPage) => `/content?page=${targetPage}`}
+              makeHref={(targetPage) => `/content/collections?page=${targetPage}`}
               previousLabel={t("paginationPrevious")}
               nextLabel={t("paginationNext")}
               pageLabel={(current, total) => t("paginationPage", { page: current, totalPages: total })}

@@ -25,6 +25,15 @@ interface DialogContentProps extends ComponentPropsWithoutRef<typeof RadixDialog
 // preferable to inventing unapproved Tailwind animation utilities. Title is
 // mandatory (Radix's own accessibility requirement); pass `description`
 // when there's real supporting copy to read alongside it.
+//
+// max-h-[85vh] + overflow-y-auto: every dialog before create-taxonomy-dialog.tsx
+// was short enough to always fit a normal viewport, so this never mattered.
+// A dialog with two full per-locale translation fieldsets is taller than a
+// typical viewport — without a scroll boundary, its own submit button
+// rendered past the viewport edge with nothing to scroll (the dialog itself
+// is `fixed`-positioned, so page-level scroll can't reach it either),
+// making the form unusable. This bounds every dialog's content the same
+// way regardless of length, rather than special-casing the tall one.
 export function DialogContent({
   title,
   description,
@@ -38,7 +47,7 @@ export function DialogContent({
       <RadixDialog.Overlay className="fixed inset-0 bg-neutral-900/40" />
       <RadixDialog.Content
         className={cn(
-          "fixed top-1/2 left-1/2 w-[calc(100%-2rem)] max-w-md -translate-x-1/2 -translate-y-1/2 rounded-sm border border-neutral-200 bg-neutral-50 p-6 focus:outline-none",
+          "fixed top-1/2 left-1/2 max-h-[85vh] w-[calc(100%-2rem)] max-w-md -translate-x-1/2 -translate-y-1/2 overflow-y-auto rounded-sm border border-neutral-200 bg-neutral-50 p-6 focus:outline-none",
           className,
         )}
         {...props}

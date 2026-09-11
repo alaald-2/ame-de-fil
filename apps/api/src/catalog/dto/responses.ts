@@ -165,3 +165,42 @@ export const listAdminProductsResponseSchema = z.object({
   pageSize: z.number().int(),
   total: z.number().int(),
 });
+
+// Shared by AdminCategoriesController and AdminCollectionsController —
+// Category/Collection are structurally identical (mappers/admin-taxonomy.mapper.ts).
+// Admin shape is genuinely different from categoryResponseSchema/
+// collectionResponseSchema above for the same reason adminProductResponseSchema
+// differs from productResponseSchema: the public shape resolves to one locale,
+// editing needs every locale's content at once.
+const adminTaxonomyTranslationResponseSchema = z.object({
+  locale: z.enum(["sv-SE", "en"]),
+  name: z.string(),
+  slug: z.string(),
+  description: z.string().nullable(),
+  metaTitle: z.string().nullable(),
+  metaDescription: z.string().nullable(),
+});
+
+export const adminTaxonomyResponseSchema = z.object({
+  id: z.string(),
+  createdAt: z.iso.datetime(),
+  updatedAt: z.iso.datetime(),
+  productCount: z.number().int(),
+  translations: z.array(adminTaxonomyTranslationResponseSchema),
+});
+
+export const adminTaxonomyListItemResponseSchema = z.object({
+  id: z.string(),
+  name: z.string(),
+  productCount: z.number().int(),
+  updatedAt: z.iso.datetime(),
+});
+
+export const listAdminTaxonomyResponseSchema = z.object({
+  items: z.array(adminTaxonomyListItemResponseSchema),
+  page: z.number().int(),
+  pageSize: z.number().int(),
+  total: z.number().int(),
+});
+
+export const createTaxonomyResponseSchema = z.object({ id: z.string() });

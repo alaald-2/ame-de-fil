@@ -12,15 +12,17 @@ interface SidebarNavProps {
 // each admin controller) — kept explicit here rather than derived, since
 // nav visibility is only ever a UX convenience, not the real access
 // boundary (the backend rejects an unauthorized request regardless of
-// whether its nav link was ever shown). Content has no corresponding
-// *.view permission on the backend at all (still a ComingSoon shell with
-// no real data to gate), so it stays ungated.
+// whether its nav link was ever shown). Content requires either
+// categories.view or collections.view (an admin holding only one still
+// needs the section reachable, same shape as Administration's users.view/
+// audit.view pair).
 const REQUIRED_PERMISSIONS: Partial<Record<string, string[]>> = {
   "/": ["dashboard.view"],
   "/products": ["products.view"],
   "/orders": ["orders.view"],
   "/inventory": ["inventory.view"],
   "/customers": ["customers.view"],
+  "/content": ["categories.view", "collections.view"],
   "/administration": ["users.view", "audit.view"],
 };
 
