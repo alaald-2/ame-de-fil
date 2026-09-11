@@ -17,6 +17,8 @@ import { PrismaClient, UserStatus } from "../generated/prisma/client.ts";
 // permissions no code actually checks.
 const PERMISSION_KEYS = [
   "products.create",
+  "products.view",
+  "products.update",
   "inventory.view",
   "inventory.adjust",
   "checkout.manage",

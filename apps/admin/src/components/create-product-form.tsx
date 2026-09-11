@@ -1,0 +1,650 @@
+"use client";
+
+import { useState, type FormEvent } from "react";
+import { useRouter } from "next/navigation";
+import { useTranslations } from "next-intl";
+import { Heading, Text, Button, Alert, FormField, Input, Textarea, Card, Spinner } from "@ame-de-fil/ui";
+import { api } from "../lib/api-client";
+import { readCsrfCookie } from "../lib/csrf";
+
+export interface TaxonomyOption {
+  id: string;
+  name: string;
+}
+
+interface CreateProductFormProps {
+  categories: TaxonomyOption[];
+  collections: TaxonomyOption[];
+}
+
+interface TranslationDraft {
+  name: string;
+  slug: string;
+  description: string;
+  story: string;
+  careInstructions: string;
+  materials: string;
+  metaTitle: string;
+  metaDescription: string;
+}
+
+const EMPTY_TRANSLATION: TranslationDraft = {
+  name: "",
+  slug: "",
+  description: "",
+  story: "",
+  careInstructions: "",
+  materials: "",
+  metaTitle: "",
+  metaDescription: "",
+};
+
+interface OptionValueDraft {
+  clientId: string;
+  value: string;
+  labelSv: string;
+  labelEn: string;
+}
+
+interface OptionDraft {
+  clientId: string;
+  key: string;
+  values: OptionValueDraft[];
+}
+
+interface VariantDraft {
+  clientId: string;
+  sku: string;
+  priceMinor: string;
+  taxClassCode: string;
+  weightGrams: string;
+  selectedOptionValues: Record<string, string>;
+  initialStock: string;
+  tracksStock: boolean;
+  isLimitedEdition: boolean;
+  productionTimeDays: string;
+}
+
+let clientIdCounter = 0;
+function nextClientId(): string {
+  clientIdCounter += 1;
+  return `c${clientIdCounter}`;
+}
+
+function emptyVariant(): VariantDraft {
+  return {
+    clientId: nextClientId(),
+    sku: "",
+    priceMinor: "",
+    taxClassCode: "STANDARD",
+    weightGrams: "",
+    selectedOptionValues: {},
+    initialStock: "0",
+    tracksStock: true,
+    isLimitedEdition: false,
+    productionTimeDays: "",
+  };
+}
+
+type CreateErrorKind =
+  | "duplicateSku"
+  | "invalidOptionSelection"
+  | "unknownTaxClass"
+  | "unknownCategory"
+  | "unknownCollection"
+  | "generic"
+  | null;
+
+// One-shot creation matching POST /admin/products' own DTO exactly
+// (translations + options + variants + category/collection ids all in one
+// request, same as create-product.dto.ts) — there's no draft-save/step
+// wizard, since the backend has no partial-create endpoint to save into.
+export function CreateProductForm({ categories, collections }: CreateProductFormProps) {
+  const t = useTranslations("Products.create");
+  const router = useRouter();
+
+  const [translations, setTranslations] = useState<Record<"sv-SE" | "en", TranslationDraft>>({
+    "sv-SE": { ...EMPTY_TRANSLATION },
+    en: { ...EMPTY_TRANSLATION },
+  });
+  const [options, setOptions] = useState<OptionDraft[]>([]);
+  const [variants, setVariants] = useState<VariantDraft[]>([emptyVariant()]);
+  const [categoryIds, setCategoryIds] = useState<string[]>([]);
+  const [collectionIds, setCollectionIds] = useState<string[]>([]);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [errorKind, setErrorKind] = useState<CreateErrorKind>(null);
+
+  function updateTranslation(locale: "sv-SE" | "en", field: keyof TranslationDraft, value: string) {
+    setTranslations((current) => ({ ...current, [locale]: { ...current[locale], [field]: value } }));
+  }
+
+  function addOption() {
+    setOptions((current) => [...current, { clientId: nextClientId(), key: "", values: [] }]);
+  }
+
+  function removeOption(clientId: string) {
+    setOptions((current) => current.filter((o) => o.clientId !== clientId));
+    // Any variant selection referencing this option's key is now stale —
+    // dropped below at submit time via the current options list, not here,
+    // so the visible key/value labels stay intact until the admin re-saves.
+  }
+
+  function updateOptionKey(clientId: string, key: string) {
+    setOptions((current) => current.map((o) => (o.clientId === clientId ? { ...o, key } : o)));
+  }
+
+  function addOptionValue(optionClientId: string) {
+    setOptions((current) =>
+      current.map((o) =>
+        o.clientId === optionClientId
+          ? { ...o, values: [...o.values, { clientId: nextClientId(), value: "", labelSv: "", labelEn: "" }] }
+          : o,
+      ),
+    );
+  }
+
+  function removeOptionValue(optionClientId: string, valueClientId: string) {
+    setOptions((current) =>
+      current.map((o) =>
+        o.clientId === optionClientId
+          ? { ...o, values: o.values.filter((v) => v.clientId !== valueClientId) }
+          : o,
+      ),
+    );
+  }
+
+  function updateOptionValue(
+    optionClientId: string,
+    valueClientId: string,
+    field: keyof Omit<OptionValueDraft, "clientId">,
+    fieldValue: string,
+  ) {
+    setOptions((current) =>
+      current.map((o) =>
+        o.clientId === optionClientId
+          ? {
+              ...o,
+              values: o.values.map((v) =>
+                v.clientId === valueClientId ? { ...v, [field]: fieldValue } : v,
+              ),
+            }
+          : o,
+      ),
+    );
+  }
+
+  function addVariant() {
+    setVariants((current) => [...current, emptyVariant()]);
+  }
+
+  function removeVariant(clientId: string) {
+    setVariants((current) => current.filter((v) => v.clientId !== clientId));
+  }
+
+  function updateVariant<K extends keyof VariantDraft>(clientId: string, field: K, value: VariantDraft[K]) {
+    setVariants((current) => current.map((v) => (v.clientId === clientId ? { ...v, [field]: value } : v)));
+  }
+
+  function updateVariantOptionSelection(variantClientId: string, optionKey: string, valueSlug: string) {
+    setVariants((current) =>
+      current.map((v) =>
+        v.clientId === variantClientId
+          ? { ...v, selectedOptionValues: { ...v.selectedOptionValues, [optionKey]: valueSlug } }
+          : v,
+      ),
+    );
+  }
+
+  function toggleId(list: string[], id: string): string[] {
+    return list.includes(id) ? list.filter((x) => x !== id) : [...list, id];
+  }
+
+  async function handleSubmit(event: FormEvent) {
+    event.preventDefault();
+    setErrorKind(null);
+    setIsSubmitting(true);
+
+    const body = {
+      translations: (Object.entries(translations) as [("sv-SE" | "en"), TranslationDraft][])
+        .filter(([, draft]) => draft.name.trim() && draft.slug.trim())
+        .map(([locale, draft]) => ({
+          locale,
+          name: draft.name,
+          slug: draft.slug,
+          description: draft.description || undefined,
+          story: draft.story || undefined,
+          careInstructions: draft.careInstructions || undefined,
+          materials: draft.materials || undefined,
+          metaTitle: draft.metaTitle || undefined,
+          metaDescription: draft.metaDescription || undefined,
+        })),
+      options: options
+        .filter((o) => o.key.trim())
+        .map((o) => ({
+          key: o.key,
+          values: o.values
+            .filter((v) => v.value.trim())
+            .map((v) => ({ value: v.value, labelSv: v.labelSv, labelEn: v.labelEn })),
+        })),
+      variants: variants.map((v) => ({
+        sku: v.sku,
+        priceMinor: Math.round(Number.parseFloat(v.priceMinor || "0") * 100),
+        taxClassCode: v.taxClassCode,
+        weightGrams: v.weightGrams ? Number.parseInt(v.weightGrams, 10) : undefined,
+        selectedOptionValues: v.selectedOptionValues,
+        initialStock: Number.parseInt(v.initialStock || "0", 10),
+        tracksStock: v.tracksStock,
+        isLimitedEdition: v.isLimitedEdition,
+        productionTimeDays: v.productionTimeDays ? Number.parseInt(v.productionTimeDays, 10) : undefined,
+      })),
+      categoryIds,
+      collectionIds,
+    };
+
+    const { data, error, response } = await api.POST("/api/v1/admin/products", {
+      headers: { "x-csrf-token": readCsrfCookie() },
+      body,
+    });
+
+    setIsSubmitting(false);
+
+    if (error) {
+      if (response.status === 400) {
+        const code = (error as { error?: string }).error;
+        if (code === "DuplicateSku") setErrorKind("duplicateSku");
+        else if (code === "InvalidOptionSelection") setErrorKind("invalidOptionSelection");
+        else if (code === "UnknownTaxClass") setErrorKind("unknownTaxClass");
+        else if (code === "UnknownCategory") setErrorKind("unknownCategory");
+        else if (code === "UnknownCollection") setErrorKind("unknownCollection");
+        else setErrorKind("generic");
+      } else {
+        setErrorKind("generic");
+      }
+      return;
+    }
+
+    router.push(`/products/${data.id}`);
+    router.refresh();
+  }
+
+  return (
+    <form onSubmit={handleSubmit} className="mt-8 flex flex-col gap-10">
+      {errorKind ? (
+        <Alert tone="danger">
+          {errorKind === "duplicateSku"
+            ? t("duplicateSkuError")
+            : errorKind === "invalidOptionSelection"
+              ? t("invalidOptionSelectionError")
+              : errorKind === "unknownTaxClass"
+                ? t("unknownTaxClassError")
+                : errorKind === "unknownCategory"
+                  ? t("unknownCategoryError")
+                  : errorKind === "unknownCollection"
+                    ? t("unknownCollectionError")
+                    : t("genericError")}
+        </Alert>
+      ) : null}
+
+      {(["sv-SE", "en"] as const).map((locale) => (
+        <section key={locale}>
+          <Heading level={2} className="mb-4">
+            {locale === "sv-SE" ? t("translationsSwedish") : t("translationsEnglish")}
+          </Heading>
+          <div className="grid gap-4 sm:grid-cols-2">
+            <FormField label={t("nameLabel")} required={locale === "sv-SE"}>
+              {(fieldProps) => (
+                <Input
+                  {...fieldProps}
+                  value={translations[locale].name}
+                  onChange={(e) => updateTranslation(locale, "name", e.target.value)}
+                />
+              )}
+            </FormField>
+            <FormField label={t("slugLabel")} required={locale === "sv-SE"}>
+              {(fieldProps) => (
+                <Input
+                  {...fieldProps}
+                  value={translations[locale].slug}
+                  onChange={(e) => updateTranslation(locale, "slug", e.target.value)}
+                />
+              )}
+            </FormField>
+          </div>
+          <div className="mt-4">
+            <FormField label={t("descriptionLabel")}>
+              {(fieldProps) => (
+                <Textarea
+                  {...fieldProps}
+                  value={translations[locale].description}
+                  onChange={(e) => updateTranslation(locale, "description", e.target.value)}
+                />
+              )}
+            </FormField>
+          </div>
+          <div className="mt-4">
+            <FormField label={t("storyLabel")}>
+              {(fieldProps) => (
+                <Textarea
+                  {...fieldProps}
+                  value={translations[locale].story}
+                  onChange={(e) => updateTranslation(locale, "story", e.target.value)}
+                />
+              )}
+            </FormField>
+          </div>
+          <div className="mt-4 grid gap-4 sm:grid-cols-2">
+            <FormField label={t("careInstructionsLabel")}>
+              {(fieldProps) => (
+                <Textarea
+                  {...fieldProps}
+                  value={translations[locale].careInstructions}
+                  onChange={(e) => updateTranslation(locale, "careInstructions", e.target.value)}
+                />
+              )}
+            </FormField>
+            <FormField label={t("materialsLabel")}>
+              {(fieldProps) => (
+                <Input
+                  {...fieldProps}
+                  value={translations[locale].materials}
+                  onChange={(e) => updateTranslation(locale, "materials", e.target.value)}
+                />
+              )}
+            </FormField>
+          </div>
+          <div className="mt-4 grid gap-4 sm:grid-cols-2">
+            <FormField label={t("metaTitleLabel")}>
+              {(fieldProps) => (
+                <Input
+                  {...fieldProps}
+                  value={translations[locale].metaTitle}
+                  onChange={(e) => updateTranslation(locale, "metaTitle", e.target.value)}
+                />
+              )}
+            </FormField>
+            <FormField label={t("metaDescriptionLabel")}>
+              {(fieldProps) => (
+                <Textarea
+                  {...fieldProps}
+                  value={translations[locale].metaDescription}
+                  onChange={(e) => updateTranslation(locale, "metaDescription", e.target.value)}
+                />
+              )}
+            </FormField>
+          </div>
+        </section>
+      ))}
+
+      <section>
+        <div className="flex items-center justify-between">
+          <Heading level={2}>{t("optionsHeading")}</Heading>
+          <Button type="button" variant="secondary" onClick={addOption}>
+            {t("addOption")}
+          </Button>
+        </div>
+        <Text size="sm" className="mt-1 text-neutral-600">
+          {t("optionsHint")}
+        </Text>
+        <div className="mt-4 flex flex-col gap-4">
+          {options.map((option) => (
+            <Card key={option.clientId}>
+              <div className="flex items-end justify-between gap-4">
+                <div className="flex-1">
+                  <FormField label={t("optionKeyLabel")}>
+                    {(fieldProps) => (
+                      <Input
+                        {...fieldProps}
+                        value={option.key}
+                        onChange={(e) => updateOptionKey(option.clientId, e.target.value)}
+                        placeholder={t("optionKeyPlaceholder")}
+                      />
+                    )}
+                  </FormField>
+                </div>
+                <Button type="button" variant="ghost" onClick={() => removeOption(option.clientId)}>
+                  {t("removeOption")}
+                </Button>
+              </div>
+
+              <div className="mt-4 flex flex-col gap-3">
+                {option.values.map((value) => (
+                  <div key={value.clientId} className="grid grid-cols-1 gap-2 sm:grid-cols-[1fr_1fr_1fr_auto]">
+                    <Input
+                      value={value.value}
+                      onChange={(e) => updateOptionValue(option.clientId, value.clientId, "value", e.target.value)}
+                      placeholder={t("valueSlugPlaceholder")}
+                      aria-label={t("valueSlugPlaceholder")}
+                    />
+                    <Input
+                      value={value.labelSv}
+                      onChange={(e) => updateOptionValue(option.clientId, value.clientId, "labelSv", e.target.value)}
+                      placeholder={t("valueLabelSvPlaceholder")}
+                      aria-label={t("valueLabelSvPlaceholder")}
+                    />
+                    <Input
+                      value={value.labelEn}
+                      onChange={(e) => updateOptionValue(option.clientId, value.clientId, "labelEn", e.target.value)}
+                      placeholder={t("valueLabelEnPlaceholder")}
+                      aria-label={t("valueLabelEnPlaceholder")}
+                    />
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      onClick={() => removeOptionValue(option.clientId, value.clientId)}
+                    >
+                      {t("removeValue")}
+                    </Button>
+                  </div>
+                ))}
+                <div>
+                  <Button type="button" variant="secondary" onClick={() => addOptionValue(option.clientId)}>
+                    {t("addValue")}
+                  </Button>
+                </div>
+              </div>
+            </Card>
+          ))}
+        </div>
+      </section>
+
+      <section>
+        <div className="flex items-center justify-between">
+          <Heading level={2}>{t("variantsHeading")}</Heading>
+          <Button type="button" variant="secondary" onClick={addVariant}>
+            {t("addVariant")}
+          </Button>
+        </div>
+        <div className="mt-4 flex flex-col gap-4">
+          {variants.map((variant, index) => (
+            <Card key={variant.clientId}>
+              <div className="flex items-center justify-between">
+                <Text className="font-medium text-neutral-900">{t("variantN", { n: index + 1 })}</Text>
+                {variants.length > 1 ? (
+                  <Button type="button" variant="ghost" onClick={() => removeVariant(variant.clientId)}>
+                    {t("removeVariant")}
+                  </Button>
+                ) : null}
+              </div>
+
+              <div className="mt-4 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+                <FormField label={t("skuLabel")} required>
+                  {(fieldProps) => (
+                    <Input
+                      {...fieldProps}
+                      required
+                      value={variant.sku}
+                      onChange={(e) => updateVariant(variant.clientId, "sku", e.target.value)}
+                    />
+                  )}
+                </FormField>
+                <FormField label={t("priceLabel")} required>
+                  {(fieldProps) => (
+                    <Input
+                      {...fieldProps}
+                      type="number"
+                      min="0"
+                      step="0.01"
+                      required
+                      value={variant.priceMinor}
+                      onChange={(e) => updateVariant(variant.clientId, "priceMinor", e.target.value)}
+                    />
+                  )}
+                </FormField>
+                <FormField label={t("taxClassCodeLabel")} required>
+                  {(fieldProps) => (
+                    <Input
+                      {...fieldProps}
+                      required
+                      value={variant.taxClassCode}
+                      onChange={(e) => updateVariant(variant.clientId, "taxClassCode", e.target.value)}
+                    />
+                  )}
+                </FormField>
+                <FormField label={t("weightGramsLabel")}>
+                  {(fieldProps) => (
+                    <Input
+                      {...fieldProps}
+                      type="number"
+                      min="1"
+                      value={variant.weightGrams}
+                      onChange={(e) => updateVariant(variant.clientId, "weightGrams", e.target.value)}
+                    />
+                  )}
+                </FormField>
+                <FormField label={t("initialStockLabel")}>
+                  {(fieldProps) => (
+                    <Input
+                      {...fieldProps}
+                      type="number"
+                      min="0"
+                      value={variant.initialStock}
+                      onChange={(e) => updateVariant(variant.clientId, "initialStock", e.target.value)}
+                      disabled={!variant.tracksStock}
+                    />
+                  )}
+                </FormField>
+                <FormField label={t("productionTimeDaysLabel")}>
+                  {(fieldProps) => (
+                    <Input
+                      {...fieldProps}
+                      type="number"
+                      min="1"
+                      value={variant.productionTimeDays}
+                      onChange={(e) => updateVariant(variant.clientId, "productionTimeDays", e.target.value)}
+                    />
+                  )}
+                </FormField>
+              </div>
+
+              {options.length > 0 ? (
+                <div className="mt-4 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+                  {options
+                    .filter((o) => o.key.trim() && o.values.length > 0)
+                    .map((option) => (
+                      <div key={option.clientId} className="flex flex-col gap-1.5">
+                        <Text size="sm" className="font-medium text-neutral-800">
+                          {option.key}
+                        </Text>
+                        <select
+                          value={variant.selectedOptionValues[option.key] ?? ""}
+                          onChange={(e) =>
+                            updateVariantOptionSelection(variant.clientId, option.key, e.target.value)
+                          }
+                          className="rounded-sm border border-neutral-300 bg-neutral-50 px-3 py-2 font-sans text-sm text-neutral-900 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent-500"
+                        >
+                          <option value="">{t("selectValue")}</option>
+                          {option.values.map((value) => (
+                            <option key={value.clientId} value={value.value}>
+                              {value.labelSv || value.value}
+                            </option>
+                          ))}
+                        </select>
+                      </div>
+                    ))}
+                </div>
+              ) : null}
+
+              <div className="mt-4 flex flex-wrap gap-6">
+                <label className="flex items-center gap-2 text-sm text-neutral-800">
+                  <input
+                    type="checkbox"
+                    className="h-4 w-4 rounded-sm border-neutral-300 text-accent-600 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent-500"
+                    checked={variant.tracksStock}
+                    onChange={(e) => updateVariant(variant.clientId, "tracksStock", e.target.checked)}
+                  />
+                  {t("tracksStockLabel")}
+                </label>
+                <label className="flex items-center gap-2 text-sm text-neutral-800">
+                  <input
+                    type="checkbox"
+                    className="h-4 w-4 rounded-sm border-neutral-300 text-accent-600 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent-500"
+                    checked={variant.isLimitedEdition}
+                    onChange={(e) => updateVariant(variant.clientId, "isLimitedEdition", e.target.checked)}
+                  />
+                  {t("isLimitedEditionLabel")}
+                </label>
+              </div>
+            </Card>
+          ))}
+        </div>
+      </section>
+
+      {categories.length > 0 || collections.length > 0 ? (
+        <section className="grid gap-8 sm:grid-cols-2">
+          {categories.length > 0 ? (
+            <fieldset>
+              <legend className="font-sans text-sm font-medium text-neutral-800">
+                {t("categoriesLabel")}
+              </legend>
+              <div className="mt-2 flex flex-col gap-2">
+                {categories.map((category) => (
+                  <label key={category.id} className="flex items-center gap-2 text-sm text-neutral-800">
+                    <input
+                      type="checkbox"
+                      className="h-4 w-4 rounded-sm border-neutral-300 text-accent-600 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent-500"
+                      checked={categoryIds.includes(category.id)}
+                      onChange={() => setCategoryIds((current) => toggleId(current, category.id))}
+                    />
+                    {category.name}
+                  </label>
+                ))}
+              </div>
+            </fieldset>
+          ) : null}
+          {collections.length > 0 ? (
+            <fieldset>
+              <legend className="font-sans text-sm font-medium text-neutral-800">
+                {t("collectionsLabel")}
+              </legend>
+              <div className="mt-2 flex flex-col gap-2">
+                {collections.map((collection) => (
+                  <label key={collection.id} className="flex items-center gap-2 text-sm text-neutral-800">
+                    <input
+                      type="checkbox"
+                      className="h-4 w-4 rounded-sm border-neutral-300 text-accent-600 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent-500"
+                      checked={collectionIds.includes(collection.id)}
+                      onChange={() => setCollectionIds((current) => toggleId(current, collection.id))}
+                    />
+                    {collection.name}
+                  </label>
+                ))}
+              </div>
+            </fieldset>
+          ) : null}
+        </section>
+      ) : null}
+
+      <div className="flex justify-end">
+        <Button type="submit" disabled={isSubmitting}>
+          {isSubmitting ? (
+            <>
+              <Spinner className="h-4 w-4" /> {t("submit")}
+            </>
+          ) : (
+            t("submit")
+          )}
+        </Button>
+      </div>
+    </form>
+  );
+}

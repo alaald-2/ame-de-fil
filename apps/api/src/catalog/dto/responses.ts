@@ -84,3 +84,84 @@ export const collectionResponseSchema = categoryResponseSchema;
 export const collectionWithProductsResponseSchema = categoryWithProductsResponseSchema;
 
 export const createProductResponseSchema = z.object({ id: z.string() });
+
+// Admin shapes are genuinely different from the public ones above, not an
+// extension of them — the public shape resolves every translation/label to
+// one locale for storefront display (mappers/product.mapper.ts), while
+// editing needs every locale's content at once (mappers/admin-product.mapper.ts).
+const adminProductTranslationResponseSchema = z.object({
+  locale: z.enum(["sv-SE", "en"]),
+  name: z.string(),
+  slug: z.string(),
+  description: z.string().nullable(),
+  story: z.string().nullable(),
+  careInstructions: z.string().nullable(),
+  materials: z.string().nullable(),
+  metaTitle: z.string().nullable(),
+  metaDescription: z.string().nullable(),
+});
+
+const adminProductOptionValueResponseSchema = z.object({
+  id: z.string(),
+  value: z.string(),
+  labelSv: z.string(),
+  labelEn: z.string(),
+  position: z.number().int(),
+});
+
+const adminProductOptionResponseSchema = z.object({
+  id: z.string(),
+  key: z.string(),
+  position: z.number().int(),
+  values: z.array(adminProductOptionValueResponseSchema),
+});
+
+const adminProductVariantInventoryResponseSchema = z.object({
+  onHand: z.number().int(),
+  reserved: z.number().int(),
+  tracksStock: z.boolean(),
+  isLimitedEdition: z.boolean(),
+  productionTimeDays: z.number().int().nullable(),
+  available: z.boolean(),
+});
+
+const adminProductVariantResponseSchema = z.object({
+  id: z.string(),
+  sku: z.string(),
+  priceMinor: z.number().int(),
+  taxClassCode: z.string(),
+  weightGrams: z.number().int().nullable(),
+  isActive: z.boolean(),
+  selectedOptionValues: z.record(z.string(), z.string()),
+  inventory: adminProductVariantInventoryResponseSchema.nullable(),
+});
+
+export const adminProductResponseSchema = z.object({
+  id: z.string(),
+  status: z.string(),
+  publishedAt: z.iso.datetime().nullable(),
+  createdAt: z.iso.datetime(),
+  updatedAt: z.iso.datetime(),
+  translations: z.array(adminProductTranslationResponseSchema),
+  options: z.array(adminProductOptionResponseSchema),
+  categoryIds: z.array(z.string()),
+  collectionIds: z.array(z.string()),
+  variants: z.array(adminProductVariantResponseSchema),
+});
+
+export const adminProductListItemResponseSchema = z.object({
+  id: z.string(),
+  status: z.string(),
+  name: z.string(),
+  variantCount: z.number().int(),
+  minPriceMinor: z.number().int().nullable(),
+  maxPriceMinor: z.number().int().nullable(),
+  updatedAt: z.iso.datetime(),
+});
+
+export const listAdminProductsResponseSchema = z.object({
+  items: z.array(adminProductListItemResponseSchema),
+  page: z.number().int(),
+  pageSize: z.number().int(),
+  total: z.number().int(),
+});

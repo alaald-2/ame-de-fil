@@ -1,9 +1,34 @@
-import { BadRequestException, Injectable } from "@nestjs/common";
-import { Currency } from "@ame-de-fil/database";
+import { BadRequestException, ConflictException, Injectable, NotFoundException } from "@nestjs/common";
+import { Currency, Prisma } from "@ame-de-fil/database";
+import type { Locale as AppLocale } from "@ame-de-fil/validation";
 import { PrismaService } from "../database/prisma.service.ts";
 import { toPrismaLocale } from "../common/locale.ts";
 import { AuditService } from "../audit/audit.service.ts";
+import { isUniqueConstraintViolation } from "../checkout/prisma-errors.ts";
+import {
+  ADMIN_PRODUCT_INCLUDE,
+  mapAdminProduct,
+  mapAdminProductListItem,
+  type AdminProductResponse,
+  type AdminProductListItemResponse,
+} from "./mappers/admin-product.mapper.ts";
 import type { CreateProductInput } from "./dto/create-product.dto.ts";
+import type { UpdateProductInput } from "./dto/update-product.dto.ts";
+
+const DEFAULT_LOCALE: AppLocale = "sv-SE";
+
+const PRODUCT_NOT_FOUND = () =>
+  new NotFoundException({ error: "ProductNotFound", message: "Product not found" });
+
+// DRAFT -> PUBLISHED -> ARCHIVED only, no going backward — a Zod enum can't
+// express this (it's a state-machine rule, not a shape rule), so it's
+// enforced here the same way admin-orders.service.ts's fulfillment
+// transitions are.
+const LEGAL_STATUS_TRANSITIONS: Record<string, string[]> = {
+  DRAFT: ["PUBLISHED"],
+  PUBLISHED: ["ARCHIVED"],
+  ARCHIVED: [],
+};
 
 @Injectable()
 export class AdminProductsService {
@@ -11,6 +36,207 @@ export class AdminProductsService {
     private readonly prisma: PrismaService,
     private readonly audit: AuditService,
   ) {}
+
+  async list(
+    page: number,
+    pageSize: number,
+  ): Promise<{
+    items: AdminProductListItemResponse[];
+    page: number;
+    pageSize: number;
+    total: number;
+  }> {
+    const [rows, total] = await Promise.all([
+      this.prisma.product.findMany({
+        include: ADMIN_PRODUCT_INCLUDE,
+        skip: (page - 1) * pageSize,
+        take: pageSize,
+        orderBy: { updatedAt: "desc" },
+      }),
+      this.prisma.product.count(),
+    ]);
+
+    return {
+      items: rows.map((row) => mapAdminProductListItem(row, DEFAULT_LOCALE)),
+      page,
+      pageSize,
+      total,
+    };
+  }
+
+  async getOne(id: string): Promise<AdminProductResponse> {
+    const product = await this.prisma.product.findUnique({
+      where: { id },
+      include: ADMIN_PRODUCT_INCLUDE,
+    });
+    if (!product) throw PRODUCT_NOT_FOUND();
+    return mapAdminProduct(product);
+  }
+
+  async update(
+    id: string,
+    input: UpdateProductInput,
+    actorUserId: string,
+    ipAddress?: string,
+  ): Promise<AdminProductResponse> {
+    const existing = await this.prisma.product.findUnique({
+      where: { id },
+      select: { id: true, status: true, variants: { select: { id: true } } },
+    });
+    if (!existing) throw PRODUCT_NOT_FOUND();
+
+    if (input.status && input.status !== existing.status) {
+      const legalNextStates = LEGAL_STATUS_TRANSITIONS[existing.status] ?? [];
+      if (!legalNextStates.includes(input.status)) {
+        throw new ConflictException({
+          error: "IllegalStatusTransition",
+          message: `Cannot transition from "${existing.status}" to "${input.status}"`,
+        });
+      }
+    }
+
+    if (input.categoryIds) await this.assertCategoriesExist(input.categoryIds);
+    if (input.collectionIds) await this.assertCollectionsExist(input.collectionIds);
+
+    let taxClassByCode: Map<string, { id: string; code: string }> | undefined;
+    if (input.variants) {
+      const existingVariantIds = new Set(existing.variants.map((v) => v.id));
+      for (const variant of input.variants) {
+        if (!existingVariantIds.has(variant.id)) {
+          throw new BadRequestException({
+            error: "UnknownVariant",
+            message: `Variant "${variant.id}" does not belong to this product`,
+          });
+        }
+      }
+
+      const codes = [
+        ...new Set(
+          input.variants.map((v) => v.taxClassCode).filter((c): c is string => c !== undefined),
+        ),
+      ];
+      if (codes.length > 0) {
+        const taxClasses = await this.prisma.taxClass.findMany({ where: { code: { in: codes } } });
+        taxClassByCode = new Map(taxClasses.map((t) => [t.code, t]));
+        for (const code of codes) {
+          if (!taxClassByCode.has(code)) {
+            throw new BadRequestException({
+              error: "UnknownTaxClass",
+              message: `No tax class with code "${code}"`,
+            });
+          }
+        }
+      }
+    }
+
+    try {
+      await this.prisma.$transaction(async (tx) => {
+        if (input.translations) {
+          for (const t of input.translations) {
+            const locale = toPrismaLocale(t.locale);
+            const content = {
+              name: t.name,
+              slug: t.slug,
+              description: t.description,
+              story: t.story,
+              careInstructions: t.careInstructions,
+              materials: t.materials,
+              metaTitle: t.metaTitle,
+              metaDescription: t.metaDescription,
+            };
+            await tx.productTranslation.upsert({
+              where: { productId_locale: { productId: id, locale } },
+              create: { productId: id, locale, ...content },
+              update: content,
+            });
+          }
+        }
+
+        if (input.categoryIds) {
+          await tx.productCategory.deleteMany({ where: { productId: id } });
+          if (input.categoryIds.length > 0) {
+            await tx.productCategory.createMany({
+              data: input.categoryIds.map((categoryId) => ({ productId: id, categoryId })),
+            });
+          }
+        }
+
+        if (input.collectionIds) {
+          await tx.productCollection.deleteMany({ where: { productId: id } });
+          if (input.collectionIds.length > 0) {
+            await tx.productCollection.createMany({
+              data: input.collectionIds.map((collectionId) => ({ productId: id, collectionId })),
+            });
+          }
+        }
+
+        if (input.variants) {
+          for (const variant of input.variants) {
+            const variantData: Prisma.ProductVariantUpdateInput = {};
+            if (variant.priceMinor !== undefined) variantData.priceMinor = variant.priceMinor;
+            if (variant.weightGrams !== undefined) variantData.weightGrams = variant.weightGrams;
+            if (variant.isActive !== undefined) variantData.isActive = variant.isActive;
+            if (variant.taxClassCode !== undefined) {
+              const taxClass = taxClassByCode?.get(variant.taxClassCode);
+              if (taxClass) variantData.taxClass = { connect: { id: taxClass.id } };
+            }
+            if (Object.keys(variantData).length > 0) {
+              await tx.productVariant.update({ where: { id: variant.id }, data: variantData });
+            }
+
+            if (variant.isLimitedEdition !== undefined || variant.productionTimeDays !== undefined) {
+              const inventoryData: Prisma.InventoryItemUpdateInput = {};
+              if (variant.isLimitedEdition !== undefined) {
+                inventoryData.isLimitedEdition = variant.isLimitedEdition;
+              }
+              if (variant.productionTimeDays !== undefined) {
+                inventoryData.productionTimeDays = variant.productionTimeDays;
+              }
+              await tx.inventoryItem.update({
+                where: { productVariantId: variant.id },
+                data: inventoryData,
+              });
+            }
+          }
+        }
+
+        if (input.status && input.status !== existing.status) {
+          await tx.product.update({
+            where: { id },
+            data: {
+              status: input.status,
+              ...(input.status === "PUBLISHED" && existing.status === "DRAFT"
+                ? { publishedAt: new Date() }
+                : {}),
+            },
+          });
+        }
+
+        await this.audit.record(
+          {
+            actorUserId,
+            action: "product.updated",
+            entityType: "Product",
+            entityId: id,
+            before: { status: existing.status },
+            after: { status: input.status ?? existing.status, updatedFields: Object.keys(input) },
+            ipAddress,
+          },
+          tx,
+        );
+      });
+    } catch (error) {
+      if (isUniqueConstraintViolation(error, "ProductTranslation", "slug")) {
+        throw new ConflictException({
+          error: "DuplicateSlug",
+          message: "A product with this slug already exists in that locale",
+        });
+      }
+      throw error;
+    }
+
+    return this.getOne(id);
+  }
 
   async createProduct(
     input: CreateProductInput,

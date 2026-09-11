@@ -38,11 +38,14 @@ const VALID_BODY = {
 // routing only, this guard chain is what actually enforces it.
 async function bootApp(validateSession: (token: string) => Promise<AuthContext | null>) {
   const createProduct = vi.fn().mockResolvedValue({ id: "prod-1" });
+  const list = vi.fn().mockResolvedValue({ items: [], page: 1, pageSize: 20, total: 0 });
+  const getOne = vi.fn().mockResolvedValue({ id: "prod-1", status: "DRAFT" });
+  const update = vi.fn().mockResolvedValue({ id: "prod-1", status: "PUBLISHED" });
 
   const moduleRef = await Test.createTestingModule({
     controllers: [AdminProductsController],
     providers: [
-      { provide: AdminProductsService, useValue: { createProduct } },
+      { provide: AdminProductsService, useValue: { createProduct, list, getOne, update } },
       { provide: SessionService, useValue: { validateSession } },
       {
         provide: ConfigService,
@@ -59,7 +62,7 @@ async function bootApp(validateSession: (token: string) => Promise<AuthContext |
   app.use(cookieParser());
   app.useGlobalFilters(new AllExceptionsFilter());
   await app.init();
-  return { app, createProduct };
+  return { app, createProduct, list, getOne, update };
 }
 
 describe("POST /admin/products — authorization", () => {
@@ -146,5 +149,154 @@ describe("POST /admin/products — authorization", () => {
 
     expect(response.status).toBe(400);
     expect(booted.createProduct).not.toHaveBeenCalled();
+  });
+});
+
+describe("GET /admin/products — authorization", () => {
+  let app: INestApplication | undefined;
+
+  afterEach(async () => {
+    await app?.close();
+    app = undefined;
+  });
+
+  it("returns 403 for a valid session lacking products.view", async () => {
+    const booted = await bootApp(async () => ({
+      userId: "user-1",
+      sessionId: "sess-1",
+      csrfToken: "csrf",
+      permissions: ["orders.view"],
+    }));
+    app = booted.app;
+
+    const response = await supertest(app.getHttpServer())
+      .get("/admin/products")
+      .set("Cookie", "ame_session=some-token");
+
+    expect(response.status).toBe(403);
+    expect(booted.list).not.toHaveBeenCalled();
+  });
+
+  it("returns 200 and calls the service for a valid session with products.view", async () => {
+    const booted = await bootApp(async () => ({
+      userId: "user-1",
+      sessionId: "sess-1",
+      csrfToken: "csrf",
+      permissions: ["products.view"],
+    }));
+    app = booted.app;
+
+    const response = await supertest(app.getHttpServer())
+      .get("/admin/products")
+      .set("Cookie", "ame_session=some-token");
+
+    expect(response.status).toBe(200);
+    expect(booted.list).toHaveBeenCalledWith(1, 20);
+  });
+});
+
+describe("GET /admin/products/:id — authorization", () => {
+  let app: INestApplication | undefined;
+
+  afterEach(async () => {
+    await app?.close();
+    app = undefined;
+  });
+
+  it("returns 403 for a valid session lacking products.view", async () => {
+    const booted = await bootApp(async () => ({
+      userId: "user-1",
+      sessionId: "sess-1",
+      csrfToken: "csrf",
+      permissions: [],
+    }));
+    app = booted.app;
+
+    const response = await supertest(app.getHttpServer())
+      .get("/admin/products/prod-1")
+      .set("Cookie", "ame_session=some-token");
+
+    expect(response.status).toBe(403);
+    expect(booted.getOne).not.toHaveBeenCalled();
+  });
+
+  it("returns 200 and calls the service for a valid session with products.view", async () => {
+    const booted = await bootApp(async () => ({
+      userId: "user-1",
+      sessionId: "sess-1",
+      csrfToken: "csrf",
+      permissions: ["products.view"],
+    }));
+    app = booted.app;
+
+    const response = await supertest(app.getHttpServer())
+      .get("/admin/products/prod-1")
+      .set("Cookie", "ame_session=some-token");
+
+    expect(response.status).toBe(200);
+    expect(booted.getOne).toHaveBeenCalledWith("prod-1");
+  });
+});
+
+describe("PATCH /admin/products/:id — authorization", () => {
+  let app: INestApplication | undefined;
+
+  afterEach(async () => {
+    await app?.close();
+    app = undefined;
+  });
+
+  it("returns 403 for a valid session lacking products.update (holding only products.view)", async () => {
+    const booted = await bootApp(async () => ({
+      userId: "user-1",
+      sessionId: "sess-1",
+      csrfToken: "csrf",
+      permissions: ["products.view"],
+    }));
+    app = booted.app;
+
+    const response = await supertest(app.getHttpServer())
+      .patch("/admin/products/prod-1")
+      .set("Cookie", "ame_session=some-token")
+      .send({ status: "PUBLISHED" });
+
+    expect(response.status).toBe(403);
+    expect(booted.update).not.toHaveBeenCalled();
+  });
+
+  it("returns 200 and calls the service for a valid session with products.update", async () => {
+    const booted = await bootApp(async () => ({
+      userId: "user-1",
+      sessionId: "sess-1",
+      csrfToken: "csrf",
+      permissions: ["products.update"],
+    }));
+    app = booted.app;
+
+    const response = await supertest(app.getHttpServer())
+      .patch("/admin/products/prod-1")
+      .set("Cookie", "ame_session=some-token")
+      .send({ status: "PUBLISHED" });
+
+    expect(response.status).toBe(200);
+    expect(booted.update).toHaveBeenCalledWith("prod-1", { status: "PUBLISHED" }, "user-1", expect.anything());
+  });
+
+  it("returns 400 for an invalid status value, before the service is ever called", async () => {
+    const booted = await bootApp(async () => ({
+      userId: "user-1",
+      sessionId: "sess-1",
+      csrfToken: "csrf",
+      permissions: ["products.update"],
+    }));
+    app = booted.app;
+
+    const response = await supertest(app.getHttpServer())
+      .patch("/admin/products/prod-1")
+      .set("Cookie", "ame_session=some-token")
+      .send({ status: "NOT_A_REAL_STATUS" });
+
+    expect(response.status).toBe(400);
+    expect(booted.update).not.toHaveBeenCalled();
   });
 });
