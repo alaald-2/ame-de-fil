@@ -109,6 +109,19 @@ export const ADMIN_ORDER_DETAIL_SELECT = {
       amountMinor: true,
       currency: true,
       createdAt: true,
+      refunds: {
+        orderBy: { createdAt: "desc" as const },
+        select: {
+          id: true,
+          amountMinor: true,
+          currency: true,
+          reason: true,
+          status: true,
+          providerRefundId: true,
+          createdAt: true,
+          processedAt: true,
+        },
+      },
     },
   },
   shipments: {
@@ -183,6 +196,15 @@ export function mapAdminOrderDetail(order: AdminOrderDetailRow) {
       status: payment.status,
       amount: { amountMinor: payment.amountMinor, currency: payment.currency },
       createdAt: payment.createdAt.toISOString(),
+      refunds: payment.refunds.map((refund) => ({
+        id: refund.id,
+        amount: { amountMinor: refund.amountMinor, currency: refund.currency },
+        reason: refund.reason,
+        status: refund.status,
+        providerRefundId: refund.providerRefundId,
+        createdAt: refund.createdAt.toISOString(),
+        processedAt: refund.processedAt?.toISOString() ?? null,
+      })),
     })),
     shipments: order.shipments.map((shipment) => ({
       id: shipment.id,

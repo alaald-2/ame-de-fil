@@ -62,6 +62,16 @@ const adminAddressSchema = z.object({
   phone: z.string().nullable(),
 });
 
+const adminRefundResponseSchema = z.object({
+  id: z.string(),
+  amount: moneySchema,
+  reason: z.string().nullable(),
+  status: z.enum(["PENDING", "SUCCEEDED", "FAILED"]),
+  providerRefundId: z.string().nullable(),
+  createdAt: z.iso.datetime(),
+  processedAt: z.iso.datetime().nullable(),
+});
+
 const adminPaymentResponseSchema = z.object({
   id: z.string(),
   provider: z.string(),
@@ -70,6 +80,7 @@ const adminPaymentResponseSchema = z.object({
   status: z.string(),
   amount: moneySchema,
   createdAt: z.iso.datetime(),
+  refunds: z.array(adminRefundResponseSchema),
 });
 
 const adminShipmentResponseSchema = z.object({

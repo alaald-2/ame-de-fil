@@ -19,7 +19,7 @@ export default async function DashboardLayout({ children }: { children: ReactNod
 
   return (
     <div className="flex min-h-screen flex-col md:grid md:grid-cols-[240px_1fr]">
-      <aside className="border-b border-neutral-200 p-4 md:flex md:flex-col md:border-r md:border-b-0">
+      <aside className="no-print border-b border-neutral-200 p-4 md:flex md:flex-col md:border-r md:border-b-0">
         <div className="flex items-center justify-between gap-4 px-1 md:mb-6 md:block md:px-3">
           <span className="font-display text-lg text-neutral-900">Âme de Fil</span>
           <div className="md:hidden">

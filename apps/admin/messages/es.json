@@ -291,6 +291,7 @@
       "madeToOrder": "Bajo pedido",
       "shippingAddress": "Dirección de envío",
       "billingAddress": "Dirección de facturación",
+      "printReceipt": "Imprimir recibo",
       "summary": "Resumen",
       "subtotal": "Subtotal",
       "shipping": "Envío",
@@ -303,7 +304,24 @@
       "carrier": "Transportista",
       "trackingNumber": "Número de seguimiento",
       "noPayments": "Aún no hay pagos registrados.",
-      "noShipments": "Aún no hay envíos registrados."
+      "noShipments": "Aún no hay envíos registrados.",
+      "receipt": {
+        "heading": "Recibo",
+        "orderNumberLabel": "Número de pedido",
+        "dateLabel": "Fecha",
+        "customerLabel": "Cliente",
+        "itemHeader": "Artículo",
+        "qtyHeader": "Cant.",
+        "unitPriceHeader": "Precio unitario",
+        "lineTotalHeader": "Total",
+        "subtotalLabel": "Subtotal",
+        "shippingLabel": "Envío",
+        "discountLabel": "Descuento",
+        "vatLabel": "IVA",
+        "totalLabel": "Total",
+        "refundedLabel": "Reembolsado",
+        "paymentStatusLabel": "Estado del pago"
+      }
     },
     "fulfillment": {
       "markReadyToShip": "Marcar listo para enviar",
@@ -336,6 +354,11 @@
       "genericError": "Algo salió mal. Inténtalo de nuevo.",
       "exceedsRemainingError": "Ese importe supera lo que queda por reembolsar en este pago.",
       "noRefundablePaymentError": "Este pedido no tiene ningún pago en un estado reembolsable."
+    },
+    "export": {
+      "fromLabel": "Desde",
+      "toLabel": "Hasta",
+      "downloadButton": "Descargar CSV"
     }
   },
   "Inventory": {
@@ -415,6 +438,7 @@
     "tabsLabel": "Secciones de administración",
     "tabUsers": "Usuarios",
     "tabAuditLog": "Registro de auditoría",
+    "tabStoreSettings": "Configuración de la tienda",
     "usersCount": "{count} usuarios del personal",
     "columnEmail": "Correo electrónico",
     "columnName": "Nombre",
@@ -523,6 +547,35 @@
         "releasedReservations": "Reservas liberadas",
         "canceledOrders": "Pedidos cancelados"
       }
+    },
+    "storeSettings": {
+      "forbiddenTitle": "Acceso denegado",
+      "forbiddenDescription": "Ver la configuración de la tienda requiere el permiso de ver configuración.",
+      "errorTitle": "Algo salió mal",
+      "errorDescription": "No se pudo cargar la configuración de la tienda. Inténtalo de nuevo.",
+      "readOnlyNotice": "Editar la configuración de la tienda requiere el permiso de gestionar configuración.",
+      "businessInfoHeading": "Información del negocio",
+      "businessInfoHint": "Se muestra como membrete en los recibos de pedido impresos.",
+      "businessNameLabel": "Nombre del negocio",
+      "addressLine1Label": "Dirección línea 1",
+      "addressLine2Label": "Dirección línea 2",
+      "postalCodeLabel": "Código postal",
+      "cityLabel": "Ciudad",
+      "countryLabel": "País",
+      "emailLabel": "Correo electrónico",
+      "phoneLabel": "Teléfono",
+      "orgNumberLabel": "Número de organización",
+      "vatNumberLabel": "Número de IVA",
+      "receiptHeading": "En el recibo impreso",
+      "receiptHint": "Elige cuál de la información anterior aparece en un recibo de pedido impreso.",
+      "showAddressLabel": "Mostrar dirección",
+      "showOrgNumberLabel": "Mostrar número de organización",
+      "showVatNumberLabel": "Mostrar número de IVA",
+      "showPhoneLabel": "Mostrar teléfono",
+      "showEmailLabel": "Mostrar correo electrónico",
+      "save": "Guardar",
+      "savedMessage": "Configuración de la tienda guardada.",
+      "genericError": "Algo salió mal. Inténtalo de nuevo."
     }
   },
   "Dashboard": {

@@ -21,6 +21,7 @@ import { NotificationsService } from "../notifications/notifications.service.ts"
 import { AuditService } from "../audit/audit.service.ts";
 import { PAYMENT_PROVIDER, type PaymentProvider } from "../payments/payment-provider.ts";
 import { isUniqueConstraintViolation } from "../checkout/prisma-errors.ts";
+import { toCsv } from "../common/csv.ts";
 import {
   ADMIN_ORDER_DETAIL_SELECT,
   ADMIN_ORDER_LIST_SELECT,
@@ -131,6 +132,87 @@ export class AdminOrdersService {
     if (!order) throw ORDER_NOT_FOUND();
 
     return mapAdminOrderDetail(order);
+  }
+
+  // For a revisor/accountant, one row per order — filtered by `confirmedAt`
+  // (the accounting-relevant date; an order that never confirmed was never
+  // real money, so this naturally excludes abandoned carts) rather than
+  // `createdAt`. Unpaginated by design: an accounting export needs every
+  // row in the requested range in one file, not a page at a time.
+  async exportOrdersCsv(from: Date, to: Date): Promise<string> {
+    const orders = await this.prisma.order.findMany({
+      where: { confirmedAt: { gte: from, lt: to } },
+      orderBy: { confirmedAt: "asc" },
+      select: {
+        orderNumber: true,
+        confirmedAt: true,
+        shippingName: true,
+        guestEmail: true,
+        status: true,
+        subtotalMinor: true,
+        taxMinor: true,
+        shippingMinor: true,
+        discountMinor: true,
+        totalMinor: true,
+        user: { select: { email: true } },
+        payments: {
+          orderBy: { createdAt: "asc" },
+          select: {
+            status: true,
+            method: true,
+            providerPaymentIntentId: true,
+            createdAt: true,
+            refunds: { select: { amountMinor: true, status: true } },
+          },
+        },
+      },
+    });
+
+    const headers = [
+      "Order number",
+      "Date",
+      "Customer name",
+      "Customer email",
+      "Status",
+      "Payment method",
+      "Payment reference",
+      "Subtotal",
+      "VAT",
+      "Shipping",
+      "Discount",
+      "Total",
+      "Refunded",
+      "Net",
+    ];
+
+    const toDecimal = (amountMinor: number) => (amountMinor / 100).toFixed(2);
+
+    const rows = orders.map((order) => {
+      const paidPayment = order.payments.find((p) => p.status === PaymentStatus.PAID);
+      const refundedMinor = order.payments
+        .flatMap((p) => p.refunds)
+        .filter((r) => r.status === RefundStatus.SUCCEEDED)
+        .reduce((sum, r) => sum + r.amountMinor, 0);
+
+      return [
+        order.orderNumber,
+        order.confirmedAt?.toISOString() ?? "",
+        order.shippingName,
+        order.user?.email ?? order.guestEmail ?? "",
+        order.status,
+        paidPayment?.method ?? "",
+        paidPayment?.providerPaymentIntentId ?? "",
+        toDecimal(order.subtotalMinor),
+        toDecimal(order.taxMinor),
+        toDecimal(order.shippingMinor),
+        toDecimal(order.discountMinor),
+        toDecimal(order.totalMinor),
+        toDecimal(refundedMinor),
+        toDecimal(order.totalMinor - refundedMinor),
+      ];
+    });
+
+    return toCsv(headers, rows);
   }
 
   // Amount-based, synchronous-confirmation refund (approved design —

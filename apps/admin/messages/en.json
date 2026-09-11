@@ -291,6 +291,7 @@
       "madeToOrder": "Made to order",
       "shippingAddress": "Shipping address",
       "billingAddress": "Billing address",
+      "printReceipt": "Print receipt",
       "summary": "Summary",
       "subtotal": "Subtotal",
       "shipping": "Shipping",
@@ -303,7 +304,24 @@
       "carrier": "Carrier",
       "trackingNumber": "Tracking number",
       "noPayments": "No payments recorded yet.",
-      "noShipments": "No shipments recorded yet."
+      "noShipments": "No shipments recorded yet.",
+      "receipt": {
+        "heading": "Receipt",
+        "orderNumberLabel": "Order number",
+        "dateLabel": "Date",
+        "customerLabel": "Customer",
+        "itemHeader": "Item",
+        "qtyHeader": "Qty",
+        "unitPriceHeader": "Unit price",
+        "lineTotalHeader": "Total",
+        "subtotalLabel": "Subtotal",
+        "shippingLabel": "Shipping",
+        "discountLabel": "Discount",
+        "vatLabel": "VAT",
+        "totalLabel": "Total",
+        "refundedLabel": "Refunded",
+        "paymentStatusLabel": "Payment status"
+      }
     },
     "fulfillment": {
       "markReadyToShip": "Mark ready to ship",
@@ -336,6 +354,11 @@
       "genericError": "Something went wrong. Please try again.",
       "exceedsRemainingError": "That amount exceeds what's left refundable on this payment.",
       "noRefundablePaymentError": "This order has no payment in a refundable state."
+    },
+    "export": {
+      "fromLabel": "From",
+      "toLabel": "To",
+      "downloadButton": "Download CSV"
     }
   },
   "Inventory": {
@@ -415,6 +438,7 @@
     "tabsLabel": "Administration sections",
     "tabUsers": "Users",
     "tabAuditLog": "Audit log",
+    "tabStoreSettings": "Store settings",
     "usersCount": "{count} staff users",
     "columnEmail": "Email",
     "columnName": "Name",
@@ -523,6 +547,35 @@
         "releasedReservations": "Reservations released",
         "canceledOrders": "Orders canceled"
       }
+    },
+    "storeSettings": {
+      "forbiddenTitle": "Access denied",
+      "forbiddenDescription": "Viewing store settings requires the Settings view permission.",
+      "errorTitle": "Something went wrong",
+      "errorDescription": "Store settings could not be loaded. Please try again.",
+      "readOnlyNotice": "Editing store settings requires the Settings manage permission.",
+      "businessInfoHeading": "Business info",
+      "businessInfoHint": "Shown as the letterhead on printed order receipts.",
+      "businessNameLabel": "Business name",
+      "addressLine1Label": "Address line 1",
+      "addressLine2Label": "Address line 2",
+      "postalCodeLabel": "Postal code",
+      "cityLabel": "City",
+      "countryLabel": "Country",
+      "emailLabel": "Email",
+      "phoneLabel": "Phone",
+      "orgNumberLabel": "Organization number",
+      "vatNumberLabel": "VAT number",
+      "receiptHeading": "On the printed receipt",
+      "receiptHint": "Choose which of the above appears on a printed order receipt.",
+      "showAddressLabel": "Show address",
+      "showOrgNumberLabel": "Show organization number",
+      "showVatNumberLabel": "Show VAT number",
+      "showPhoneLabel": "Show phone",
+      "showEmailLabel": "Show email",
+      "save": "Save",
+      "savedMessage": "Store settings saved.",
+      "genericError": "Something went wrong. Please try again."
     }
   },
   "Dashboard": {

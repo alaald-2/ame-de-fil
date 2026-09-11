@@ -1029,3 +1029,35 @@ model IdempotencyKey {
 
   @@index([expiresAt])
 }
+
+// ─────────────────────────────────────────────────────────────────────────
+// Store settings — business info for the printable order receipt
+// ─────────────────────────────────────────────────────────────────────────
+
+// A fixed-id singleton, not a list — there is exactly one store. No natural
+// unique key exists to build a "the one row" constraint around otherwise, so
+// `id` is pinned to a known literal and every read/write targets it directly
+// (upsert-on-first-read, never a 404).
+model StoreSettings {
+  id           String  @id @default("singleton")
+  businessName String?
+  addressLine1 String?
+  addressLine2 String?
+  postalCode   String?
+  city         String?
+  country      String?
+  orgNumber    String?
+  vatNumber    String?
+  phone        String?
+  email        String?
+  // Which of the fields above appear on a printed receipt — this is
+  // letterhead metadata the admin can choose to omit; the receipt's actual
+  // substance (order, items, totals) is never toggleable.
+  showAddress   Boolean @default(true)
+  showOrgNumber Boolean @default(true)
+  showVatNumber Boolean @default(true)
+  showPhone     Boolean @default(false)
+  showEmail     Boolean @default(false)
+
+  updatedAt DateTime @updatedAt
+}

@@ -287,6 +287,7 @@ describe("AdminOrdersService.getOrderDetail", () => {
         amountMinor: 17400,
         currency: Currency.SEK,
         createdAt: new Date("2026-09-10T00:00:00.000Z"),
+        refunds: [],
       },
     ],
     shipments: [],
@@ -365,6 +366,7 @@ describe("AdminOrdersService.getOrderDetail", () => {
         status: PaymentStatus.PAID,
         amount: { amountMinor: 17400, currency: "SEK" },
         createdAt: "2026-09-10T00:00:00.000Z",
+        refunds: [],
       },
     ]);
     expect(result.shippingAddress).toEqual({
@@ -577,5 +579,116 @@ describe("AdminOrdersService.markDelivered", () => {
 
     await expect(service.markDelivered("order-1", ACTOR_USER_ID)).rejects.toThrow(ConflictException);
     expect(shipmentFindFirstOrThrow).not.toHaveBeenCalled();
+  });
+});
+
+describe("AdminOrdersService.exportOrdersCsv", () => {
+  const FROM = new Date("2026-09-01T00:00:00.000Z");
+  const TO = new Date("2026-10-01T00:00:00.000Z");
+
+  it("filters on confirmedAt within the given range", async () => {
+    const orderFindMany = vi.fn().mockResolvedValue([]);
+    const prisma = { order: { findMany: orderFindMany } } as unknown as PrismaService;
+    const service = new AdminOrdersService(
+      prisma,
+      makeNotificationsMock(),
+      new AuditService(prisma),
+      makeUnusedPaymentProviderMock(),
+      makeUnusedConfigMock(),
+    );
+
+    await service.exportOrdersCsv(FROM, TO);
+
+    expect(orderFindMany).toHaveBeenCalledWith(
+      expect.objectContaining({ where: { confirmedAt: { gte: FROM, lt: TO } } }),
+    );
+  });
+
+  it("one row per order: takes the PAID payment's method/reference, sums only SUCCEEDED refunds", async () => {
+    const row = {
+      orderNumber: "AF-1",
+      confirmedAt: new Date("2026-09-15T12:00:00.000Z"),
+      shippingName: "Anna Andersson",
+      guestEmail: null,
+      status: OrderStatus.DELIVERED,
+      subtotalMinor: 10000,
+      taxMinor: 2500,
+      shippingMinor: 4900,
+      discountMinor: 0,
+      totalMinor: 17400,
+      user: { email: "anna@example.com" },
+      payments: [
+        {
+          status: PaymentStatus.FAILED,
+          method: "card",
+          providerPaymentIntentId: "pi_failed",
+          createdAt: new Date("2026-09-15T11:00:00.000Z"),
+          refunds: [],
+        },
+        {
+          status: PaymentStatus.PAID,
+          method: "card",
+          providerPaymentIntentId: "pi_paid",
+          createdAt: new Date("2026-09-15T12:00:00.000Z"),
+          refunds: [
+            { amountMinor: 1000, status: RefundStatus.SUCCEEDED },
+            { amountMinor: 500, status: RefundStatus.FAILED },
+          ],
+        },
+      ],
+    };
+    const orderFindMany = vi.fn().mockResolvedValue([row]);
+    const prisma = { order: { findMany: orderFindMany } } as unknown as PrismaService;
+    const service = new AdminOrdersService(
+      prisma,
+      makeNotificationsMock(),
+      new AuditService(prisma),
+      makeUnusedPaymentProviderMock(),
+      makeUnusedConfigMock(),
+    );
+
+    const csv = await service.exportOrdersCsv(FROM, TO);
+    const BOM = String.fromCharCode(0xfeff);
+    const withoutBom = csv.startsWith(BOM) ? csv.slice(1) : csv;
+    const lines = withoutBom.split("\r\n");
+
+    expect(lines[0]).toBe(
+      "Order number,Date,Customer name,Customer email,Status,Payment method,Payment reference,Subtotal,VAT,Shipping,Discount,Total,Refunded,Net",
+    );
+    // Refunded: only the SUCCEEDED refund (10.00), never the FAILED one;
+    // Net = Total (174.00) - Refunded (10.00).
+    expect(lines[1]).toBe(
+      "AF-1,2026-09-15T12:00:00.000Z,Anna Andersson,anna@example.com,DELIVERED,card,pi_paid,100.00,25.00,49.00,0.00,174.00,10.00,164.00",
+    );
+  });
+
+  it("falls back to guestEmail when there is no registered user", async () => {
+    const row = {
+      orderNumber: "AF-2",
+      confirmedAt: new Date("2026-09-15T12:00:00.000Z"),
+      shippingName: "Guest Buyer",
+      guestEmail: "guest@example.com",
+      status: OrderStatus.CONFIRMED,
+      subtotalMinor: 5000,
+      taxMinor: 1250,
+      shippingMinor: 0,
+      discountMinor: 0,
+      totalMinor: 6250,
+      user: null,
+      payments: [],
+    };
+    const orderFindMany = vi.fn().mockResolvedValue([row]);
+    const prisma = { order: { findMany: orderFindMany } } as unknown as PrismaService;
+    const service = new AdminOrdersService(
+      prisma,
+      makeNotificationsMock(),
+      new AuditService(prisma),
+      makeUnusedPaymentProviderMock(),
+      makeUnusedConfigMock(),
+    );
+
+    const csv = await service.exportOrdersCsv(FROM, TO);
+
+    expect(csv).toContain("guest@example.com");
   });
 });

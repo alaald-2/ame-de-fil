@@ -24,13 +24,21 @@ async function bootApp(validateSession: (token: string) => Promise<AuthContext |
   const markDelivered = vi.fn().mockResolvedValue({ orderId: "order-1", status: "DELIVERED", shipment: {} });
   const listOrders = vi.fn().mockResolvedValue({ items: [], page: 1, pageSize: 20, total: 0 });
   const getOrderDetail = vi.fn().mockResolvedValue({ orderId: "order-1", status: "CONFIRMED" });
+  const exportOrdersCsv = vi.fn().mockResolvedValue("Order number\r\n");
 
   const moduleRef = await Test.createTestingModule({
     controllers: [AdminOrdersController],
     providers: [
       {
         provide: AdminOrdersService,
-        useValue: { markReadyToShip, markShipped, markDelivered, listOrders, getOrderDetail },
+        useValue: {
+          markReadyToShip,
+          markShipped,
+          markDelivered,
+          listOrders,
+          getOrderDetail,
+          exportOrdersCsv,
+        },
       },
       { provide: SessionService, useValue: { validateSession } },
       {
@@ -49,7 +57,15 @@ async function bootApp(validateSession: (token: string) => Promise<AuthContext |
   app.use(cookieParser());
   app.useGlobalFilters(new AllExceptionsFilter());
   await app.init();
-  return { app, markReadyToShip, markShipped, markDelivered, listOrders, getOrderDetail };
+  return {
+    app,
+    markReadyToShip,
+    markShipped,
+    markDelivered,
+    listOrders,
+    getOrderDetail,
+    exportOrdersCsv,
+  };
 }
 
 const AUTH_NO_PERMISSIONS: AuthContext = {
@@ -391,5 +407,69 @@ describe("POST /admin/orders/:orderId/deliver", () => {
 
     expect(response.status).toBe(200);
     expect(booted.markDelivered).toHaveBeenCalledWith("order-1", "user-1", expect.any(String));
+  });
+});
+
+describe("GET /admin/orders/export — authorization", () => {
+  let app: INestApplication | undefined;
+
+  afterEach(async () => {
+    await app?.close();
+    app = undefined;
+  });
+
+  it("returns 401 with no session cookie at all", async () => {
+    const booted = await bootApp(async () => null);
+    app = booted.app;
+
+    const response = await supertest(app.getHttpServer()).get(
+      "/admin/orders/export?from=2026-09-01T00:00:00.000Z&to=2026-10-01T00:00:00.000Z",
+    );
+
+    expect(response.status).toBe(401);
+    expect(booted.exportOrdersCsv).not.toHaveBeenCalled();
+  });
+
+  it("returns 403 for a session with only orders.fulfill, not orders.view", async () => {
+    const booted = await bootApp(async () => AUTH_WITH_FULFILL);
+    app = booted.app;
+
+    const response = await supertest(app.getHttpServer())
+      .get("/admin/orders/export?from=2026-09-01T00:00:00.000Z&to=2026-10-01T00:00:00.000Z")
+      .set("Cookie", "ame_session=token");
+
+    expect(response.status).toBe(403);
+    expect(booted.exportOrdersCsv).not.toHaveBeenCalled();
+  });
+
+  it("returns 400 for a range where from is not before to, before the service is ever called", async () => {
+    const booted = await bootApp(async () => AUTH_WITH_VIEW);
+    app = booted.app;
+
+    const response = await supertest(app.getHttpServer())
+      .get("/admin/orders/export?from=2026-10-01T00:00:00.000Z&to=2026-09-01T00:00:00.000Z")
+      .set("Cookie", "ame_session=token");
+
+    expect(response.status).toBe(400);
+    expect(booted.exportOrdersCsv).not.toHaveBeenCalled();
+  });
+
+  it("returns 200 with CSV headers and the service's output for a session with orders.view", async () => {
+    const booted = await bootApp(async () => AUTH_WITH_VIEW);
+    app = booted.app;
+
+    const response = await supertest(app.getHttpServer())
+      .get("/admin/orders/export?from=2026-09-01T00:00:00.000Z&to=2026-10-01T00:00:00.000Z")
+      .set("Cookie", "ame_session=token");
+
+    expect(response.status).toBe(200);
+    expect(response.headers["content-type"]).toContain("text/csv");
+    expect(response.headers["content-disposition"]).toContain("attachment");
+    expect(response.headers["content-disposition"]).toContain("orders-2026-09-01-2026-10-01.csv");
+    expect(response.text).toBe("Order number\r\n");
+    expect(booted.exportOrdersCsv).toHaveBeenCalledWith(
+      new Date("2026-09-01T00:00:00.000Z"),
+      new Date("2026-10-01T00:00:00.000Z"),
+    );
   });
 });

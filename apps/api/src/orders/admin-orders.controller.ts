@@ -10,9 +10,10 @@ import {
   Post,
   Query,
   Req,
+  Res,
 } from "@nestjs/common";
 import { ApiBody, ApiCookieAuth, ApiHeader, ApiOkResponse, ApiOperation, ApiTags } from "@nestjs/swagger";
-import type { Request } from "express";
+import type { Request, Response } from "express";
 import { CurrentUser } from "../common/decorators/current-user.decorator.ts";
 import { RequirePermissions } from "../common/decorators/require-permissions.decorator.ts";
 import { ZodValidationPipe } from "../common/pipes/zod-validation.pipe.ts";
@@ -21,6 +22,7 @@ import { ApiZodParam, ApiZodQuery, toOpenApiSchema } from "../common/zod-openapi
 import type { AuthContext } from "../common/types/auth-context.ts";
 import { AdminOrdersService } from "./admin-orders.service.ts";
 import { listAdminOrdersQuerySchema, type ListAdminOrdersQuery } from "./dto/list-orders-query.dto.ts";
+import { exportOrdersQuerySchema, type ExportOrdersQuery } from "./dto/export-orders-query.dto.ts";
 import { orderIdParamSchema, type OrderIdParam } from "./dto/order-id.param.ts";
 import { markShippedSchema, type MarkShippedInput } from "./dto/mark-shipped.dto.ts";
 import { fulfillmentResponseSchema } from "./dto/fulfillment-response.ts";
@@ -57,6 +59,25 @@ export class AdminOrdersController {
   @ApiErrorResponses(400, 401, 403)
   async list(@Query(new ZodValidationPipe(listAdminOrdersQuerySchema)) query: ListAdminOrdersQuery) {
     return this.adminOrders.listOrders(query.page, query.pageSize, query.paymentStatus, query.refundStatus);
+  }
+
+  // Registered before ":orderId" — Nest matches routes in registration
+  // order, and "export" would otherwise be swallowed by the ":orderId"
+  // param route below.
+  @Get("export")
+  @RequirePermissions("orders.view")
+  @ApiOperation({ summary: "Download a CSV of confirmed orders in a date range, for accounting" })
+  @ApiZodQuery(exportOrdersQuerySchema)
+  @ApiErrorResponses(400, 401, 403)
+  async export(
+    @Query(new ZodValidationPipe(exportOrdersQuerySchema)) query: ExportOrdersQuery,
+    @Res() response: Response,
+  ) {
+    const csv = await this.adminOrders.exportOrdersCsv(new Date(query.from), new Date(query.to));
+    const filename = `orders-${query.from.slice(0, 10)}-${query.to.slice(0, 10)}.csv`;
+    response.setHeader("Content-Type", "text/csv; charset=utf-8");
+    response.setHeader("Content-Disposition", `attachment; filename="${filename}"`);
+    response.send(csv);
   }
 
   @Get(":orderId")

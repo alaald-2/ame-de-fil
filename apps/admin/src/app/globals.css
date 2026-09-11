@@ -18,3 +18,21 @@
     color: var(--color-neutral-900);
   }
 }
+
+/* Printable receipt (Orders detail page) — everything else in the app is
+   marked .no-print (the sidebar in layout.tsx, each page's own normal
+   content), and the receipt itself is .print-only: hidden on screen, the
+   only thing left when printing. */
+.print-only {
+  display: none;
+}
+
+@media print {
+  .no-print {
+    display: none !important;
+  }
+
+  .print-only {
+    display: block !important;
+  }
+}

@@ -3,6 +3,7 @@ import { Heading, Text, Link, Pagination, EmptyState, ErrorState } from "@ame-de
 import { requireSession } from "../../../lib/dal";
 import { getServerApiClient } from "../../../lib/server-api";
 import { OrdersTable } from "../../../components/orders-table";
+import { OrdersExportLink } from "../../../components/orders-export-link";
 import type { AdminLocale } from "../../../i18n/config";
 
 const PAGE_SIZE = 20;
@@ -32,8 +33,11 @@ interface OrdersPageProps {
 // page only reads and preserves whichever filter is already in the URL.
 export default async function OrdersPage({ searchParams }: OrdersPageProps) {
   await requireSession();
-  const { page: pageParam, paymentStatus: paymentStatusParam, refundStatus: refundStatusParam } =
-    await searchParams;
+  const {
+    page: pageParam,
+    paymentStatus: paymentStatusParam,
+    refundStatus: refundStatusParam,
+  } = await searchParams;
   const page = Math.max(1, Number(pageParam ?? "1") || 1);
   const paymentStatus = paymentStatusParam as PaymentStatusFilter | undefined;
   const refundStatus = refundStatusParam as RefundStatusFilter | undefined;
@@ -59,7 +63,11 @@ export default async function OrdersPage({ searchParams }: OrdersPageProps) {
             description={t("forbiddenDescription")}
           />
         ) : (
-          <ErrorState className="mt-6" title={t("errorTitle")} description={t("errorDescription")} />
+          <ErrorState
+            className="mt-6"
+            title={t("errorTitle")}
+            description={t("errorDescription")}
+          />
         )}
       </div>
     );
@@ -91,6 +99,10 @@ export default async function OrdersPage({ searchParams }: OrdersPageProps) {
         </Text>
       ) : null}
 
+      <div className="mt-4">
+        <OrdersExportLink />
+      </div>
+
       {data.items.length === 0 ? (
         <EmptyState
           className="mt-6"
@@ -108,11 +120,15 @@ export default async function OrdersPage({ searchParams }: OrdersPageProps) {
               page={data.page}
               totalPages={totalPages}
               makeHref={(targetPage) =>
-                isFiltered ? `/orders?page=${targetPage}&${filterQueryString}` : `/orders?page=${targetPage}`
+                isFiltered
+                  ? `/orders?page=${targetPage}&${filterQueryString}`
+                  : `/orders?page=${targetPage}`
               }
               previousLabel={t("paginationPrevious")}
               nextLabel={t("paginationNext")}
-              pageLabel={(current, total) => t("paginationPage", { page: current, totalPages: total })}
+              pageLabel={(current, total) =>
+                t("paginationPage", { page: current, totalPages: total })
+              }
             />
           ) : null}
         </>

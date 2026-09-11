@@ -291,6 +291,7 @@
       "madeToOrder": "Tillverkas på beställning",
       "shippingAddress": "Leveransadress",
       "billingAddress": "Faktureringsadress",
+      "printReceipt": "Skriv ut kvitto",
       "summary": "Sammanställning",
       "subtotal": "Delsumma",
       "shipping": "Frakt",
@@ -303,7 +304,24 @@
       "carrier": "Fraktbolag",
       "trackingNumber": "Spårningsnummer",
       "noPayments": "Inga betalningar registrerade ännu.",
-      "noShipments": "Inga leveranser registrerade ännu."
+      "noShipments": "Inga leveranser registrerade ännu.",
+      "receipt": {
+        "heading": "Kvitto",
+        "orderNumberLabel": "Ordernummer",
+        "dateLabel": "Datum",
+        "customerLabel": "Kund",
+        "itemHeader": "Vara",
+        "qtyHeader": "Antal",
+        "unitPriceHeader": "Á-pris",
+        "lineTotalHeader": "Summa",
+        "subtotalLabel": "Delsumma",
+        "shippingLabel": "Frakt",
+        "discountLabel": "Rabatt",
+        "vatLabel": "Moms",
+        "totalLabel": "Totalt",
+        "refundedLabel": "Återbetalt",
+        "paymentStatusLabel": "Betalningsstatus"
+      }
     },
     "fulfillment": {
       "markReadyToShip": "Markera redo att skickas",
@@ -336,6 +354,11 @@
       "genericError": "Något gick fel. Försök igen.",
       "exceedsRemainingError": "Det beloppet överstiger vad som återstår att återbetala på den här betalningen.",
       "noRefundablePaymentError": "Den här ordern har ingen betalning i ett återbetalningsbart tillstånd."
+    },
+    "export": {
+      "fromLabel": "Från",
+      "toLabel": "Till",
+      "downloadButton": "Ladda ner CSV"
     }
   },
   "Inventory": {
@@ -415,6 +438,7 @@
     "tabsLabel": "Administrationsflikar",
     "tabUsers": "Användare",
     "tabAuditLog": "Granskningslogg",
+    "tabStoreSettings": "Butiksinställningar",
     "usersCount": "{count} personaladministratörer",
     "columnEmail": "E-post",
     "columnName": "Namn",
@@ -523,6 +547,35 @@
         "releasedReservations": "Frisläppta reservationer",
         "canceledOrders": "Avbrutna ordrar"
       }
+    },
+    "storeSettings": {
+      "forbiddenTitle": "Åtkomst nekad",
+      "forbiddenDescription": "Att visa butiksinställningar kräver behörigheten Visa inställningar.",
+      "errorTitle": "Något gick fel",
+      "errorDescription": "Butiksinställningarna kunde inte laddas. Försök igen.",
+      "readOnlyNotice": "Att redigera butiksinställningar kräver behörigheten Hantera inställningar.",
+      "businessInfoHeading": "Företagsinformation",
+      "businessInfoHint": "Visas som brevhuvud på utskrivna orderkvitton.",
+      "businessNameLabel": "Företagsnamn",
+      "addressLine1Label": "Adressrad 1",
+      "addressLine2Label": "Adressrad 2",
+      "postalCodeLabel": "Postnummer",
+      "cityLabel": "Ort",
+      "countryLabel": "Land",
+      "emailLabel": "E-post",
+      "phoneLabel": "Telefon",
+      "orgNumberLabel": "Organisationsnummer",
+      "vatNumberLabel": "Momsregistreringsnummer",
+      "receiptHeading": "På det utskrivna kvittot",
+      "receiptHint": "Välj vilken av informationen ovan som visas på ett utskrivet orderkvitto.",
+      "showAddressLabel": "Visa adress",
+      "showOrgNumberLabel": "Visa organisationsnummer",
+      "showVatNumberLabel": "Visa momsregistreringsnummer",
+      "showPhoneLabel": "Visa telefon",
+      "showEmailLabel": "Visa e-post",
+      "save": "Spara",
+      "savedMessage": "Butiksinställningarna har sparats.",
+      "genericError": "Något gick fel. Försök igen."
     }
   },
   "Dashboard": {

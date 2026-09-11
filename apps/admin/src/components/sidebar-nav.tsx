@@ -23,7 +23,7 @@ const REQUIRED_PERMISSIONS: Partial<Record<string, string[]>> = {
   "/inventory": ["inventory.view"],
   "/customers": ["customers.view"],
   "/content": ["categories.view", "collections.view"],
-  "/administration": ["users.view", "audit.view"],
+  "/administration": ["users.view", "audit.view", "settings.view"],
 };
 
 // Client boundary only for active-pathname awareness (same rationale as

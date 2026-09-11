@@ -21,13 +21,21 @@ export function AdministrationTabs({ permissions }: AdministrationTabsProps) {
   const tabs = [
     { href: "/administration", label: t("tabUsers"), permission: "users.view" },
     { href: "/administration/audit-log", label: t("tabAuditLog"), permission: "audit.view" },
+    {
+      href: "/administration/store-settings",
+      label: t("tabStoreSettings"),
+      permission: "settings.view",
+    },
   ] as const;
 
   const visibleTabs = tabs.filter((tab) => permissions.includes(tab.permission));
   if (visibleTabs.length === 0) return null;
 
   return (
-    <nav aria-label={t("tabsLabel")} className="-mx-1 flex items-center gap-4 overflow-x-auto border-b border-neutral-200 px-1">
+    <nav
+      aria-label={t("tabsLabel")}
+      className="-mx-1 flex items-center gap-4 overflow-x-auto border-b border-neutral-200 px-1"
+    >
       {visibleTabs.map((tab) => (
         <NavLink
           key={tab.href}
@@ -47,7 +55,10 @@ export function AdministrationTabs({ permissions }: AdministrationTabsProps) {
           tabs already fit (today's two-tab case): it just settles in-flow
           right after the last tab instead of pinning to an edge. */}
       {visibleTabs.length > 1 ? (
-        <span aria-hidden="true" className="sticky right-0 ml-1 shrink-0 pr-1 pb-3 text-neutral-500 md:hidden">
+        <span
+          aria-hidden="true"
+          className="sticky right-0 ml-1 shrink-0 pr-1 pb-3 text-neutral-500 md:hidden"
+        >
           &rsaquo;
         </span>
       ) : null}

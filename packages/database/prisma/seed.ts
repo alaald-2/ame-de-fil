@@ -35,6 +35,8 @@ const PERMISSION_KEYS = [
   "users.manage",
   "users.manage_roles",
   "dashboard.view",
+  "settings.view",
+  "settings.manage",
 ] as const;
 
 const ADMIN_ROLE_NAME = "admin";
