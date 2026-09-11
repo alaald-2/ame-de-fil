@@ -7,6 +7,7 @@ import { Text, Input, Button } from "@ame-de-fil/ui";
 import { formatMoney } from "../lib/format-money";
 import type { AppLocale } from "../lib/locale";
 import { useCart } from "./cart-provider";
+import { SalePrice } from "./sale-price";
 
 export function CartLineItem({ item, locale }: { item: CartItem; locale: AppLocale }) {
   const t = useTranslations("Cart");
@@ -32,9 +33,12 @@ export function CartLineItem({ item, locale }: { item: CartItem; locale: AppLoca
     <div className="flex items-center justify-between gap-4 border-b border-neutral-200 py-4">
       <div>
         <Text>{item.productName}</Text>
-        <Text size="sm" tone="muted">
-          {formatMoney(item.unitPrice.amountMinor, locale)}
-        </Text>
+        <SalePrice
+          price={item.unitPrice}
+          originalPrice={item.originalUnitPrice}
+          promotion={item.promotion}
+          locale={locale}
+        />
         {!item.available ? (
           <Text size="sm" tone="muted">
             {tShop("soldOut")}

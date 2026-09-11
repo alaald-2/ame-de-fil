@@ -6,6 +6,7 @@ import { toPrismaLocale } from "../common/locale.ts";
 import { AuditService } from "../audit/audit.service.ts";
 import { isUniqueConstraintViolation } from "../checkout/prisma-errors.ts";
 import { IMAGE_STORAGE_PROVIDER, type ImageStorageProvider } from "./images/image-storage.provider.ts";
+import { resolveTranslation } from "./mappers/translation.mapper.ts";
 import {
   ADMIN_PRODUCT_INCLUDE,
   mapAdminProduct,
@@ -87,6 +88,34 @@ export class AdminProductsService {
   async listTaxClasses(): Promise<{ id: string; code: string; name: string }[]> {
     const taxClasses = await this.prisma.taxClass.findMany({ orderBy: { code: "asc" } });
     return taxClasses.map((t) => ({ id: t.id, code: t.code, name: t.name }));
+  }
+
+  // Exists only to feed the Promotions admin UI's variant picker (a
+  // promotion applies to specific variants, chosen from across every
+  // product) — a flat, lightweight list, not the full ADMIN_PRODUCT_INCLUDE
+  // shape GET /admin/products/:id returns, since the picker only ever needs
+  // enough to label a checkbox. ARCHIVED excluded: promoting a discontinued
+  // product's variant would be confusing and is never a real use case,
+  // unlike DRAFT (an admin may want to schedule a sale ahead of a launch).
+  async listVariantOptions(
+    locale: AppLocale,
+  ): Promise<{ variantId: string; sku: string; priceMinor: number; productId: string; productName: string }[]> {
+    const variants = await this.prisma.productVariant.findMany({
+      where: { product: { status: { not: "ARCHIVED" } } },
+      include: { product: { include: { translations: true } } },
+      orderBy: { sku: "asc" },
+    });
+
+    return variants.map((variant) => {
+      const translation = resolveTranslation(variant.product.translations, locale, DEFAULT_LOCALE);
+      return {
+        variantId: variant.id,
+        sku: variant.sku,
+        priceMinor: variant.priceMinor,
+        productId: variant.product.id,
+        productName: translation?.name ?? variant.sku,
+      };
+    });
   }
 
   async getOne(id: string): Promise<AdminProductResponse> {

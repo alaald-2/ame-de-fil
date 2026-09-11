@@ -45,7 +45,9 @@ import {
   adminProductResponseSchema,
   adminProductImageResponseSchema,
   listAdminProductsResponseSchema,
+  listAdminProductVariantOptionsResponseSchema,
 } from "./dto/responses.ts";
+import { localeQuerySchema, type LocaleQuery } from "../common/dto/locale-query.schema.ts";
 
 // No @Public()/@OptionalAuth() — admin-only, default-deny, same posture as
 // every other admin controller. Four permissions gate this (view/create/
@@ -75,6 +77,19 @@ export class AdminProductsController {
   @ApiErrorResponses(400, 401, 403)
   async list(@Query(new ZodValidationPipe(listAdminProductsQuerySchema)) query: ListAdminProductsQuery) {
     return this.adminProducts.list(query.page, query.pageSize, query.status);
+  }
+
+  // Registered before ":id" — Nest matches routes in registration order,
+  // same reasoning as admin-orders.controller.ts's own "export" route
+  // (otherwise ":id" would swallow "variants" as a literal id).
+  @Get("variants")
+  @RequirePermissions("products.view")
+  @ApiOperation({ summary: "List every non-archived variant, for pickers like the Promotions admin UI" })
+  @ApiZodQuery(localeQuerySchema)
+  @ApiOkResponse({ schema: toOpenApiSchema(listAdminProductVariantOptionsResponseSchema) })
+  @ApiErrorResponses(400, 401, 403)
+  async listVariantOptions(@Query(new ZodValidationPipe(localeQuerySchema)) query: LocaleQuery) {
+    return this.adminProducts.listVariantOptions(query.locale);
   }
 
   @Get(":id")

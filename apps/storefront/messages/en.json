@@ -47,7 +47,9 @@
     "empty": "No products found.",
     "soldOut": "Sold out",
     "madeToOrder": "Made to order",
-    "productionTime": "Approx. {days} day delivery"
+    "productionTime": "Approx. {days} day delivery",
+    "percentOff": "{percentage}% off",
+    "originalPriceLabel": "Original price:"
   },
   "Product": {
     "notFoundTitle": "Product not found",

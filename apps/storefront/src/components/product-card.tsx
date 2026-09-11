@@ -2,7 +2,7 @@ import { useTranslations } from "next-intl";
 import type { Product } from "@ame-de-fil/types";
 import { Text } from "@ame-de-fil/ui";
 import { Link } from "../i18n/navigation";
-import { formatMoney } from "../lib/format-money";
+import { SalePrice } from "./sale-price";
 
 interface ProductCardProps {
   product: Product;
@@ -43,9 +43,12 @@ export function ProductCard({ product, locale }: ProductCardProps) {
           {product.name}
         </Text>
         {firstVariant ? (
-          <Text size="sm" tone="muted">
-            {formatMoney(firstVariant.price.amountMinor, locale)}
-          </Text>
+          <SalePrice
+            price={firstVariant.price}
+            originalPrice={firstVariant.originalPrice}
+            promotion={firstVariant.promotion}
+            locale={locale}
+          />
         ) : null}
         {!anyAvailable ? (
           <Text size="sm" tone="muted">

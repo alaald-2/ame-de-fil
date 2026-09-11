@@ -2,7 +2,8 @@ import { Injectable, NotFoundException } from "@nestjs/common";
 import { ProductStatus } from "@ame-de-fil/database";
 import type { Locale as AppLocale } from "@ame-de-fil/validation";
 import { PrismaService } from "../database/prisma.service.ts";
-import { mapProduct, PRODUCT_INCLUDE, type ProductResponse } from "./mappers/product.mapper.ts";
+import { mapProduct, PRODUCT_INCLUDE, collectVariantIds, type ProductResponse } from "./mappers/product.mapper.ts";
+import { resolveActivePromotionsForVariants } from "../promotions/effective-price.ts";
 
 const DEFAULT_LOCALE: AppLocale = "sv-SE";
 
@@ -48,8 +49,13 @@ export class ProductsService {
       this.prisma.product.count({ where }),
     ]);
 
+    const promotions = await resolveActivePromotionsForVariants(
+      this.prisma,
+      collectVariantIds(rows),
+      new Date(),
+    );
     const items = rows
-      .map((row) => mapProduct(row, filters.locale, DEFAULT_LOCALE))
+      .map((row) => mapProduct(row, filters.locale, DEFAULT_LOCALE, promotions))
       .filter((p): p is ProductResponse => p !== null);
 
     return { items, page: filters.page, pageSize: filters.pageSize, total };
@@ -76,7 +82,12 @@ export class ProductsService {
       });
     }
 
-    const mapped = mapProduct(product, locale, DEFAULT_LOCALE);
+    const promotions = await resolveActivePromotionsForVariants(
+      this.prisma,
+      collectVariantIds([product]),
+      new Date(),
+    );
+    const mapped = mapProduct(product, locale, DEFAULT_LOCALE, promotions);
     if (!mapped) {
       // Exists, but has no translation in the requested *or* default locale
       // — a genuinely broken data state (every product should have at least

@@ -3,7 +3,8 @@ import { ProductStatus } from "@ame-de-fil/database";
 import type { Locale as AppLocale } from "@ame-de-fil/validation";
 import { PrismaService } from "../database/prisma.service.ts";
 import { mapCollection, type CollectionResponse } from "./mappers/collection.mapper.ts";
-import { mapProduct, PRODUCT_INCLUDE, type ProductResponse } from "./mappers/product.mapper.ts";
+import { mapProduct, PRODUCT_INCLUDE, collectVariantIds, type ProductResponse } from "./mappers/product.mapper.ts";
+import { resolveActivePromotionsForVariants } from "../promotions/effective-price.ts";
 
 const DEFAULT_LOCALE: AppLocale = "sv-SE";
 
@@ -70,8 +71,13 @@ export class CollectionsService {
       this.prisma.product.count({ where }),
     ]);
 
+    const promotions = await resolveActivePromotionsForVariants(
+      this.prisma,
+      collectVariantIds(productRows),
+      new Date(),
+    );
     const products = productRows
-      .map((row) => mapProduct(row, locale, DEFAULT_LOCALE))
+      .map((row) => mapProduct(row, locale, DEFAULT_LOCALE, promotions))
       .filter((p): p is ProductResponse => p !== null);
 
     return {

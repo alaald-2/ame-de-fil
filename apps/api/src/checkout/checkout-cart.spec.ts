@@ -61,7 +61,7 @@ describe("resolveVariantLabel", () => {
 
 describe("buildOrderItemSnapshot", () => {
   it("combines identity, label, and priced-line fields", () => {
-    const snapshot = buildOrderItemSnapshot(makeItem(), "sv-SE", "sv-SE", 25);
+    const snapshot = buildOrderItemSnapshot(makeItem(), "sv-SE", "sv-SE", 25, undefined);
 
     expect(snapshot).toEqual({
       productVariantId: "var-1",
@@ -76,6 +76,9 @@ describe("buildOrderItemSnapshot", () => {
       lineTaxMinor: 11960,
       madeToOrder: false,
       productionTimeDaysSnapshot: null,
+      basePriceMinor: 29900,
+      promotionId: null,
+      promotionPercentage: null,
     });
   });
 
@@ -90,7 +93,7 @@ describe("buildOrderItemSnapshot", () => {
       },
     } as never);
 
-    const snapshot = buildOrderItemSnapshot(item, "sv-SE", "sv-SE", 25);
+    const snapshot = buildOrderItemSnapshot(item, "sv-SE", "sv-SE", 25, undefined);
 
     expect(snapshot.madeToOrder).toBe(true);
     expect(snapshot.productionTimeDaysSnapshot).toBe(14);
@@ -104,9 +107,26 @@ describe("buildOrderItemSnapshot", () => {
       },
     } as never);
 
-    const snapshot = buildOrderItemSnapshot(item, "sv-SE", "sv-SE", 25);
+    const snapshot = buildOrderItemSnapshot(item, "sv-SE", "sv-SE", 25, undefined);
 
     expect(snapshot.madeToOrder).toBe(false);
     expect(snapshot.productionTimeDaysSnapshot).toBeNull();
+  });
+
+  // Promotion domain integration (effective-price.ts) — a variant's own
+  // priceMinor (29900) must never be mutated; only unitPriceMinor and the
+  // line totals derived from it reflect the discount.
+  it("charges the promotion's effective price while snapshotting the untouched base price", () => {
+    const snapshot = buildOrderItemSnapshot(makeItem(), "sv-SE", "sv-SE", 25, {
+      id: "promo-1",
+      name: "Autumn Sale",
+      percentage: 20,
+    });
+
+    expect(snapshot.basePriceMinor).toBe(29900);
+    expect(snapshot.unitPriceMinor).toBe(23920); // 29900 * 0.8
+    expect(snapshot.lineSubtotalMinor).toBe(47840); // 23920 * 2
+    expect(snapshot.promotionId).toBe("promo-1");
+    expect(snapshot.promotionPercentage).toBe(20);
   });
 });

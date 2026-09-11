@@ -1,6 +1,7 @@
 import type { Prisma } from "@ame-de-fil/database";
 import type { Locale as AppLocale } from "@ame-de-fil/validation";
 import { resolveTranslation } from "../catalog/mappers/translation.mapper.ts";
+import { resolveEffectivePrice, type ActivePromotionSummary } from "../promotions/effective-price.ts";
 import { priceLine, type PricedLine } from "./pricing.ts";
 
 // A richer include than cart's own CART_INCLUDE (mappers/cart.mapper.ts) —
@@ -54,6 +55,16 @@ export interface OrderItemSnapshot extends PricedLine {
   // principle as the price/tax/name snapshots above).
   madeToOrder: boolean;
   productionTimeDaysSnapshot: number | null;
+  // Promotion snapshot (schema.prisma's own OrderItem comment has the full
+  // separation-from-Coupon rationale). basePriceMinor is always the
+  // variant's own priceMinor at checkout time, whether or not a promotion
+  // applied; promotionId/promotionPercentage are null when none did.
+  // unitPriceMinor (via PricedLine below) is the price actually charged —
+  // basePriceMinor when there was no promotion, effectivePriceMinor when
+  // there was.
+  basePriceMinor: number;
+  promotionId: string | null;
+  promotionPercentage: number | null;
 }
 
 export function buildOrderItemSnapshot(
@@ -61,7 +72,10 @@ export function buildOrderItemSnapshot(
   requestedLocale: AppLocale,
   defaultLocale: AppLocale,
   taxRatePercent: number,
+  promotion: ActivePromotionSummary | undefined,
 ): OrderItemSnapshot {
+  const effective = resolveEffectivePrice(item.variant.priceMinor, promotion);
+
   return {
     productVariantId: item.variant.id,
     productNameSnapshot: resolveProductName(item, requestedLocale, defaultLocale),
@@ -69,6 +83,9 @@ export function buildOrderItemSnapshot(
     skuSnapshot: item.variant.sku,
     madeToOrder: !(item.variant.inventoryItem?.tracksStock ?? true),
     productionTimeDaysSnapshot: item.variant.inventoryItem?.productionTimeDays ?? null,
-    ...priceLine(item.variant.priceMinor, item.quantity, taxRatePercent),
+    basePriceMinor: effective.basePriceMinor,
+    promotionId: effective.promotion?.id ?? null,
+    promotionPercentage: effective.promotion?.percentage ?? null,
+    ...priceLine(effective.effectivePriceMinor, item.quantity, taxRatePercent),
   };
 }

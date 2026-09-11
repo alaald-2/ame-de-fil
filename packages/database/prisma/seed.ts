@@ -24,6 +24,8 @@ const PERMISSION_KEYS = [
   "categories.manage",
   "collections.view",
   "collections.manage",
+  "promotions.view",
+  "promotions.manage",
   "inventory.view",
   "inventory.adjust",
   "checkout.manage",

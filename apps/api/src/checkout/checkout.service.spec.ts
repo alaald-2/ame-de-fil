@@ -41,6 +41,9 @@ const ORDER_ITEM_SCALAR_COLUMNS = new Set([
   "lineTotalMinor",
   "madeToOrder",
   "productionTimeDaysSnapshot",
+  "basePriceMinor",
+  "promotionId",
+  "promotionPercentage",
   "createdAt",
 ]);
 
@@ -130,6 +133,12 @@ interface Fixture {
   cartItems: unknown[];
   lockedRows: Array<{ id: string; onHand: number; reserved: number }>;
   taxRateRows: Array<{ taxClassId: string; ratePercent: { toNumber(): number } }>;
+  // Defaults to no active promotions for every existing test in this file
+  // — only the dedicated "promotions" describe block below sets this.
+  promotionVariantRows?: Array<{
+    productVariantId: string;
+    promotion: { id: string; name: string; percentage: number; active: boolean; startsAt: Date | null; endsAt: Date | null };
+  }>;
   shippingProvider: ShippingProvider;
   paymentProvider: PaymentProvider;
   overrides?: Partial<{
@@ -174,6 +183,7 @@ function makeService(fixture: Fixture) {
     },
     taxRate: { findMany: vi.fn().mockResolvedValue(fixture.taxRateRows) },
     taxClass: { findUnique: vi.fn().mockResolvedValue({ id: "tc-standard", code: "STANDARD" }) },
+    promotionVariant: { findMany: vi.fn().mockResolvedValue(fixture.promotionVariantRows ?? []) },
     $queryRaw: vi.fn().mockResolvedValue(fixture.lockedRows),
     order: { create: txOrderCreate, updateMany: txOrderUpdateMany },
     orderItem: { create: txOrderItemCreate },
@@ -388,6 +398,101 @@ describe("CheckoutService.initiate — successful checkout", () => {
     expect(fixture.txOrderCreate).toHaveBeenCalledWith(
       expect.objectContaining({
         data: expect.objectContaining({ userId: "user-1", guestEmail: null }),
+      }),
+    );
+  });
+});
+
+// Promotion domain integration — checkout is the one place a promotion's
+// effective price actually becomes real money (Order/OrderItem totals,
+// then the payment provider's amountMinor). The client never supplies a
+// price at all (AddItemInput is variantId+quantity only), so there is
+// nothing to "reject" from the client here — the point of these tests is
+// that the server computes the discounted price on its own from the
+// variant + active promotion, with no other code path able to influence it.
+describe("CheckoutService.initiate — promotions", () => {
+  function activePromotionRow(overrides: Partial<{ startsAt: Date | null; endsAt: Date | null; active: boolean }> = {}) {
+    return {
+      productVariantId: "var-1",
+      promotion: {
+        id: "promo-1",
+        name: "Autumn Sale",
+        percentage: 20,
+        active: true,
+        startsAt: null,
+        endsAt: null,
+        ...overrides,
+      },
+    };
+  }
+
+  it("charges the promotion's effective price, snapshots it on the OrderItem, and pays the payment provider that same amount", async () => {
+    const paymentProvider = makePaymentProvider();
+    const fixture = makeService({
+      cartItems: [stockCartItem()],
+      lockedRows: [{ id: "inv-1", onHand: 10, reserved: 2 }],
+      taxRateRows: [{ taxClassId: "tc-standard", ratePercent: decimal(25) }],
+      promotionVariantRows: [activePromotionRow()],
+      shippingProvider: makeShippingProvider(),
+      paymentProvider,
+    });
+
+    const result = await fixture.service.initiate(IDENTITY, undefined, "key-1", VALID_INPUT);
+
+    // Base price 29900, qty 2, 20% off -> unit 23920, subtotal 47800.
+    expect(fixture.txOrderItemCreate).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({
+          unitPriceMinor: 23920,
+          basePriceMinor: 29900,
+          promotionId: "promo-1",
+          promotionPercentage: 20,
+          lineSubtotalMinor: 47840,
+        }),
+      }),
+    );
+    expect(result.subtotal.amountMinor).toBe(47840);
+    expect(result.total.amountMinor).toBe(52740); // + 4900 shipping
+    expect(paymentProvider.createPayment).toHaveBeenCalledWith(
+      expect.anything(),
+      expect.objectContaining({ amountMinor: 52740 }),
+    );
+  });
+
+  it("ignores a promotion scheduled in the future and charges the base price", async () => {
+    const fixture = makeService({
+      cartItems: [stockCartItem()],
+      lockedRows: [{ id: "inv-1", onHand: 10, reserved: 2 }],
+      taxRateRows: [{ taxClassId: "tc-standard", ratePercent: decimal(25) }],
+      promotionVariantRows: [activePromotionRow({ startsAt: new Date("2099-01-01") })],
+      shippingProvider: makeShippingProvider(),
+      paymentProvider: makePaymentProvider(),
+    });
+
+    await fixture.service.initiate(IDENTITY, undefined, "key-1", VALID_INPUT);
+
+    expect(fixture.txOrderItemCreate).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({ unitPriceMinor: 29900, promotionId: null, promotionPercentage: null }),
+      }),
+    );
+  });
+
+  it("ignores an already-expired promotion and charges the base price", async () => {
+    const fixture = makeService({
+      cartItems: [stockCartItem()],
+      lockedRows: [{ id: "inv-1", onHand: 10, reserved: 2 }],
+      taxRateRows: [{ taxClassId: "tc-standard", ratePercent: decimal(25) }],
+      promotionVariantRows: [activePromotionRow({ endsAt: new Date("2020-01-01") })],
+      shippingProvider: makeShippingProvider(),
+      paymentProvider: makePaymentProvider(),
+    });
+
+    await fixture.service.initiate(IDENTITY, undefined, "key-1", VALID_INPUT);
+
+    expect(fixture.txOrderItemCreate).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({ unitPriceMinor: 29900, promotionId: null, promotionPercentage: null }),
       }),
     );
   });

@@ -4,6 +4,7 @@ import type { Locale as AppLocale } from "@ame-de-fil/validation";
 import { DEFAULT_LOCALE } from "@ame-de-fil/validation";
 import { PrismaService } from "../database/prisma.service.ts";
 import { computeAvailability } from "../common/inventory-availability.ts";
+import { resolveActivePromotionsForVariants } from "../promotions/effective-price.ts";
 import {
   CART_INCLUDE,
   emptyCartResponse,
@@ -25,7 +26,10 @@ export class CartService {
       where: cartIdentityWhere(identity),
       include: CART_INCLUDE,
     });
-    return cart ? mapCart(cart, locale, DEFAULT_LOCALE) : emptyCartResponse();
+    if (!cart) return emptyCartResponse();
+
+    const promotions = await this.resolvePromotionsFor(cart);
+    return mapCart(cart, locale, DEFAULT_LOCALE, promotions);
   }
 
   // The only mutation allowed to bring a Cart row into existence — the
@@ -159,6 +163,17 @@ export class CartService {
       where: { id: cartId },
       include: CART_INCLUDE,
     })) as CartWithItems;
-    return mapCart(cart, locale, DEFAULT_LOCALE);
+    const promotions = await this.resolvePromotionsFor(cart);
+    return mapCart(cart, locale, DEFAULT_LOCALE, promotions);
+  }
+
+  // Resolved fresh on every read, exactly like variant.priceMinor itself —
+  // a promotion starting, expiring, or being deactivated between two cart
+  // reads is reflected immediately on the next one, with nothing ever
+  // cached on the CartItem row (mapCart's own comment has the fuller
+  // rationale, shared with the price it computes from this).
+  private async resolvePromotionsFor(cart: CartWithItems) {
+    const variantIds = cart.items.map((item) => item.variant.id);
+    return resolveActivePromotionsForVariants(this.prisma, variantIds, new Date());
   }
 }

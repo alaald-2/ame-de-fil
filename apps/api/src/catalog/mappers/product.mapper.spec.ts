@@ -1,6 +1,9 @@
 import { describe, expect, it } from "vitest";
 import { Locale as PrismaLocale } from "@ame-de-fil/database";
 import { mapProduct, mapProductVariant, type ProductWithRelations } from "./product.mapper.ts";
+import type { ActivePromotionSummary } from "../../promotions/effective-price.ts";
+
+const EMPTY_PROMOTIONS: ReadonlyMap<string, ActivePromotionSummary> = new Map();
 
 function makeProduct(overrides: Partial<ProductWithRelations> = {}): ProductWithRelations {
   return {
@@ -64,7 +67,7 @@ function makeProduct(overrides: Partial<ProductWithRelations> = {}): ProductWith
 
 describe("mapProduct", () => {
   it("maps the requested locale's translation", () => {
-    const result = mapProduct(makeProduct(), "en", "sv-SE");
+    const result = mapProduct(makeProduct(), "en", "sv-SE", EMPTY_PROMOTIONS);
     expect(result?.name).toBe("Crochet sweater");
     expect(result?.slug).toBe("crochet-sweater");
     expect(result?.locale).toBe("en");
@@ -88,18 +91,18 @@ describe("mapProduct", () => {
         },
       ],
     });
-    const result = mapProduct(product, "en", "sv-SE");
+    const result = mapProduct(product, "en", "sv-SE", EMPTY_PROMOTIONS);
     expect(result?.locale).toBe("sv-SE");
     expect(result?.name).toBe("Virkad tröja");
   });
 
   it("returns null when there is no translation in the requested or default locale", () => {
     const product = makeProduct({ translations: [] });
-    expect(mapProduct(product, "en", "sv-SE")).toBeNull();
+    expect(mapProduct(product, "en", "sv-SE", EMPTY_PROMOTIONS)).toBeNull();
   });
 
   it("sorts images by position and selects the requested locale's alt text", () => {
-    const result = mapProduct(makeProduct(), "sv-SE", "sv-SE");
+    const result = mapProduct(makeProduct(), "sv-SE", "sv-SE", EMPTY_PROMOTIONS);
     expect(result?.images.map((i) => i.url)).toEqual(["/b.jpg", "/a.jpg"]);
     expect(result?.images[0]?.altText).toBe("Bild B");
   });
@@ -151,7 +154,7 @@ describe("mapProductVariant", () => {
   };
 
   it("computes availability from onHand - reserved when stock is tracked", () => {
-    const result = mapProductVariant(baseVariant, "en");
+    const result = mapProductVariant(baseVariant, "en", EMPTY_PROMOTIONS);
     expect(result.available).toBe(true); // 5 - 2 = 3 > 0
   });
 
@@ -160,7 +163,7 @@ describe("mapProductVariant", () => {
       ...baseVariant,
       inventoryItem: { ...baseVariant.inventoryItem!, onHand: 2, reserved: 2 },
     };
-    expect(mapProductVariant(variant, "en").available).toBe(false);
+    expect(mapProductVariant(variant, "en", EMPTY_PROMOTIONS).available).toBe(false);
   });
 
   it("is always available for made-to-order variants (tracksStock=false), regardless of onHand", () => {
@@ -168,16 +171,40 @@ describe("mapProductVariant", () => {
       ...baseVariant,
       inventoryItem: { ...baseVariant.inventoryItem!, tracksStock: false, onHand: 0, reserved: 0 },
     };
-    expect(mapProductVariant(variant, "en").available).toBe(true);
+    expect(mapProductVariant(variant, "en", EMPTY_PROMOTIONS).available).toBe(true);
   });
 
   it("is unavailable when there is no inventory item at all", () => {
     const variant = { ...baseVariant, inventoryItem: null };
-    expect(mapProductVariant(variant, "en").available).toBe(false);
+    expect(mapProductVariant(variant, "en", EMPTY_PROMOTIONS).available).toBe(false);
   });
 
   it("selects the option value label in the requested locale", () => {
-    expect(mapProductVariant(baseVariant, "sv-SE").options[0]?.label).toBe("Rost");
-    expect(mapProductVariant(baseVariant, "en").options[0]?.label).toBe("Rust");
+    expect(mapProductVariant(baseVariant, "sv-SE", EMPTY_PROMOTIONS).options[0]?.label).toBe("Rost");
+    expect(mapProductVariant(baseVariant, "en", EMPTY_PROMOTIONS).options[0]?.label).toBe("Rust");
+  });
+
+  // Promotion domain integration — the storefront must never show (or
+  // charge) the base price when a promotion is currently effective for
+  // this variant, and must never mutate priceMinor itself doing so.
+  it("shows the discounted price and original price when an active promotion applies", () => {
+    const promotions = new Map<string, ActivePromotionSummary>([
+      ["var-1", { id: "promo-1", name: "Autumn Sale", percentage: 20 }],
+    ]);
+
+    const result = mapProductVariant(baseVariant, "en", promotions);
+
+    expect(result.price).toEqual({ amountMinor: 23920, currency: "SEK" }); // 29900 * 0.8
+    expect(result.originalPrice).toEqual({ amountMinor: 29900, currency: "SEK" });
+    expect(result.promotion).toEqual({ id: "promo-1", name: "Autumn Sale", percentage: 20 });
+    expect(baseVariant.priceMinor).toBe(29900); // never mutated
+  });
+
+  it("has no originalPrice/promotion when no promotion applies to this variant", () => {
+    const result = mapProductVariant(baseVariant, "en", EMPTY_PROMOTIONS);
+
+    expect(result.price).toEqual({ amountMinor: 29900, currency: "SEK" });
+    expect(result.originalPrice).toBeNull();
+    expect(result.promotion).toBeNull();
   });
 });

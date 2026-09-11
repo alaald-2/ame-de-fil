@@ -16,10 +16,20 @@ const variantOptionResponseSchema = z.object({
   label: z.string(),
 });
 
+const variantPromotionResponseSchema = z.object({
+  id: z.string(),
+  name: z.string(),
+  percentage: z.number().int(),
+});
+
 const productVariantResponseSchema = z.object({
   id: z.string(),
   sku: z.string(),
+  // Effective (post-promotion) price — see product.mapper.ts's own comment.
   price: moneyResponseSchema,
+  // Only set when a promotion currently discounts this variant.
+  originalPrice: moneyResponseSchema.nullable(),
+  promotion: variantPromotionResponseSchema.nullable(),
   weightGrams: z.number().int().nullable(),
   options: z.array(variantOptionResponseSchema),
   available: z.boolean(),
@@ -178,6 +188,21 @@ export const listAdminProductsResponseSchema = z.object({
   pageSize: z.number().int(),
   total: z.number().int(),
 });
+
+// Feeds the Promotions admin UI's variant picker (promotions/promotions
+// module has no products data of its own) — see admin-products.service.ts's
+// listVariantOptions for the full rationale.
+export const adminProductVariantOptionResponseSchema = z.object({
+  variantId: z.string(),
+  sku: z.string(),
+  priceMinor: z.number().int(),
+  productId: z.string(),
+  productName: z.string(),
+});
+
+export const listAdminProductVariantOptionsResponseSchema = z.array(
+  adminProductVariantOptionResponseSchema,
+);
 
 // Shared by AdminCategoriesController and AdminCollectionsController —
 // Category/Collection are structurally identical (mappers/admin-taxonomy.mapper.ts).

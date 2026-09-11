@@ -3,6 +3,7 @@ import type { Prisma } from "@ame-de-fil/database";
 import { resolveTranslation } from "./translation.mapper.ts";
 import { fromPrismaLocale } from "../../common/locale.ts";
 import { computeAvailability } from "../../common/inventory-availability.ts";
+import { resolveEffectivePrice, type ActivePromotionSummary } from "../../promotions/effective-price.ts";
 
 // Single source of truth for "the shape a product query needs" — used as
 // the literal `include` clause by every service that queries products
@@ -27,7 +28,16 @@ export type ProductWithRelations = Prisma.ProductGetPayload<{ include: typeof PR
 export interface ProductVariantResponse {
   id: string;
   sku: string;
+  // The effective (post-promotion) price — what the customer actually
+  // pays. Was always the base price before the Promotion domain existed;
+  // now the authoritative "price to charge/display" field, matching cart's
+  // own unitPrice semantics (cart/mappers/cart.mapper.ts).
   price: { amountMinor: number; currency: "SEK" };
+  // Only set when a promotion is currently discounting this variant — the
+  // base price to show crossed out. Null (not equal to `price`) the rest
+  // of the time, so an ordinary line never carries a redundant duplicate.
+  originalPrice: { amountMinor: number; currency: "SEK" } | null;
+  promotion: ActivePromotionSummary | null;
   weightGrams: number | null;
   options: Array<{ key: string; value: string; label: string }>;
   available: boolean;
@@ -58,6 +68,7 @@ export interface ProductResponse {
 export function mapProductVariant(
   variant: ProductWithRelations["variants"][number],
   locale: AppLocale,
+  promotionsByVariantId: ReadonlyMap<string, ActivePromotionSummary>,
 ): ProductVariantResponse {
   const options = variant.optionValues.map((ov) => ({
     key: ov.option.key,
@@ -68,16 +79,32 @@ export function mapProductVariant(
   const inventory = variant.inventoryItem;
   const { available } = inventory ? computeAvailability(inventory) : { available: false };
 
+  const effective = resolveEffectivePrice(variant.priceMinor, promotionsByVariantId.get(variant.id));
+
   return {
     id: variant.id,
     sku: variant.sku,
-    price: { amountMinor: variant.priceMinor, currency: "SEK" },
+    price: { amountMinor: effective.effectivePriceMinor, currency: "SEK" },
+    originalPrice:
+      effective.promotion !== null
+        ? { amountMinor: effective.basePriceMinor, currency: "SEK" }
+        : null,
+    promotion: effective.promotion,
     weightGrams: variant.weightGrams,
     options,
     available,
     isLimitedEdition: inventory?.isLimitedEdition ?? false,
     productionTimeDays: inventory?.productionTimeDays ?? null,
   };
+}
+
+// Every product-listing service (ProductsService, CategoriesService,
+// CollectionsService) needs "every variant id across this page of
+// products" as the input to one batched resolveActivePromotionsForVariants
+// call — collected here once so the shape of PRODUCT_INCLUDE's variants
+// array isn't duplicated across three call sites.
+export function collectVariantIds(products: readonly ProductWithRelations[]): string[] {
+  return products.flatMap((product) => product.variants.map((v) => v.id));
 }
 
 // Returns null when neither the requested nor default locale has a
@@ -87,6 +114,7 @@ export function mapProduct(
   product: ProductWithRelations,
   requestedLocale: AppLocale,
   defaultLocale: AppLocale,
+  promotionsByVariantId: ReadonlyMap<string, ActivePromotionSummary>,
 ): ProductResponse | null {
   const translation = resolveTranslation(product.translations, requestedLocale, defaultLocale);
   if (!translation) return null;
@@ -128,6 +156,6 @@ export function mapProduct(
       })),
     categories,
     collections,
-    variants: product.variants.map((v) => mapProductVariant(v, resolvedLocale)),
+    variants: product.variants.map((v) => mapProductVariant(v, resolvedLocale, promotionsByVariantId)),
   };
 }

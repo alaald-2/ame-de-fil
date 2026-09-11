@@ -65,6 +65,9 @@ function makePrisma(overrides: Record<string, unknown> = {}) {
     productVariant: {
       findUnique: vi.fn().mockResolvedValue(VARIANT_ACTIVE_IN_STOCK),
     },
+    promotionVariant: {
+      findMany: vi.fn().mockResolvedValue([]),
+    },
     ...overrides,
   };
   return mock as unknown as PrismaService;
@@ -105,6 +108,85 @@ describe("CartService.getCart", () => {
       id: "item-1",
       productName: "Halsduk",
       available: true,
+    });
+  });
+
+  // Promotion domain integration — the cart must never trust a
+  // client-supplied price, and must reflect an active promotion the same
+  // way checkout eventually will (effective-price.ts is the single source
+  // both read from).
+  it("uses the active promotion's effective price, not the variant's base price", async () => {
+    const prisma = makePrisma({
+      cart: {
+        findUnique: vi.fn().mockResolvedValue(cartWithItems([itemRow()])),
+        upsert: vi.fn(),
+        findUniqueOrThrow: vi.fn(),
+      },
+      promotionVariant: {
+        findMany: vi.fn().mockResolvedValue([
+          {
+            productVariantId: "var-1",
+            promotion: {
+              id: "promo-1",
+              name: "Autumn Sale",
+              percentage: 20,
+              active: true,
+              startsAt: null,
+              endsAt: null,
+            },
+          },
+        ]),
+      },
+    });
+    const service = new CartService(prisma);
+
+    const result = await service.getCart({ guestToken: "guest-token" }, "sv-SE");
+
+    // Base 29900, qty 2, 20% off -> unit 23920, line total 47840.
+    expect(result.items[0]).toMatchObject({
+      unitPrice: { amountMinor: 23920, currency: "SEK" },
+      originalUnitPrice: { amountMinor: 29900, currency: "SEK" },
+      promotion: { id: "promo-1", name: "Autumn Sale", percentage: 20 },
+      lineTotal: { amountMinor: 47840, currency: "SEK" },
+    });
+    expect(result.subtotal).toEqual({ amountMinor: 47840, currency: "SEK" });
+  });
+
+  it("ignores an inactive promotion and falls back to the base price", async () => {
+    const prisma = makePrisma({
+      cart: {
+        findUnique: vi.fn().mockResolvedValue(cartWithItems([itemRow()])),
+        upsert: vi.fn(),
+        findUniqueOrThrow: vi.fn(),
+      },
+      promotionVariant: {
+        // A real query would already exclude this (promotion.active:
+        // false), but exercising the JS-side isPromotionCurrentlyEffective
+        // filter directly here means this test still catches a regression
+        // even if the query's own filter is ever loosened.
+        findMany: vi.fn().mockResolvedValue([
+          {
+            productVariantId: "var-1",
+            promotion: {
+              id: "promo-1",
+              name: "Ended Sale",
+              percentage: 20,
+              active: false,
+              startsAt: null,
+              endsAt: null,
+            },
+          },
+        ]),
+      },
+    });
+    const service = new CartService(prisma);
+
+    const result = await service.getCart({ guestToken: "guest-token" }, "sv-SE");
+
+    expect(result.items[0]).toMatchObject({
+      unitPrice: { amountMinor: 29900, currency: "SEK" },
+      originalUnitPrice: null,
+      promotion: null,
     });
   });
 });

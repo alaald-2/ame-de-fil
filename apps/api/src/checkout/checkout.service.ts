@@ -18,6 +18,7 @@ import { SHIPPING_PROVIDER, type ShippingProvider } from "../shipping/shipping-p
 import { PAYMENT_PROVIDER, type PaymentProvider } from "../payments/payment-provider.ts";
 import { CHECKOUT_CART_INCLUDE, buildOrderItemSnapshot } from "./checkout-cart.ts";
 import { getCurrentTaxRatesByClassId, getShippingTaxRatePercent } from "./tax-rates.ts";
+import { resolveActivePromotionsForVariants } from "../promotions/effective-price.ts";
 import { computeOrderTotals } from "./pricing.ts";
 import { lockInventoryItemsForUpdate } from "./stock-lock.ts";
 import { generateOrderNumber } from "./order-number.ts";
@@ -170,13 +171,25 @@ export class CheckoutService {
       const taxRates = await getCurrentTaxRatesByClassId(tx, taxClassIds, now);
       const shippingTaxRate = await getShippingTaxRatePercent(tx, now);
 
+      // 4.5. Current active promotions — resolved the same way tax rates
+      // are, in one batched query, then applied per-line below. This is the
+      // one and only place checkout ever substitutes a variant's base price
+      // for a promotion's effective price (checkout-cart.ts's
+      // buildOrderItemSnapshot); the client never supplies or influences it.
+      const variantIds = cart.items.map((item) => item.variant.id);
+      const activePromotions = await resolveActivePromotionsForVariants(tx, variantIds, now);
+
       // 5. Price every line from live variant data and compute order totals.
       const linePlans = cart.items.map((item) => {
         const rate = taxRates.get(item.variant.taxClassId);
         if (rate === undefined) {
           throw new Error(`Missing resolved tax rate for taxClass "${item.variant.taxClassId}"`);
         }
-        return { item, snapshot: buildOrderItemSnapshot(item, input.locale, DEFAULT_LOCALE, rate) };
+        const promotion = activePromotions.get(item.variant.id);
+        return {
+          item,
+          snapshot: buildOrderItemSnapshot(item, input.locale, DEFAULT_LOCALE, rate, promotion),
+        };
       });
       const totals = computeOrderTotals(
         linePlans.map((plan) => plan.snapshot),

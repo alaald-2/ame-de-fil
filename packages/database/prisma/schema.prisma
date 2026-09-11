@@ -394,6 +394,7 @@ model ProductVariant {
   orderItems               OrderItem[]
   wishlistedBy             Wishlist[]
   backInStockSubscriptions BackInStockSubscription[]
+  promotionVariants        PromotionVariant[]
 
   @@index([productId])
 }
@@ -733,6 +734,25 @@ model OrderItem {
   lineSubtotalMinor    Int
   lineTotalMinor       Int
 
+  // Promotion snapshot (separate domain from Order.discountId/discountMinor,
+  // which is reserved for the still-unbuilt Coupon system — see
+  // promotions/effective-price.ts). unitPriceMinor above is already the
+  // authoritative charged price whether or not a promotion applied;
+  // basePriceMinor/promotionId/promotionPercentage exist purely so history
+  // can later show "500 kr -> 400 kr (Autumn Sale, 20%)" without ever
+  // depending on the variant's current price or the promotion's current
+  // state. Nullable: pre-promotion-feature rows have none of this, and a
+  // line with no active promotion at checkout time never had a discount to
+  // record. promotionId is a real FK (SetNull, not Restrict) so a
+  // (currently unbuilt) future promotion-delete path can never be blocked
+  // by old orders — the snapshot fields already carry everything needed
+  // once the row itself is gone.
+  basePriceMinor      Int?
+  promotionId         String?
+  promotionPercentage Int?
+
+  promotion Promotion? @relation(fields: [promotionId], references: [id], onDelete: SetNull)
+
   // Snapshot of InventoryItem.tracksStock/productionTimeDays at
   // checkout-start (DECISIONS.md ADR-030) — a later admin edit to a
   // variant's production time must never rewrite history for orders
@@ -890,6 +910,82 @@ model Coupon {
   discount Discount @relation(fields: [discountId], references: [id], onDelete: Cascade)
 
   @@index([discountId])
+}
+
+// ─────────────────────────────────────────────────────────────────────────
+// Promotions — deliberately independent of Discount/Coupon above. A
+// Discount/Coupon reduces an Order's total via a customer-entered code
+// (Order.discountId/discountMinor); a Promotion instead changes a specific
+// ProductVariant's own effective *unit* price, no code required, and is
+// consumed at the OrderItem line-item level (unitPriceMinor/basePriceMinor/
+// promotionId above) — the two never share a table, a service, or a write
+// path. See apps/api/src/promotions/effective-price.ts for where the
+// effective price is actually computed (the base ProductVariant.priceMinor
+// is never overwritten by an active promotion).
+// ─────────────────────────────────────────────────────────────────────────
+
+model Promotion {
+  id         String    @id @default(cuid())
+  name       String
+  // Percentage off, 1-100 (enforced in application/DTO validation, not a DB
+  // CHECK — same posture as Discount.value's own comment above). Version 1
+  // is percentage-only by design (PRODUCT_SPEC checkpoint scope) — no
+  // FIXED_AMOUNT/currency field, unlike Discount, since a % is inherently
+  // currency-agnostic and this project is SEK-only today anyway.
+  percentage Int
+  startsAt   DateTime?
+  endsAt     DateTime?
+  active     Boolean   @default(true)
+  createdAt  DateTime  @default(now())
+  updatedAt  DateTime  @updatedAt
+
+  variants   PromotionVariant[]
+  orderItems OrderItem[]
+
+  @@index([active])
+}
+
+// Join table for "Promotion applies to these variants" (Promotion ->
+// PromotionVariant -> ProductVariant). activeSnapshot/startsAtSnapshot/
+// endsAtSnapshot duplicate the parent Promotion's own active/startsAt/endsAt
+// at write time (kept in sync by PromotionsService inside the same
+// transaction as any Promotion change) purely so the EXCLUDE constraint
+// below can enforce "no two overlapping effective promotions per variant"
+// at the database level — a Postgres EXCLUDE constraint can only reference
+// columns on the table it's defined on, never a joined parent's columns,
+// so there is no way to express this constraint against Promotion's own
+// columns directly. PromotionsService (the only writer) is also the
+// service-level backstop, run inside a pg_advisory_xact_lock keyed by
+// variantId (see promotion-overlap.ts) so two concurrent admin requests
+// can't both race past the pre-check — this constraint is the final,
+// unbypassable layer under that, not the primary UX.
+model PromotionVariant {
+  id               String   @id @default(cuid())
+  promotionId      String
+  productVariantId String
+
+  activeSnapshot   Boolean
+  startsAtSnapshot DateTime?
+  endsAtSnapshot   DateTime?
+
+  createdAt DateTime @default(now())
+
+  promotion Promotion      @relation(fields: [promotionId], references: [id], onDelete: Cascade)
+  variant   ProductVariant @relation(fields: [productVariantId], references: [id], onDelete: Cascade)
+
+  @@unique([promotionId, productVariantId])
+  @@index([productVariantId])
+  // The migration's hand-written SQL adds:
+  //   CREATE EXTENSION IF NOT EXISTS btree_gist;
+  //   ALTER TABLE "PromotionVariant" ADD CONSTRAINT promotion_variant_no_overlap
+  //     EXCLUDE USING gist (
+  //       "productVariantId" WITH =,
+  //       tsrange("startsAtSnapshot", COALESCE("endsAtSnapshot", 'infinity'), '[)') WITH &&
+  //     ) WHERE ("activeSnapshot");
+  // (tsrange, not tstzrange — every DateTime column here is TIMESTAMP(3)
+  // without time zone.) Prisma's schema language has no way to declare
+  // EXCLUDE/gist constraints, so this can't be expressed here; see the
+  // migration.sql itself for the authoritative version.
 }
 
 // ─────────────────────────────────────────────────────────────────────────

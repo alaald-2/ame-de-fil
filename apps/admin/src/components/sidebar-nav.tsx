@@ -19,6 +19,7 @@ interface SidebarNavProps {
 const REQUIRED_PERMISSIONS: Partial<Record<string, string[]>> = {
   "/": ["dashboard.view"],
   "/products": ["products.view"],
+  "/promotions": ["promotions.view"],
   "/orders": ["orders.view"],
   "/inventory": ["inventory.view"],
   "/customers": ["customers.view"],
@@ -36,6 +37,7 @@ export function SidebarNav({ permissions }: SidebarNavProps) {
   const items = [
     { href: "/", label: t("dashboard") },
     { href: "/products", label: t("products") },
+    { href: "/promotions", label: t("promotions") },
     { href: "/orders", label: t("orders") },
     { href: "/inventory", label: t("inventory") },
     { href: "/customers", label: t("customers") },

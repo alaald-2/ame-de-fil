@@ -47,7 +47,9 @@
     "empty": "Inga produkter hittades.",
     "soldOut": "Slutsåld",
     "madeToOrder": "Tillverkas på beställning",
-    "productionTime": "Leveranstid ca {days} dagar"
+    "productionTime": "Leveranstid ca {days} dagar",
+    "percentOff": "{percentage}% rabatt",
+    "originalPriceLabel": "Ordinarie pris:"
   },
   "Product": {
     "notFoundTitle": "Produkten hittades inte",

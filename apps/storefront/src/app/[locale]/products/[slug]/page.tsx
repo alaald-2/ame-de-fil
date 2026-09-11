@@ -3,10 +3,10 @@ import { notFound } from "next/navigation";
 import { getTranslations } from "next-intl/server";
 import { Container, Heading, Text, Alert } from "@ame-de-fil/ui";
 import { api } from "../../../../lib/api-client";
-import { formatMoney } from "../../../../lib/format-money";
 import type { AppLocale } from "../../../../lib/locale";
 import { AddToCartButton } from "../../../../components/add-to-cart-button";
 import { CartErrorAlert } from "../../../../components/cart-error-alert";
+import { SalePrice } from "../../../../components/sale-price";
 
 type PageParams = { locale: AppLocale; slug: string };
 
@@ -85,7 +85,13 @@ export default async function ProductPage({ params }: { params: Promise<PagePara
                 ) : null}
               </div>
               <div className="flex items-center gap-4">
-                <Text>{formatMoney(variant.price.amountMinor, locale)}</Text>
+                <SalePrice
+                  price={variant.price}
+                  originalPrice={variant.originalPrice}
+                  promotion={variant.promotion}
+                  locale={locale}
+                  size="base"
+                />
                 <AddToCartButton variantId={variant.id} available={variant.available} />
               </div>
             </div>
