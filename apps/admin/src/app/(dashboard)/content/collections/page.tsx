@@ -53,9 +53,12 @@ export default async function CollectionsPage({ searchParams }: CollectionsPageP
 
   return (
     <div>
-      <div className="flex flex-wrap items-baseline justify-between gap-x-6 gap-y-1">
-        <Heading level={1}>{tNav("content")}</Heading>
-        <Text tone="muted">{t("resultsCount", { count: data.total })}</Text>
+      <div className="flex flex-wrap items-start justify-between gap-x-6 gap-y-3">
+        <div className="flex flex-wrap items-baseline gap-x-6 gap-y-1">
+          <Heading level={1}>{tNav("content")}</Heading>
+          <Text tone="muted">{t("resultsCount", { count: data.total })}</Text>
+        </div>
+        {canManage ? <CreateTaxonomyDialog kind="collections" /> : null}
       </div>
 
       <div className="mt-6">
@@ -65,12 +68,6 @@ export default async function CollectionsPage({ searchParams }: CollectionsPageP
       <div className="mt-4 max-w-sm">
         <SearchField label={t("searchLabel")} placeholder={t("searchPlaceholder")} />
       </div>
-
-      {canManage ? (
-        <div className="mt-6 flex justify-end">
-          <CreateTaxonomyDialog kind="collections" />
-        </div>
-      ) : null}
 
       {data.items.length === 0 ? (
         <EmptyState

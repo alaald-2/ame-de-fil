@@ -58,4 +58,77 @@
 
   /* Tailwind v4's default 0.25rem (4px) base spacing unit is already what
      DESIGN_SYSTEM.md §4 asks for — not overridden here. */
+
+  /* Dialog open/close motion (Dialog.tsx) — restrained (~150ms, small
+     scale/opacity move, not a bounce or slide) and bound to Radix's own
+     `data-state` attribute, so it needs a real CSS @keyframes animation
+     here rather than a `transition` (a transition has no "before" frame to
+     animate from on first mount, since Radix sets data-state="open"
+     immediately; a keyframe animation always plays its full timeline
+     regardless). `forwards` holds each animation's end state so the
+     element doesn't flash back to its un-animated resting style for a
+     frame before Radix's Presence removes it on close. */
+  --animate-dialog-in: dialog-in 150ms cubic-bezier(0.16, 1, 0.3, 1) forwards;
+  --animate-dialog-out: dialog-out 120ms ease-in forwards;
+  --animate-overlay-in: overlay-in 150ms ease-out forwards;
+  --animate-overlay-out: overlay-out 120ms ease-in forwards;
+}
+
+/* No translate(-50%, -50%) in these keyframes: Dialog.tsx's own
+   -translate-x-1/2 -translate-y-1/2 utilities compile to the CSS `translate`
+   property in Tailwind v4 (not into `transform`), which keeps applying
+   throughout the animation independently of it. Re-adding the same -50%/-50%
+   offset inside `transform` here stacked a second, redundant shift on top of
+   it — the two combined pushed the dialog well off its centered position
+   (found live: a "Create category" dialog rendering far above/left of the
+   viewport). Scale-only keeps this animation orthogonal to that positioning. */
+@keyframes dialog-in {
+  from {
+    opacity: 0;
+    transform: scale(0.97);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+@keyframes dialog-out {
+  from {
+    opacity: 1;
+    transform: scale(1);
+  }
+  to {
+    opacity: 0;
+    transform: translate(-50%, -50%) scale(0.97);
+  }
+}
+@keyframes overlay-in {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+@keyframes overlay-out {
+  from {
+    opacity: 1;
+  }
+  to {
+    opacity: 0;
+  }
+}
+
+/* Every animation above is purely presentational (opacity/scale), never
+   information-bearing, so reduced motion collapses them to an instant
+   opacity swap rather than removing the animation property entirely —
+   Radix's Presence still needs an `animationend` event to fire before it
+   unmounts a closing dialog. */
+@media (prefers-reduced-motion: reduce) {
+  .animate-dialog-in,
+  .animate-dialog-out,
+  .animate-overlay-in,
+  .animate-overlay-out {
+    animation-duration: 0.01ms !important;
+  }
 }

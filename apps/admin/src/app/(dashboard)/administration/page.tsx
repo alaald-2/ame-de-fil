@@ -79,9 +79,12 @@ export default async function AdministrationPage({ searchParams }: Administratio
 
   return (
     <div>
-      <div className="flex flex-wrap items-baseline justify-between gap-x-6 gap-y-1">
-        <Heading level={1}>{tNav("administration")}</Heading>
-        <Text tone="muted">{t("usersCount", { count: data.total })}</Text>
+      <div className="flex flex-wrap items-start justify-between gap-x-6 gap-y-3">
+        <div className="flex flex-wrap items-baseline gap-x-6 gap-y-1">
+          <Heading level={1}>{tNav("administration")}</Heading>
+          <Text tone="muted">{t("usersCount", { count: data.total })}</Text>
+        </div>
+        {canCreateUsers ? <CreateUserDialog assignableRoles={assignableRoles} /> : null}
       </div>
 
       <div className="mt-6">
@@ -91,12 +94,6 @@ export default async function AdministrationPage({ searchParams }: Administratio
       <div className="mt-4 max-w-sm">
         <SearchField label={t("searchLabel")} placeholder={t("searchPlaceholder")} />
       </div>
-
-      {canCreateUsers ? (
-        <div className="mt-6 flex justify-end">
-          <CreateUserDialog assignableRoles={assignableRoles} />
-        </div>
-      ) : null}
 
       {data.items.length === 0 ? (
         <EmptyState

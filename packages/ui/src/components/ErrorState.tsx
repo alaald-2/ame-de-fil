@@ -23,7 +23,16 @@ interface ErrorStateProps {
 // usage renders this directly under a page's <h1>, with no <h2> in between.
 export function ErrorState({ title, description, retryHref, retryLabel, className }: ErrorStateProps) {
   return (
-    <div className={cn("flex flex-col items-center gap-2 py-20 text-center", className)}>
+    <div
+      className={cn(
+        // A hairline border-danger/30 top rule — the same restrained
+        // "tinted hairline" language Badge/Alert already use for this tone
+        // — is the one thing distinguishing this from EmptyState's
+        // identical layout, so the two don't read as the same state.
+        "flex flex-col items-center gap-2 border-t border-danger/30 pt-20 pb-20 text-center",
+        className,
+      )}
+    >
       <Heading level={2}>{title}</Heading>
       {description ? <Text tone="muted" className="max-w-sm">{description}</Text> : null}
       {retryHref && retryLabel ? (

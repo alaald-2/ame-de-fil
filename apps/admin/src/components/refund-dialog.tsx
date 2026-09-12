@@ -122,7 +122,7 @@ export function RefundDialog({ orderId, defaultAmountMinor }: RefundDialogProps)
             </FormField>
           </div>
           <div className="mt-6 flex justify-end gap-3">
-            <Button type="submit" disabled={isSubmitting}>
+            <Button type="submit" variant="danger" disabled={isSubmitting}>
               {isSubmitting ? (
                 <>
                   <Spinner className="h-4 w-4" /> {t("submit")}

@@ -19,10 +19,10 @@ interface DialogContentProps extends ComponentPropsWithoutRef<typeof RadixDialog
 }
 
 // A thin hairline border, not a heavy shadow (DESIGN_SYSTEM.md §5) — the
-// overlay dim alone separates this from the page behind it. No open/close
-// transition: `motion` is deliberately not installed this checkpoint (no
-// real consumer needed it before now), and an abrupt but instant dialog is
-// preferable to inventing unapproved Tailwind animation utilities. Title is
+// overlay dim alone separates this from the page behind it. Open/close
+// motion is a restrained ~150ms opacity+scale, driven entirely by Radix's
+// own `data-state` attribute and the `animate-dialog-*`/`animate-overlay-*`
+// keyframes in tokens.css — no animation library dependency. Title is
 // mandatory (Radix's own accessibility requirement); pass `description`
 // when there's real supporting copy to read alongside it.
 //
@@ -44,10 +44,10 @@ export function DialogContent({
 }: DialogContentProps) {
   return (
     <RadixDialog.Portal>
-      <RadixDialog.Overlay className="fixed inset-0 bg-neutral-900/40" />
+      <RadixDialog.Overlay className="fixed inset-0 bg-neutral-900/40 data-[state=closed]:animate-overlay-out data-[state=open]:animate-overlay-in" />
       <RadixDialog.Content
         className={cn(
-          "fixed top-1/2 left-1/2 max-h-[85vh] w-[calc(100%-2rem)] max-w-md -translate-x-1/2 -translate-y-1/2 overflow-y-auto rounded-sm border border-neutral-200 bg-neutral-50 p-6 focus:outline-none",
+          "fixed top-1/2 left-1/2 max-h-[85vh] w-[calc(100%-2rem)] max-w-md -translate-x-1/2 -translate-y-1/2 overflow-y-auto rounded-sm border border-neutral-200 bg-neutral-50 p-6 focus:outline-none data-[state=closed]:animate-dialog-out data-[state=open]:animate-dialog-in",
           className,
         )}
         {...props}

@@ -2,7 +2,7 @@
 
 import { usePathname } from "next/navigation";
 import { useTranslations } from "next-intl";
-import { NavLink } from "@ame-de-fil/ui";
+import { NavLink, cn } from "@ame-de-fil/ui";
 
 interface SidebarNavProps {
   permissions: string[];
@@ -55,16 +55,27 @@ export function SidebarNav({ permissions }: SidebarNavProps) {
       aria-label={t("dashboard")}
       className="-mx-1 mt-3 flex items-center gap-1 overflow-x-auto px-1 md:mx-0 md:mt-0 md:flex-col md:items-stretch md:overflow-visible md:px-0"
     >
-      {visibleItems.map((item) => (
-        <NavLink
-          key={item.href}
-          href={item.href}
-          active={pathname === item.href || (item.href !== "/" && pathname.startsWith(item.href))}
-          className="rounded-sm px-3 py-2 whitespace-nowrap hover:bg-neutral-100"
-        >
-          {item.label}
-        </NavLink>
-      ))}
+      {visibleItems.map((item) => {
+        const isActive = pathname === item.href || (item.href !== "/" && pathname.startsWith(item.href));
+        return (
+          <NavLink
+            key={item.href}
+            href={item.href}
+            active={isActive}
+            // The background marker is admin-sidebar-specific styling (this
+            // nav has row padding to hold it), not part of NavLink itself —
+            // the storefront's own NavLink usage (site-nav.tsx) is plain
+            // inline text with no padding, so a shared background treatment
+            // there would look cramped rather than like a highlighted row.
+            className={cn(
+              "rounded-sm px-3 py-2 whitespace-nowrap hover:bg-neutral-100",
+              isActive && "bg-neutral-100",
+            )}
+          >
+            {item.label}
+          </NavLink>
+        );
+      })}
       {/* "More to scroll" hint for the horizontal mobile row only (this
           nav becomes a vertical column at md+, where it never overflows).
           A plain character, not an icon library — matches this codebase's

@@ -267,7 +267,7 @@ export function AdminTaxonomyDetailForm({ kind, id, translations, productCount, 
             </DialogTrigger>
             <DialogContent title={t("deleteConfirmTitle")} description={t("deleteConfirmDescription")} closeLabel={t("close")}>
               <div className="flex justify-end gap-3">
-                <Button type="button" onClick={handleDelete} disabled={isDeleting}>
+                <Button type="button" variant="danger" onClick={handleDelete} disabled={isDeleting}>
                   {isDeleting ? (
                     <>
                       <Spinner className="h-4 w-4" /> {t("deleteAction")}

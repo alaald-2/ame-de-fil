@@ -3,7 +3,7 @@
 import { useState, type FormEvent } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useTranslations } from "next-intl";
-import { Heading, Alert, FormField, Input, Button, Stack, Spinner } from "@ame-de-fil/ui";
+import { Heading, Alert, Card, FormField, Input, Button, Stack, Spinner } from "@ame-de-fil/ui";
 import { api } from "../lib/api-client";
 
 type LoginErrorKind = "invalidCredentials" | "genericError";
@@ -47,51 +47,53 @@ export function LoginForm() {
 
   return (
     <div className="w-full max-w-sm">
-      <Heading level={2} className="mb-6 text-center">
-        {t("title")}
-      </Heading>
-      {errorKind ? (
-        <Alert tone="danger" className="mb-6">
-          {t(errorKind)}
-        </Alert>
-      ) : null}
-      <form onSubmit={handleSubmit}>
-        <Stack gap="md">
-          <FormField label={t("emailLabel")} required>
-            {(fieldProps) => (
-              <Input
-                {...fieldProps}
-                type="email"
-                autoComplete="username"
-                required
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-              />
-            )}
-          </FormField>
-          <FormField label={t("passwordLabel")} required>
-            {(fieldProps) => (
-              <Input
-                {...fieldProps}
-                type="password"
-                autoComplete="current-password"
-                required
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-              />
-            )}
-          </FormField>
-          <Button type="submit" disabled={isSubmitting} className="mt-2">
-            {isSubmitting ? (
-              <>
-                <Spinner className="h-4 w-4" /> {t("signingIn")}
-              </>
-            ) : (
-              t("submit")
-            )}
-          </Button>
-        </Stack>
-      </form>
+      <Card className="p-8">
+        <Heading level={2} className="mb-6 text-center">
+          {t("title")}
+        </Heading>
+        {errorKind ? (
+          <Alert tone="danger" className="mb-6">
+            {t(errorKind)}
+          </Alert>
+        ) : null}
+        <form onSubmit={handleSubmit}>
+          <Stack gap="md">
+            <FormField label={t("emailLabel")} required>
+              {(fieldProps) => (
+                <Input
+                  {...fieldProps}
+                  type="email"
+                  autoComplete="username"
+                  required
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                />
+              )}
+            </FormField>
+            <FormField label={t("passwordLabel")} required>
+              {(fieldProps) => (
+                <Input
+                  {...fieldProps}
+                  type="password"
+                  autoComplete="current-password"
+                  required
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                />
+              )}
+            </FormField>
+            <Button type="submit" disabled={isSubmitting} className="mt-2">
+              {isSubmitting ? (
+                <>
+                  <Spinner className="h-4 w-4" /> {t("signingIn")}
+                </>
+              ) : (
+                t("submit")
+              )}
+            </Button>
+          </Stack>
+        </form>
+      </Card>
     </div>
   );
 }

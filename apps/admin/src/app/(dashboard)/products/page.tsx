@@ -76,22 +76,21 @@ export default async function ProductsPage({ searchParams }: ProductsPageProps) 
 
   return (
     <div>
-      <div className="flex flex-wrap items-baseline justify-between gap-x-6 gap-y-1">
-        <Heading level={1}>{tNav("products")}</Heading>
-        <Text tone="muted">{t("resultsCount", { count: data.total })}</Text>
+      <div className="flex flex-wrap items-start justify-between gap-x-6 gap-y-3">
+        <div className="flex flex-wrap items-baseline gap-x-6 gap-y-1">
+          <Heading level={1}>{tNav("products")}</Heading>
+          <Text tone="muted">{t("resultsCount", { count: data.total })}</Text>
+        </div>
+        {canCreate ? (
+          <Button asChild>
+            <Link href="/products/new">{t("createProduct")}</Link>
+          </Button>
+        ) : null}
       </div>
 
       <div className="mt-4 max-w-sm">
         <SearchField label={t("searchLabel")} placeholder={t("searchPlaceholder")} />
       </div>
-
-      {canCreate ? (
-        <div className="mt-6 flex justify-end">
-          <Button asChild>
-            <Link href="/products/new">{t("createProduct")}</Link>
-          </Button>
-        </div>
-      ) : null}
 
       <div className="mt-6">
         <ProductStatusTabs current={status} />

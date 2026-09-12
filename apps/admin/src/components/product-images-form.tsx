@@ -260,7 +260,7 @@ function SortableImageCard({ productId, image }: { productId: string; image: Pro
               >
                 {deleteErrorKind ? <Alert tone="danger">{t("genericError")}</Alert> : null}
                 <div className="mt-6 flex justify-end gap-3">
-                  <Button type="button" onClick={handleDelete} disabled={isDeleting}>
+                  <Button type="button" variant="danger" onClick={handleDelete} disabled={isDeleting}>
                     {isDeleting ? <Spinner className="h-4 w-4" /> : null} {t("deleteButton")}
                   </Button>
                 </div>

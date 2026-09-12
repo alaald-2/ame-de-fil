@@ -13,6 +13,13 @@ const buttonVariants = cva(
           "rounded-sm border border-neutral-300 px-5 py-2.5 text-neutral-900 hover:bg-neutral-100",
         ghost:
           "px-1 py-1 text-neutral-700 underline-offset-4 hover:text-neutral-900 hover:underline",
+        // Reserved for confirming an irreversible action (permanent delete,
+        // refund) — everything else, including routine status changes,
+        // stays primary/secondary so this reads as a real warning, not
+        // decoration. No dedicated darker --color-danger shade exists in
+        // tokens.css (only the one value), so hover darkens via opacity
+        // the same way Badge/Alert already do for this token.
+        danger: "rounded-sm bg-danger px-5 py-2.5 text-neutral-50 hover:bg-danger/90",
       },
     },
     defaultVariants: { variant: "primary" },
