@@ -4,9 +4,12 @@ import { RequirePermissions } from "../common/decorators/require-permissions.dec
 import { ZodValidationPipe } from "../common/pipes/zod-validation.pipe.ts";
 import { ApiErrorResponses } from "../common/api-error-responses.ts";
 import { ApiZodParam, ApiZodQuery, toOpenApiSchema } from "../common/zod-openapi.ts";
-import { paginationQuerySchema, type PaginationQuery } from "../common/dto/pagination.schema.ts";
 import { AdminCustomersService } from "./admin-customers.service.ts";
 import { customerIdParamSchema, type CustomerIdParam } from "./dto/customer-id.param.ts";
+import {
+  listAdminCustomersQuerySchema,
+  type ListAdminCustomersQuery,
+} from "./dto/list-customers-query.dto.ts";
 import {
   adminCustomerDetailResponseSchema,
   listAdminCustomersResponseSchema,
@@ -26,11 +29,11 @@ export class AdminCustomersController {
   @Get()
   @RequirePermissions("customers.view")
   @ApiOperation({ summary: "List customers, most recently registered first" })
-  @ApiZodQuery(paginationQuerySchema)
+  @ApiZodQuery(listAdminCustomersQuerySchema)
   @ApiOkResponse({ schema: toOpenApiSchema(listAdminCustomersResponseSchema) })
   @ApiErrorResponses(400, 401, 403)
-  async list(@Query(new ZodValidationPipe(paginationQuerySchema)) query: PaginationQuery) {
-    return this.adminCustomers.list(query.page, query.pageSize);
+  async list(@Query(new ZodValidationPipe(listAdminCustomersQuerySchema)) query: ListAdminCustomersQuery) {
+    return this.adminCustomers.list(query.page, query.pageSize, query.q);
   }
 
   @Get(":id")

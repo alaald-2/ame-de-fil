@@ -1,5 +1,5 @@
 import { getTranslations, getLocale } from "next-intl/server";
-import { Heading, Text, Pagination, EmptyState, ErrorState } from "@ame-de-fil/ui";
+import { Heading, Text, Pagination, SearchField, EmptyState, ErrorState } from "@ame-de-fil/ui";
 import { requireSession } from "../../../../lib/dal";
 import { getServerApiClient } from "../../../../lib/server-api";
 import { ContentTabs } from "../../../../components/content-tabs";
@@ -10,7 +10,7 @@ import type { AdminLocale } from "../../../../i18n/config";
 const PAGE_SIZE = 20;
 
 interface CollectionsPageProps {
-  searchParams: Promise<{ page?: string }>;
+  searchParams: Promise<{ page?: string; q?: string }>;
 }
 
 // Mirrors ../page.tsx (Categories) exactly, driving GET /admin/collections
@@ -18,8 +18,9 @@ interface CollectionsPageProps {
 // Collection share components rather than duplicating this page's logic.
 export default async function CollectionsPage({ searchParams }: CollectionsPageProps) {
   const session = await requireSession();
-  const { page: pageParam } = await searchParams;
+  const { page: pageParam, q: qParam } = await searchParams;
   const page = Math.max(1, Number(pageParam ?? "1") || 1);
+  const q = qParam?.trim() ?? "";
 
   const t = await getTranslations("Content.collections");
   const tNav = await getTranslations("Navigation");
@@ -28,7 +29,7 @@ export default async function CollectionsPage({ searchParams }: CollectionsPageP
   const permissions = session.user.permissions;
 
   const { data, error, response } = await client.GET("/api/v1/admin/collections", {
-    params: { query: { page, pageSize: PAGE_SIZE } },
+    params: { query: { page, pageSize: PAGE_SIZE, q: q || undefined } },
   });
 
   if (error) {
@@ -61,6 +62,10 @@ export default async function CollectionsPage({ searchParams }: CollectionsPageP
         <ContentTabs permissions={permissions} />
       </div>
 
+      <div className="mt-4 max-w-sm">
+        <SearchField label={t("searchLabel")} placeholder={t("searchPlaceholder")} />
+      </div>
+
       {canManage ? (
         <div className="mt-6 flex justify-end">
           <CreateTaxonomyDialog kind="collections" />
@@ -68,7 +73,11 @@ export default async function CollectionsPage({ searchParams }: CollectionsPageP
       ) : null}
 
       {data.items.length === 0 ? (
-        <EmptyState className="mt-6" title={t("emptyTitle")} description={t("emptyDescription")} />
+        <EmptyState
+          className="mt-6"
+          title={q ? t("emptyFilteredTitle") : t("emptyTitle")}
+          description={q ? t("emptyFilteredDescription") : t("emptyDescription")}
+        />
       ) : (
         <>
           <div className="mt-6">
@@ -84,7 +93,11 @@ export default async function CollectionsPage({ searchParams }: CollectionsPageP
               className="mt-8"
               page={data.page}
               totalPages={totalPages}
-              makeHref={(targetPage) => `/content/collections?page=${targetPage}`}
+              makeHref={(targetPage) =>
+                q
+                  ? `/content/collections?page=${targetPage}&q=${encodeURIComponent(q)}`
+                  : `/content/collections?page=${targetPage}`
+              }
               previousLabel={t("paginationPrevious")}
               nextLabel={t("paginationNext")}
               pageLabel={(current, total) => t("paginationPage", { page: current, totalPages: total })}

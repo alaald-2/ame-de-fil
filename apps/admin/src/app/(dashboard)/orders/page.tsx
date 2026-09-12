@@ -1,5 +1,5 @@
 import { getTranslations, getLocale } from "next-intl/server";
-import { Heading, Text, Link, Pagination, EmptyState, ErrorState } from "@ame-de-fil/ui";
+import { Heading, Text, Link, Pagination, SearchField, EmptyState, ErrorState } from "@ame-de-fil/ui";
 import { requireSession } from "../../../lib/dal";
 import { getServerApiClient } from "../../../lib/server-api";
 import { OrdersTable } from "../../../components/orders-table";
@@ -20,7 +20,7 @@ type PaymentStatusFilter =
 type RefundStatusFilter = "PENDING" | "SUCCEEDED" | "FAILED";
 
 interface OrdersPageProps {
-  searchParams: Promise<{ page?: string; paymentStatus?: string; refundStatus?: string }>;
+  searchParams: Promise<{ page?: string; paymentStatus?: string; refundStatus?: string; q?: string }>;
 }
 
 // Real GET /admin/orders data (orders.view-gated server-side) — mirrors
@@ -37,10 +37,12 @@ export default async function OrdersPage({ searchParams }: OrdersPageProps) {
     page: pageParam,
     paymentStatus: paymentStatusParam,
     refundStatus: refundStatusParam,
+    q: qParam,
   } = await searchParams;
   const page = Math.max(1, Number(pageParam ?? "1") || 1);
   const paymentStatus = paymentStatusParam as PaymentStatusFilter | undefined;
   const refundStatus = refundStatusParam as RefundStatusFilter | undefined;
+  const q = qParam?.trim() ?? "";
 
   const t = await getTranslations("Orders");
   const tNav = await getTranslations("Navigation");
@@ -49,7 +51,7 @@ export default async function OrdersPage({ searchParams }: OrdersPageProps) {
   const client = await getServerApiClient();
 
   const { data, error, response } = await client.GET("/api/v1/admin/orders", {
-    params: { query: { page, pageSize: PAGE_SIZE, paymentStatus, refundStatus } },
+    params: { query: { page, pageSize: PAGE_SIZE, paymentStatus, refundStatus, q: q || undefined } },
   });
 
   if (error) {
@@ -80,6 +82,17 @@ export default async function OrdersPage({ searchParams }: OrdersPageProps) {
   const filterQueryString = filterParams.toString();
   const isFiltered = filterQueryString.length > 0;
 
+  // Same "preserve filters, drop page" shape as products/page.tsx's own
+  // buildProductsHref — `q` itself never survives into a page-preserving
+  // link unless explicitly passed back in.
+  function buildOrdersHref(nextQ: string, page?: number): string {
+    const params = new URLSearchParams(filterParams);
+    if (nextQ.trim()) params.set("q", nextQ.trim());
+    if (page && page > 1) params.set("page", String(page));
+    const qs = params.toString();
+    return qs ? `/orders?${qs}` : "/orders";
+  }
+
   return (
     <div>
       <div className="flex flex-wrap items-baseline justify-between gap-x-6 gap-y-1">
@@ -99,6 +112,10 @@ export default async function OrdersPage({ searchParams }: OrdersPageProps) {
         </Text>
       ) : null}
 
+      <div className="mt-4 max-w-sm">
+        <SearchField label={t("searchLabel")} placeholder={t("searchPlaceholder")} />
+      </div>
+
       <div className="mt-4">
         <OrdersExportLink />
       </div>
@@ -106,8 +123,8 @@ export default async function OrdersPage({ searchParams }: OrdersPageProps) {
       {data.items.length === 0 ? (
         <EmptyState
           className="mt-6"
-          title={isFiltered ? t("emptyFilteredTitle") : t("emptyTitle")}
-          description={isFiltered ? t("emptyFilteredDescription") : t("emptyDescription")}
+          title={isFiltered || q ? t("emptyFilteredTitle") : t("emptyTitle")}
+          description={isFiltered || q ? t("emptyFilteredDescription") : t("emptyDescription")}
         />
       ) : (
         <>
@@ -119,11 +136,7 @@ export default async function OrdersPage({ searchParams }: OrdersPageProps) {
               className="mt-8"
               page={data.page}
               totalPages={totalPages}
-              makeHref={(targetPage) =>
-                isFiltered
-                  ? `/orders?page=${targetPage}&${filterQueryString}`
-                  : `/orders?page=${targetPage}`
-              }
+              makeHref={(targetPage) => buildOrdersHref(q, targetPage)}
               previousLabel={t("paginationPrevious")}
               nextLabel={t("paginationNext")}
               pageLabel={(current, total) =>

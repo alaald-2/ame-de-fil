@@ -1,4 +1,5 @@
 import { ConflictException, Injectable, NotFoundException } from "@nestjs/common";
+import type { Prisma } from "@ame-de-fil/database";
 import type { Locale as AppLocale } from "@ame-de-fil/validation";
 import { PrismaService } from "../database/prisma.service.ts";
 import { toPrismaLocale } from "../common/locale.ts";
@@ -40,20 +41,26 @@ export class AdminCategoriesService {
   async list(
     page: number,
     pageSize: number,
+    q?: string,
   ): Promise<{
     items: AdminTaxonomyListItemResponse[];
     page: number;
     pageSize: number;
     total: number;
   }> {
+    const where: Prisma.CategoryWhereInput = q
+      ? { translations: { some: { name: { contains: q, mode: "insensitive" } } } }
+      : {};
+
     const [rows, total] = await Promise.all([
       this.prisma.category.findMany({
+        where,
         include: ADMIN_TAXONOMY_INCLUDE,
         skip: (page - 1) * pageSize,
         take: pageSize,
         orderBy: { updatedAt: "desc" },
       }),
-      this.prisma.category.count(),
+      this.prisma.category.count({ where }),
     ]);
 
     return {

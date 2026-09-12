@@ -179,7 +179,7 @@ describe("GET /admin/promotions — authorization", () => {
       .set("Cookie", "ame_session=some-token");
 
     expect(response.status).toBe(200);
-    expect(booted.list).toHaveBeenCalledWith(1, 20);
+    expect(booted.list).toHaveBeenCalledWith(1, 20, undefined);
   });
 });
 

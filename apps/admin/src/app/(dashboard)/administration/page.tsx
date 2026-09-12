@@ -1,5 +1,5 @@
 import { getTranslations, getLocale } from "next-intl/server";
-import { Heading, Text, Pagination, EmptyState, ErrorState } from "@ame-de-fil/ui";
+import { Heading, Text, Pagination, SearchField, EmptyState, ErrorState } from "@ame-de-fil/ui";
 import { requireSession } from "../../../lib/dal";
 import { getServerApiClient } from "../../../lib/server-api";
 import { AdministrationTabs } from "../../../components/administration-tabs";
@@ -9,7 +9,7 @@ import { CreateUserDialog } from "../../../components/create-user-dialog";
 const PAGE_SIZE = 20;
 
 interface AdministrationPageProps {
-  searchParams: Promise<{ page?: string }>;
+  searchParams: Promise<{ page?: string; q?: string }>;
 }
 
 // Real GET /admin/users data (users.view-gated server-side) — the "Users"
@@ -18,8 +18,9 @@ interface AdministrationPageProps {
 // /administration/audit-log route, sharing AdministrationTabs.
 export default async function AdministrationPage({ searchParams }: AdministrationPageProps) {
   const session = await requireSession();
-  const { page: pageParam } = await searchParams;
+  const { page: pageParam, q: qParam } = await searchParams;
   const page = Math.max(1, Number(pageParam ?? "1") || 1);
+  const q = qParam?.trim() ?? "";
 
   const t = await getTranslations("Administration");
   const tNav = await getTranslations("Navigation");
@@ -28,7 +29,7 @@ export default async function AdministrationPage({ searchParams }: Administratio
   const permissions = session.user.permissions;
 
   const { data, error, response } = await client.GET("/api/v1/admin/users", {
-    params: { query: { page, pageSize: PAGE_SIZE } },
+    params: { query: { page, pageSize: PAGE_SIZE, q: q || undefined } },
   });
 
   if (error) {
@@ -87,6 +88,10 @@ export default async function AdministrationPage({ searchParams }: Administratio
         <AdministrationTabs permissions={permissions} />
       </div>
 
+      <div className="mt-4 max-w-sm">
+        <SearchField label={t("searchLabel")} placeholder={t("searchPlaceholder")} />
+      </div>
+
       {canCreateUsers ? (
         <div className="mt-6 flex justify-end">
           <CreateUserDialog assignableRoles={assignableRoles} />
@@ -94,7 +99,11 @@ export default async function AdministrationPage({ searchParams }: Administratio
       ) : null}
 
       {data.items.length === 0 ? (
-        <EmptyState className="mt-6" title={t("emptyTitle")} description={t("emptyDescription")} />
+        <EmptyState
+          className="mt-6"
+          title={q ? t("emptyFilteredTitle") : t("emptyTitle")}
+          description={q ? t("emptyFilteredDescription") : t("emptyDescription")}
+        />
       ) : (
         <>
           <div className="mt-6">
@@ -105,7 +114,11 @@ export default async function AdministrationPage({ searchParams }: Administratio
               className="mt-8"
               page={data.page}
               totalPages={totalPages}
-              makeHref={(targetPage) => `/administration?page=${targetPage}`}
+              makeHref={(targetPage) =>
+                q
+                  ? `/administration?page=${targetPage}&q=${encodeURIComponent(q)}`
+                  : `/administration?page=${targetPage}`
+              }
               previousLabel={t("paginationPrevious")}
               nextLabel={t("paginationNext")}
               pageLabel={(current, total) => t("paginationPage", { page: current, totalPages: total })}

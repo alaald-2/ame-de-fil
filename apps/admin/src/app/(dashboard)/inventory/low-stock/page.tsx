@@ -1,5 +1,5 @@
 import { getTranslations } from "next-intl/server";
-import { Heading, Text, Pagination, EmptyState, ErrorState } from "@ame-de-fil/ui";
+import { Heading, Text, Pagination, SearchField, EmptyState, ErrorState } from "@ame-de-fil/ui";
 import { requireSession } from "../../../../lib/dal";
 import { getServerApiClient } from "../../../../lib/server-api";
 import { InventoryTabs } from "../../../../components/inventory-tabs";
@@ -8,7 +8,7 @@ import { InventoryTable } from "../../../../components/inventory-table";
 const PAGE_SIZE = 20;
 
 interface LowStockPageProps {
-  searchParams: Promise<{ page?: string }>;
+  searchParams: Promise<{ page?: string; q?: string }>;
 }
 
 // Real GET /admin/inventory/low-stock data — same InventoryTable/response
@@ -18,15 +18,16 @@ interface LowStockPageProps {
 export default async function LowStockPage({ searchParams }: LowStockPageProps) {
   const session = await requireSession();
   const canAdjust = session.user.permissions.includes("inventory.adjust");
-  const { page: pageParam } = await searchParams;
+  const { page: pageParam, q: qParam } = await searchParams;
   const page = Math.max(1, Number(pageParam ?? "1") || 1);
+  const q = qParam?.trim() ?? "";
 
   const t = await getTranslations("Inventory");
   const tNav = await getTranslations("Navigation");
   const client = await getServerApiClient();
 
   const { data, error, response } = await client.GET("/api/v1/admin/inventory/low-stock", {
-    params: { query: { page, pageSize: PAGE_SIZE } },
+    params: { query: { page, pageSize: PAGE_SIZE, q: q || undefined } },
   });
 
   if (error) {
@@ -58,6 +59,10 @@ export default async function LowStockPage({ searchParams }: LowStockPageProps) 
         <Text tone="muted">{t("lowStockCount", { count: data.total })}</Text>
       </div>
 
+      <div className="mt-4 max-w-sm">
+        <SearchField label={t("searchLabel")} placeholder={t("searchPlaceholder")} />
+      </div>
+
       <div className="mt-6">
         <InventoryTabs />
       </div>
@@ -65,8 +70,8 @@ export default async function LowStockPage({ searchParams }: LowStockPageProps) 
       {data.items.length === 0 ? (
         <EmptyState
           className="mt-6"
-          title={t("lowStockEmptyTitle")}
-          description={t("lowStockEmptyDescription")}
+          title={q ? t("emptyFilteredTitle") : t("lowStockEmptyTitle")}
+          description={q ? t("emptyFilteredDescription") : t("lowStockEmptyDescription")}
         />
       ) : (
         <>
@@ -78,7 +83,11 @@ export default async function LowStockPage({ searchParams }: LowStockPageProps) 
               className="mt-8"
               page={data.page}
               totalPages={totalPages}
-              makeHref={(targetPage) => `/inventory/low-stock?page=${targetPage}`}
+              makeHref={(targetPage) =>
+                q
+                  ? `/inventory/low-stock?page=${targetPage}&q=${encodeURIComponent(q)}`
+                  : `/inventory/low-stock?page=${targetPage}`
+              }
               previousLabel={t("paginationPrevious")}
               nextLabel={t("paginationNext")}
               pageLabel={(current, total) => t("paginationPage", { page: current, totalPages: total })}

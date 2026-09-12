@@ -18,7 +18,7 @@ import { RequirePermissions } from "../common/decorators/require-permissions.dec
 import { ZodValidationPipe } from "../common/pipes/zod-validation.pipe.ts";
 import { ApiErrorResponses } from "../common/api-error-responses.ts";
 import { ApiZodParam, ApiZodQuery, toOpenApiSchema } from "../common/zod-openapi.ts";
-import { paginationQuerySchema, type PaginationQuery } from "../common/dto/pagination.schema.ts";
+import { listTaxonomyQuerySchema, type ListTaxonomyQuery } from "./dto/list-taxonomy-query.dto.ts";
 import type { AuthContext } from "../common/types/auth-context.ts";
 import { AdminCollectionsService } from "./admin-collections.service.ts";
 import { createTaxonomySchema, updateTaxonomySchema, type CreateTaxonomyInput, type UpdateTaxonomyInput } from "./dto/taxonomy.dto.ts";
@@ -40,11 +40,11 @@ export class AdminCollectionsController {
   @Get()
   @RequirePermissions("collections.view")
   @ApiOperation({ summary: "List collections with product counts, most recently updated first" })
-  @ApiZodQuery(paginationQuerySchema)
+  @ApiZodQuery(listTaxonomyQuerySchema)
   @ApiOkResponse({ schema: toOpenApiSchema(listAdminTaxonomyResponseSchema) })
   @ApiErrorResponses(400, 401, 403)
-  async list(@Query(new ZodValidationPipe(paginationQuerySchema)) query: PaginationQuery) {
-    return this.adminCollections.list(query.page, query.pageSize);
+  async list(@Query(new ZodValidationPipe(listTaxonomyQuerySchema)) query: ListTaxonomyQuery) {
+    return this.adminCollections.list(query.page, query.pageSize, query.q);
   }
 
   @Get(":id")

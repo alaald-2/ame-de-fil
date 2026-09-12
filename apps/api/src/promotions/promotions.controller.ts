@@ -20,12 +20,14 @@ import {
   ApiTags,
 } from "@nestjs/swagger";
 import type { Request } from "express";
+import type { z } from "zod";
 import { CurrentUser } from "../common/decorators/current-user.decorator.ts";
 import { RequirePermissions } from "../common/decorators/require-permissions.decorator.ts";
 import { ZodValidationPipe } from "../common/pipes/zod-validation.pipe.ts";
 import { ApiErrorResponses } from "../common/api-error-responses.ts";
 import { ApiZodParam, ApiZodQuery, toOpenApiSchema } from "../common/zod-openapi.ts";
-import { paginationQuerySchema, type PaginationQuery } from "../common/dto/pagination.schema.ts";
+import { paginationQuerySchema } from "../common/dto/pagination.schema.ts";
+import { searchQuerySchema } from "../common/dto/search-query.schema.ts";
 import { localeQuerySchema, type LocaleQuery } from "../common/dto/locale-query.schema.ts";
 import type { AuthContext } from "../common/types/auth-context.ts";
 import { PromotionsService } from "./promotions.service.ts";
@@ -43,7 +45,11 @@ import {
   listAdminPromotionsResponseSchema,
 } from "./dto/responses.ts";
 
-const listPromotionsQuerySchema = paginationQuerySchema;
+// `q` matches the promotion's own name — see promotions.service.ts's list().
+const listPromotionsQuerySchema = paginationQuerySchema.extend({
+  ...searchQuerySchema.shape,
+});
+type ListPromotionsQuery = z.infer<typeof listPromotionsQuerySchema>;
 
 // Admin-only, default-deny, same posture as every other admin controller
 // (see admin-products.controller.ts's own comment for the fuller
@@ -67,8 +73,8 @@ export class PromotionsController {
   @ApiZodQuery(listPromotionsQuerySchema)
   @ApiOkResponse({ schema: toOpenApiSchema(listAdminPromotionsResponseSchema) })
   @ApiErrorResponses(400, 401, 403)
-  async list(@Query(new ZodValidationPipe(listPromotionsQuerySchema)) query: PaginationQuery) {
-    return this.promotions.list(query.page, query.pageSize);
+  async list(@Query(new ZodValidationPipe(listPromotionsQuerySchema)) query: ListPromotionsQuery) {
+    return this.promotions.list(query.page, query.pageSize, query.q);
   }
 
   @Get(":id")

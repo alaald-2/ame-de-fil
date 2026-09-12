@@ -1,4 +1,5 @@
 import { BadRequestException, ConflictException, Injectable, NotFoundException } from "@nestjs/common";
+import type { Prisma } from "@ame-de-fil/database";
 import type { Locale as AppLocale } from "@ame-de-fil/validation";
 import { PrismaService } from "../database/prisma.service.ts";
 import { AuditService } from "../audit/audit.service.ts";
@@ -54,6 +55,7 @@ export class PromotionsService {
   async list(
     page: number,
     pageSize: number,
+    q?: string,
   ): Promise<{
     items: AdminPromotionListItemResponse[];
     page: number;
@@ -61,14 +63,19 @@ export class PromotionsService {
     total: number;
   }> {
     const now = new Date();
+    const where: Prisma.PromotionWhereInput = q
+      ? { name: { contains: q, mode: "insensitive" } }
+      : {};
+
     const [rows, total] = await Promise.all([
       this.prisma.promotion.findMany({
+        where,
         include: { _count: { select: { variants: true } } },
         skip: (page - 1) * pageSize,
         take: pageSize,
         orderBy: { updatedAt: "desc" },
       }),
-      this.prisma.promotion.count(),
+      this.prisma.promotion.count({ where }),
     ]);
 
     return {

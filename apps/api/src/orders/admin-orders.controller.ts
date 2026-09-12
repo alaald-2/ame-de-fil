@@ -58,7 +58,13 @@ export class AdminOrdersController {
   @ApiOkResponse({ schema: toOpenApiSchema(listAdminOrdersResponseSchema) })
   @ApiErrorResponses(400, 401, 403)
   async list(@Query(new ZodValidationPipe(listAdminOrdersQuerySchema)) query: ListAdminOrdersQuery) {
-    return this.adminOrders.listOrders(query.page, query.pageSize, query.paymentStatus, query.refundStatus);
+    return this.adminOrders.listOrders(
+      query.page,
+      query.pageSize,
+      query.paymentStatus,
+      query.refundStatus,
+      query.q,
+    );
   }
 
   // Registered before ":orderId" — Nest matches routes in registration

@@ -1,13 +1,15 @@
 import { Body, Controller, Delete, Get, HttpCode, HttpStatus, Param, Post, Query, Req } from "@nestjs/common";
 import { ApiBody, ApiCookieAuth, ApiOkResponse, ApiOperation, ApiTags } from "@nestjs/swagger";
 import type { Request } from "express";
+import type { z } from "zod";
 import { CurrentUser } from "../common/decorators/current-user.decorator.ts";
 import { RequirePermissions } from "../common/decorators/require-permissions.decorator.ts";
 import { RateLimit } from "../common/rate-limit/rate-limit.decorator.ts";
 import { ZodValidationPipe } from "../common/pipes/zod-validation.pipe.ts";
 import { ApiErrorResponses } from "../common/api-error-responses.ts";
 import { ApiZodParam, ApiZodQuery, toOpenApiSchema } from "../common/zod-openapi.ts";
-import { paginationQuerySchema, type PaginationQuery } from "../common/dto/pagination.schema.ts";
+import { paginationQuerySchema } from "../common/dto/pagination.schema.ts";
+import { searchQuerySchema } from "../common/dto/search-query.schema.ts";
 import type { AuthContext } from "../common/types/auth-context.ts";
 import { AdminUsersService } from "./admin-users.service.ts";
 import { userIdParamSchema, type UserIdParam } from "./dto/user-id.param.ts";
@@ -19,6 +21,11 @@ import {
   createUserResponseSchema,
   listAdminUsersResponseSchema,
 } from "./dto/admin-user-responses.ts";
+
+// `q` matches name (first or last) or email — see admin-users.service.ts's
+// own list().
+const listUsersQuerySchema = paginationQuerySchema.extend({ ...searchQuerySchema.shape });
+type ListUsersQuery = z.infer<typeof listUsersQuerySchema>;
 
 // No @Public()/@OptionalAuth() — admin-only, default-deny, same posture as
 // every other admin controller. Three permissions gate this controller
@@ -37,11 +44,11 @@ export class AdminUsersController {
   @Get()
   @RequirePermissions("users.view")
   @ApiOperation({ summary: "List staff users (accounts holding at least one role), most recently created first" })
-  @ApiZodQuery(paginationQuerySchema)
+  @ApiZodQuery(listUsersQuerySchema)
   @ApiOkResponse({ schema: toOpenApiSchema(listAdminUsersResponseSchema) })
   @ApiErrorResponses(400, 401, 403)
-  async list(@Query(new ZodValidationPipe(paginationQuerySchema)) query: PaginationQuery) {
-    return this.adminUsers.list(query.page, query.pageSize);
+  async list(@Query(new ZodValidationPipe(listUsersQuerySchema)) query: ListUsersQuery) {
+    return this.adminUsers.list(query.page, query.pageSize, query.q);
   }
 
   @Get(":id")

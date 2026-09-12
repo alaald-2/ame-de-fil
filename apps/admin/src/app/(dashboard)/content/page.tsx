@@ -1,5 +1,5 @@
 import { getTranslations, getLocale } from "next-intl/server";
-import { Heading, Text, Pagination, EmptyState, ErrorState } from "@ame-de-fil/ui";
+import { Heading, Text, Pagination, SearchField, EmptyState, ErrorState } from "@ame-de-fil/ui";
 import { requireSession } from "../../../lib/dal";
 import { getServerApiClient } from "../../../lib/server-api";
 import { ContentTabs } from "../../../components/content-tabs";
@@ -10,7 +10,7 @@ import type { AdminLocale } from "../../../i18n/config";
 const PAGE_SIZE = 20;
 
 interface CategoriesPageProps {
-  searchParams: Promise<{ page?: string }>;
+  searchParams: Promise<{ page?: string; q?: string }>;
 }
 
 // Real GET /admin/categories data (categories.view-gated server-side) — the
@@ -20,8 +20,9 @@ interface CategoriesPageProps {
 // identical — see admin-taxonomy-table.tsx's own comment).
 export default async function CategoriesPage({ searchParams }: CategoriesPageProps) {
   const session = await requireSession();
-  const { page: pageParam } = await searchParams;
+  const { page: pageParam, q: qParam } = await searchParams;
   const page = Math.max(1, Number(pageParam ?? "1") || 1);
+  const q = qParam?.trim() ?? "";
 
   const t = await getTranslations("Content.categories");
   const tNav = await getTranslations("Navigation");
@@ -30,7 +31,7 @@ export default async function CategoriesPage({ searchParams }: CategoriesPagePro
   const permissions = session.user.permissions;
 
   const { data, error, response } = await client.GET("/api/v1/admin/categories", {
-    params: { query: { page, pageSize: PAGE_SIZE } },
+    params: { query: { page, pageSize: PAGE_SIZE, q: q || undefined } },
   });
 
   if (error) {
@@ -63,6 +64,10 @@ export default async function CategoriesPage({ searchParams }: CategoriesPagePro
         <ContentTabs permissions={permissions} />
       </div>
 
+      <div className="mt-4 max-w-sm">
+        <SearchField label={t("searchLabel")} placeholder={t("searchPlaceholder")} />
+      </div>
+
       {canManage ? (
         <div className="mt-6 flex justify-end">
           <CreateTaxonomyDialog kind="categories" />
@@ -70,7 +75,11 @@ export default async function CategoriesPage({ searchParams }: CategoriesPagePro
       ) : null}
 
       {data.items.length === 0 ? (
-        <EmptyState className="mt-6" title={t("emptyTitle")} description={t("emptyDescription")} />
+        <EmptyState
+          className="mt-6"
+          title={q ? t("emptyFilteredTitle") : t("emptyTitle")}
+          description={q ? t("emptyFilteredDescription") : t("emptyDescription")}
+        />
       ) : (
         <>
           <div className="mt-6">
@@ -86,7 +95,9 @@ export default async function CategoriesPage({ searchParams }: CategoriesPagePro
               className="mt-8"
               page={data.page}
               totalPages={totalPages}
-              makeHref={(targetPage) => `/content?page=${targetPage}`}
+              makeHref={(targetPage) =>
+                q ? `/content?page=${targetPage}&q=${encodeURIComponent(q)}` : `/content?page=${targetPage}`
+              }
               previousLabel={t("paginationPrevious")}
               nextLabel={t("paginationNext")}
               pageLabel={(current, total) => t("paginationPage", { page: current, totalPages: total })}

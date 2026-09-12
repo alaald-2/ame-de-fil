@@ -99,10 +99,12 @@ export class AdminOrdersService {
     pageSize: number,
     paymentStatus?: PaymentStatus,
     refundStatus?: RefundStatus,
+    q?: string,
   ) {
     const where: Prisma.OrderWhereInput = {
       ...(paymentStatus ? { payments: { some: { status: paymentStatus } } } : {}),
       ...(refundStatus ? { payments: { some: { refunds: { some: { status: refundStatus } } } } } : {}),
+      ...(q ? { OR: await this.buildOrderSearchOr(q) } : {}),
     };
 
     const [rows, total] = await Promise.all([
@@ -122,6 +124,43 @@ export class AdminOrdersService {
       pageSize,
       total,
     };
+  }
+
+  // Order number, guest name/email/phone, and registered-user name/email/
+  // phone are all plain string columns Prisma's own relation filter can
+  // reach directly. Line-item SKU/Article Number aren't (they live on
+  // OrderItem, and Article Number — an Int column — needs the same raw-SQL
+  // substring cast as products/inventory's own search; see
+  // catalog/variant-search.ts's own comment), so those go through one raw
+  // lookup first and fold into the same OR array as a plain `id: {in:...}`.
+  private async buildOrderSearchOr(q: string): Promise<Prisma.OrderWhereInput[]> {
+    const pattern = `%${q}%`;
+    const itemMatches = await this.prisma.$queryRaw<{ orderId: string }[]>(
+      Prisma.sql`SELECT DISTINCT "orderId" FROM "OrderItem" WHERE "articleNumberSnapshot"::text ILIKE ${pattern} OR "skuSnapshot" ILIKE ${pattern}`,
+    );
+    const matchingOrderIds = itemMatches.map((row) => row.orderId);
+
+    return [
+      { orderNumber: { contains: q, mode: "insensitive" } },
+      { guestEmail: { contains: q, mode: "insensitive" } },
+      { shippingName: { contains: q, mode: "insensitive" } },
+      { billingName: { contains: q, mode: "insensitive" } },
+      { shippingPhone: { contains: q, mode: "insensitive" } },
+      { billingPhone: { contains: q, mode: "insensitive" } },
+      {
+        user: {
+          is: {
+            OR: [
+              { email: { contains: q, mode: "insensitive" } },
+              { firstName: { contains: q, mode: "insensitive" } },
+              { lastName: { contains: q, mode: "insensitive" } },
+              { phone: { contains: q, mode: "insensitive" } },
+            ],
+          },
+        },
+      },
+      ...(matchingOrderIds.length > 0 ? [{ id: { in: matchingOrderIds } }] : []),
+    ];
   }
 
   async getOrderDetail(orderId: string): Promise<AdminOrderDetailResponse> {

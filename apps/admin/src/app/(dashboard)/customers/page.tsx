@@ -1,5 +1,5 @@
 import { getTranslations, getLocale } from "next-intl/server";
-import { Heading, Text, Pagination, EmptyState, ErrorState } from "@ame-de-fil/ui";
+import { Heading, Text, Pagination, SearchField, EmptyState, ErrorState } from "@ame-de-fil/ui";
 import { requireSession } from "../../../lib/dal";
 import { getServerApiClient } from "../../../lib/server-api";
 import { CustomersTable } from "../../../components/customers-table";
@@ -7,7 +7,15 @@ import { CustomersTable } from "../../../components/customers-table";
 const PAGE_SIZE = 20;
 
 interface CustomersPageProps {
-  searchParams: Promise<{ page?: string }>;
+  searchParams: Promise<{ page?: string; q?: string }>;
+}
+
+function buildCustomersHref(q: string, page?: number): string {
+  const params = new URLSearchParams();
+  if (q.trim()) params.set("q", q.trim());
+  if (page && page > 1) params.set("page", String(page));
+  const qs = params.toString();
+  return qs ? `/customers?${qs}` : "/customers";
 }
 
 // Real GET /admin/customers data (customers.view-gated server-side) — the
@@ -16,8 +24,9 @@ interface CustomersPageProps {
 // handling, not a redirect that would hide *why* the page refused to load.
 export default async function CustomersPage({ searchParams }: CustomersPageProps) {
   await requireSession();
-  const { page: pageParam } = await searchParams;
+  const { page: pageParam, q: qParam } = await searchParams;
   const page = Math.max(1, Number(pageParam ?? "1") || 1);
+  const q = qParam?.trim() ?? "";
 
   const t = await getTranslations("Customers");
   const tNav = await getTranslations("Navigation");
@@ -25,7 +34,7 @@ export default async function CustomersPage({ searchParams }: CustomersPageProps
   const client = await getServerApiClient();
 
   const { data, error, response } = await client.GET("/api/v1/admin/customers", {
-    params: { query: { page, pageSize: PAGE_SIZE } },
+    params: { query: { page, pageSize: PAGE_SIZE, q: q || undefined } },
   });
 
   if (error) {
@@ -54,11 +63,15 @@ export default async function CustomersPage({ searchParams }: CustomersPageProps
         <Text tone="muted">{t("registeredCount", { count: data.total })}</Text>
       </div>
 
+      <div className="mt-4 max-w-sm">
+        <SearchField label={t("searchLabel")} placeholder={t("searchPlaceholder")} />
+      </div>
+
       {data.items.length === 0 ? (
         <EmptyState
           className="mt-6"
-          title={t("emptyTitle")}
-          description={t("emptyDescription")}
+          title={q ? t("emptyFilteredTitle") : t("emptyTitle")}
+          description={q ? t("emptyFilteredDescription") : t("emptyDescription")}
         />
       ) : (
         <>
@@ -70,7 +83,7 @@ export default async function CustomersPage({ searchParams }: CustomersPageProps
               className="mt-8"
               page={data.page}
               totalPages={totalPages}
-              makeHref={(targetPage) => `/customers?page=${targetPage}`}
+              makeHref={(targetPage) => buildCustomersHref(q, targetPage)}
               previousLabel={t("paginationPrevious")}
               nextLabel={t("paginationNext")}
               pageLabel={(current, total) => t("paginationPage", { page: current, totalPages: total })}

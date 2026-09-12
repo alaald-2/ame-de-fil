@@ -17,6 +17,7 @@ export * from "./components/Alert";
 export * from "./components/Table";
 export * from "./components/Badge";
 export * from "./components/Pagination";
+export * from "./components/SearchField";
 export * from "./components/Skeleton";
 export * from "./components/EmptyState";
 export * from "./components/ErrorState";

@@ -15,6 +15,7 @@ import {
 import type { AdjustStockInput } from "./dto/adjust-stock.dto.ts";
 import type { ListReservationsQuery } from "./dto/list-reservations.dto.ts";
 import type { ListMovementsQuery } from "./dto/list-movements.dto.ts";
+import { findVariantIdsByArticleNumber } from "../catalog/variant-search.ts";
 
 const ITEM_INCLUDE = {
   variant: { include: { product: { include: { translations: true } } } },
@@ -48,15 +49,18 @@ export class InventoryService {
     private readonly audit: AuditService,
   ) {}
 
-  async list(page: number, pageSize: number) {
+  async list(page: number, pageSize: number, q?: string) {
+    const where = q ? { OR: await this.buildVariantSearchOr(q) } : {};
+
     const [rows, total] = await Promise.all([
       this.prisma.inventoryItem.findMany({
+        where,
         include: ITEM_INCLUDE,
         skip: (page - 1) * pageSize,
         take: pageSize,
         orderBy: { updatedAt: "desc" },
       }),
-      this.prisma.inventoryItem.count(),
+      this.prisma.inventoryItem.count({ where }),
     ]);
 
     return {
@@ -67,18 +71,59 @@ export class InventoryService {
     };
   }
 
-  async listLowStock(page: number, pageSize: number) {
+  // Article Number/SKU/product name all live on the variant this
+  // InventoryItem/StockReservation/InventoryMovement points at — Article
+  // Number (an Int column) needs the raw-SQL substring cast
+  // catalog/variant-search.ts provides (same Prisma limitation as
+  // Products' own search); SKU and product name are plain strings Prisma's
+  // own relation filter can reach directly. Shared by list()
+  // (`variant: {...}` directly) — listReservations/listMovements below
+  // wrap this one level deeper (`inventoryItem: { variant: {...} }`) since
+  // they don't have their own direct `variant` relation.
+  private async buildVariantSearchOr(q: string): Promise<Prisma.InventoryItemWhereInput[]> {
+    const matchingVariantIds = await findVariantIdsByArticleNumber(this.prisma, q);
+    return [
+      { variant: { sku: { contains: q, mode: "insensitive" } } },
+      { variant: { product: { translations: { some: { name: { contains: q, mode: "insensitive" } } } } } },
+      ...(matchingVariantIds.length > 0 ? [{ productVariantId: { in: matchingVariantIds } }] : []),
+    ];
+  }
+
+  async listLowStock(page: number, pageSize: number, q?: string) {
+    // Same Article Number/SKU/product name search as list() above, but
+    // this whole method is already raw SQL (LOW_STOCK_CONDITION's own
+    // comment explains why: "onHand - reserved < lowStockThreshold" is a
+    // column-to-column comparison Prisma's declarative `where` can't
+    // express), so the search predicate joins in here rather than through
+    // a Prisma relation filter. Unqualified columns in LOW_STOCK_CONDITION
+    // (tracksStock, lowStockThreshold, onHand, reserved) stay unambiguous
+    // even with these joins present — ProductVariant/Product have no
+    // columns by those names — so that constant needs no change itself.
+    const pattern = q ? `%${q}%` : null;
+    const searchJoin = pattern
+      ? Prisma.sql`JOIN "ProductVariant" pv ON pv.id = "InventoryItem"."productVariantId" JOIN "Product" p ON p.id = pv."productId"`
+      : Prisma.sql``;
+    const searchCondition = pattern
+      ? Prisma.sql`AND (
+          pv.sku ILIKE ${pattern}
+          OR pv."articleNumber"::text ILIKE ${pattern}
+          OR EXISTS (SELECT 1 FROM "ProductTranslation" pt WHERE pt."productId" = p.id AND pt.name ILIKE ${pattern})
+        )`
+      : Prisma.sql``;
+
     const [countRows, idRows] = await Promise.all([
       this.prisma.$queryRaw<{ count: number }[]>(
-        Prisma.sql`SELECT COUNT(*)::int AS count FROM "InventoryItem" WHERE ${LOW_STOCK_CONDITION}`,
+        Prisma.sql`SELECT COUNT(*)::int AS count FROM "InventoryItem" ${searchJoin} WHERE ${LOW_STOCK_CONDITION} ${searchCondition}`,
       ),
       this.prisma.$queryRaw<{ id: string }[]>(
         // Most urgent (lowest, or most negative, available quantity) first;
-        // id as a stable tiebreaker for deterministic pagination.
+        // id as a stable tiebreaker for deterministic pagination. Both
+        // qualified with the table name now that a join can put a
+        // same-named "id" column from ProductVariant/Product in scope too.
         Prisma.sql`
-          SELECT "id" FROM "InventoryItem"
-          WHERE ${LOW_STOCK_CONDITION}
-          ORDER BY ("onHand" - "reserved") ASC, "id" ASC
+          SELECT "InventoryItem"."id" FROM "InventoryItem" ${searchJoin}
+          WHERE ${LOW_STOCK_CONDITION} ${searchCondition}
+          ORDER BY ("onHand" - "reserved") ASC, "InventoryItem"."id" ASC
           LIMIT ${pageSize} OFFSET ${(page - 1) * pageSize}
         `,
       ),
@@ -153,10 +198,24 @@ export class InventoryService {
   // flagged — ReservationExpiryService hasn't swept it yet, and hiding it
   // would misrepresent the real, if momentarily stale, state.
   async listReservations(query: ListReservationsQuery) {
-    const { page, pageSize, status, variantId } = query;
+    const { page, pageSize, status, variantId, q } = query;
     const where: Prisma.StockReservationWhereInput = {};
     if (status !== "ALL") where.status = StockReservationStatus[status];
     if (variantId) where.inventoryItem = { productVariantId: variantId };
+    if (q) {
+      const matchingVariantIds = await findVariantIdsByArticleNumber(this.prisma, q);
+      where.OR = [
+        { inventoryItem: { variant: { sku: { contains: q, mode: "insensitive" } } } },
+        {
+          inventoryItem: {
+            variant: { product: { translations: { some: { name: { contains: q, mode: "insensitive" } } } } },
+          },
+        },
+        ...(matchingVariantIds.length > 0
+          ? [{ inventoryItem: { productVariantId: { in: matchingVariantIds } } }]
+          : []),
+      ];
+    }
 
     const [rows, total] = await Promise.all([
       this.prisma.stockReservation.findMany({
@@ -176,10 +235,24 @@ export class InventoryService {
   // convention every other list here uses), unlike listReservations above:
   // this is a historical record, not a triage queue.
   async listMovements(query: ListMovementsQuery) {
-    const { page, pageSize, type, variantId, from: fromInput, to: toInput } = query;
+    const { page, pageSize, type, variantId, from: fromInput, to: toInput, q } = query;
     const where: Prisma.InventoryMovementWhereInput = {};
     if (type) where.type = type;
     if (variantId) where.inventoryItem = { productVariantId: variantId };
+    if (q) {
+      const matchingVariantIds = await findVariantIdsByArticleNumber(this.prisma, q);
+      where.OR = [
+        { inventoryItem: { variant: { sku: { contains: q, mode: "insensitive" } } } },
+        {
+          inventoryItem: {
+            variant: { product: { translations: { some: { name: { contains: q, mode: "insensitive" } } } } },
+          },
+        },
+        ...(matchingVariantIds.length > 0
+          ? [{ inventoryItem: { productVariantId: { in: matchingVariantIds } } }]
+          : []),
+      ];
+    }
 
     if (fromInput || toInput) {
       const from = fromInput ? new Date(fromInput) : undefined;

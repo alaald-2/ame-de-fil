@@ -1,5 +1,5 @@
 import { getTranslations, getLocale } from "next-intl/server";
-import { Heading, Text, Button, Link, Pagination, EmptyState, ErrorState } from "@ame-de-fil/ui";
+import { Heading, Text, Button, Link, Pagination, SearchField, EmptyState, ErrorState } from "@ame-de-fil/ui";
 import { requireSession } from "../../../lib/dal";
 import { getServerApiClient } from "../../../lib/server-api";
 import { AdminProductsTable } from "../../../components/admin-products-table";
@@ -11,7 +11,21 @@ const PAGE_SIZE = 20;
 type ProductStatusFilter = "DRAFT" | "PUBLISHED" | "ARCHIVED";
 
 interface ProductsPageProps {
-  searchParams: Promise<{ page?: string; status?: string }>;
+  searchParams: Promise<{ page?: string; status?: string; q?: string }>;
+}
+
+// Shared by the search box and Pagination below — the query string a link
+// on this page needs, given what it must preserve (status) vs. what it
+// intentionally drops (page, whenever `q` itself changes — that's what
+// makes "search resets pagination to 1" true without either caller having
+// to remember it separately).
+function buildProductsHref(status: string | undefined, q: string, page?: number): string {
+  const params = new URLSearchParams();
+  if (status) params.set("status", status);
+  if (q.trim()) params.set("q", q.trim());
+  if (page && page > 1) params.set("page", String(page));
+  const qs = params.toString();
+  return qs ? `/products?${qs}` : "/products";
 }
 
 // Real GET /admin/products data (products.view-gated server-side). Mirrors
@@ -23,12 +37,13 @@ interface ProductsPageProps {
 // list forever.
 export default async function ProductsPage({ searchParams }: ProductsPageProps) {
   const session = await requireSession();
-  const { page: pageParam, status: statusParam } = await searchParams;
+  const { page: pageParam, status: statusParam, q: qParam } = await searchParams;
   const page = Math.max(1, Number(pageParam ?? "1") || 1);
   const status =
     statusParam === "DRAFT" || statusParam === "PUBLISHED" || statusParam === "ARCHIVED"
       ? (statusParam as ProductStatusFilter)
       : undefined;
+  const q = qParam?.trim() ?? "";
 
   const t = await getTranslations("Products");
   const tNav = await getTranslations("Navigation");
@@ -36,7 +51,7 @@ export default async function ProductsPage({ searchParams }: ProductsPageProps) 
   const client = await getServerApiClient();
 
   const { data, error, response } = await client.GET("/api/v1/admin/products", {
-    params: { query: { page, pageSize: PAGE_SIZE, status } },
+    params: { query: { page, pageSize: PAGE_SIZE, status, q: q || undefined } },
   });
 
   if (error) {
@@ -66,6 +81,10 @@ export default async function ProductsPage({ searchParams }: ProductsPageProps) 
         <Text tone="muted">{t("resultsCount", { count: data.total })}</Text>
       </div>
 
+      <div className="mt-4 max-w-sm">
+        <SearchField label={t("searchLabel")} placeholder={t("searchPlaceholder")} />
+      </div>
+
       {canCreate ? (
         <div className="mt-6 flex justify-end">
           <Button asChild>
@@ -81,8 +100,8 @@ export default async function ProductsPage({ searchParams }: ProductsPageProps) 
       {data.items.length === 0 ? (
         <EmptyState
           className="mt-6"
-          title={status ? t("emptyFilteredTitle") : t("emptyTitle")}
-          description={status ? t("emptyFilteredDescription") : t("emptyDescription")}
+          title={status || q ? t("emptyFilteredTitle") : t("emptyTitle")}
+          description={status || q ? t("emptyFilteredDescription") : t("emptyDescription")}
         />
       ) : (
         <>
@@ -94,9 +113,7 @@ export default async function ProductsPage({ searchParams }: ProductsPageProps) 
               className="mt-8"
               page={data.page}
               totalPages={totalPages}
-              makeHref={(targetPage) =>
-                status ? `/products?page=${targetPage}&status=${status}` : `/products?page=${targetPage}`
-              }
+              makeHref={(targetPage) => buildProductsHref(status, q, targetPage)}
               previousLabel={t("paginationPrevious")}
               nextLabel={t("paginationNext")}
               pageLabel={(current, total) => t("paginationPage", { page: current, totalPages: total })}

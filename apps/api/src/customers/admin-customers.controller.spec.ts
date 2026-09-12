@@ -121,7 +121,7 @@ describe("GET /admin/customers — authorization", () => {
       .set("Cookie", "ame_session=token");
 
     expect(response.status).toBe(200);
-    expect(booted.list).toHaveBeenCalledWith(1, 20);
+    expect(booted.list).toHaveBeenCalledWith(1, 20, undefined);
   });
 
   it("passes page/pageSize query params through to the service", async () => {
@@ -133,7 +133,7 @@ describe("GET /admin/customers — authorization", () => {
       .set("Cookie", "ame_session=token");
 
     expect(response.status).toBe(200);
-    expect(booted.list).toHaveBeenCalledWith(2, 5);
+    expect(booted.list).toHaveBeenCalledWith(2, 5, undefined);
   });
 
   it("returns 400 for a pageSize over the cap, before the service is ever called", async () => {

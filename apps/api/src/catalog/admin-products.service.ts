@@ -9,6 +9,7 @@ import { IMAGE_STORAGE_PROVIDER, type ImageStorageProvider } from "./images/imag
 import { resolveTranslation } from "./mappers/translation.mapper.ts";
 import { collectVariantIds } from "./mappers/product.mapper.ts";
 import { resolveActivePromotionsForVariants } from "../promotions/effective-price.ts";
+import { findProductIdsByVariantArticleNumberOrSku } from "./variant-search.ts";
 import {
   ADMIN_PRODUCT_INCLUDE,
   mapAdminProduct,
@@ -56,13 +57,17 @@ export class AdminProductsService {
     page: number,
     pageSize: number,
     status?: ProductStatus,
+    q?: string,
   ): Promise<{
     items: AdminProductListItemResponse[];
     page: number;
     pageSize: number;
     total: number;
   }> {
-    const where: Prisma.ProductWhereInput = { ...(status ? { status } : {}) };
+    const where: Prisma.ProductWhereInput = {
+      ...(status ? { status } : {}),
+      ...(q ? { OR: await this.buildProductSearchOr(q) } : {}),
+    };
 
     const [rows, total] = await Promise.all([
       this.prisma.product.findMany({
@@ -92,6 +97,31 @@ export class AdminProductsService {
       pageSize,
       total,
     };
+  }
+
+  // Product name/slug live on ProductTranslation (either locale — an admin
+  // typing a Swedish or English name should both find the product) and are
+  // reachable through Prisma's own relation filter; Article Number/SKU live
+  // on ProductVariant and — for Article Number, an Int column — need the
+  // raw-SQL substring match variant-search.ts provides, since Prisma's
+  // declarative `where` has no `contains` for numbers. Folded into one OR
+  // array (case-insensitive throughout) so `list()` never has to know which
+  // branch matched.
+  private async buildProductSearchOr(q: string): Promise<Prisma.ProductWhereInput[]> {
+    const matchingProductIds = await findProductIdsByVariantArticleNumberOrSku(this.prisma, q);
+    return [
+      {
+        translations: {
+          some: {
+            OR: [
+              { name: { contains: q, mode: "insensitive" } },
+              { slug: { contains: q, mode: "insensitive" } },
+            ],
+          },
+        },
+      },
+      ...(matchingProductIds.length > 0 ? [{ id: { in: matchingProductIds } }] : []),
+    ];
   }
 
   // Exists only so a caller creating/editing a product variant knows what's

@@ -102,7 +102,7 @@ describe("GET /admin/inventory — authorization", () => {
       .set("Cookie", "ame_session=token");
 
     expect(response.status).toBe(200);
-    expect(booted.list).toHaveBeenCalledWith(1, 20);
+    expect(booted.list).toHaveBeenCalledWith(1, 20, undefined);
   });
 });
 
@@ -145,7 +145,7 @@ describe("GET /admin/inventory/low-stock — authorization", () => {
       .set("Cookie", "ame_session=token");
 
     expect(response.status).toBe(200);
-    expect(booted.listLowStock).toHaveBeenCalledWith(1, 20);
+    expect(booted.listLowStock).toHaveBeenCalledWith(1, 20, undefined);
     // The real risk this endpoint introduced: @Get(":variantId") is
     // registered in the same controller and would otherwise swallow
     // "low-stock" as a literal variant id if declared first.
@@ -161,7 +161,7 @@ describe("GET /admin/inventory/low-stock — authorization", () => {
       .set("Cookie", "ame_session=token");
 
     expect(response.status).toBe(200);
-    expect(booted.listLowStock).toHaveBeenCalledWith(2, 5);
+    expect(booted.listLowStock).toHaveBeenCalledWith(2, 5, undefined);
   });
 
   it("returns 400 for a pageSize over the cap, before the service is ever called", async () => {

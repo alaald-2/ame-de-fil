@@ -210,7 +210,7 @@ describe("GET /admin/products — authorization", () => {
       .set("Cookie", "ame_session=some-token");
 
     expect(response.status).toBe(200);
-    expect(booted.list).toHaveBeenCalledWith(1, 20, undefined);
+    expect(booted.list).toHaveBeenCalledWith(1, 20, undefined, undefined);
   });
 
   it("passes a status query param through to the service", async () => {
@@ -227,7 +227,7 @@ describe("GET /admin/products — authorization", () => {
       .set("Cookie", "ame_session=some-token");
 
     expect(response.status).toBe(200);
-    expect(booted.list).toHaveBeenCalledWith(1, 20, "ARCHIVED");
+    expect(booted.list).toHaveBeenCalledWith(1, 20, "ARCHIVED", undefined);
   });
 });
 

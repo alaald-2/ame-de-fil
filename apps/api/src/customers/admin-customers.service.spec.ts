@@ -25,6 +25,7 @@ describe("AdminCustomersService.list", () => {
     await service.list(1, 20);
 
     expect(findMany).toHaveBeenCalledWith({
+      where: {},
       select: ADMIN_CUSTOMER_LIST_SELECT,
       orderBy: { createdAt: "desc" },
       skip: 0,
@@ -40,6 +41,29 @@ describe("AdminCustomersService.list", () => {
     await service.list(3, 10);
 
     expect(findMany).toHaveBeenCalledWith(expect.objectContaining({ skip: 20, take: 10 }));
+  });
+
+  // Admin search (task: "add a proper search function to every important
+  // list/table page") — Customers must be searchable by name, email, and
+  // phone, all case-insensitive and by partial match. All three are plain
+  // string columns on User itself, so this is a single OR — no raw SQL or
+  // relation join needed (unlike Products/Orders' Article Number).
+  it("searches by name, email, and phone via a single OR on User's own columns", async () => {
+    const { prisma, findMany, count } = makePrisma();
+    const service = new AdminCustomersService(prisma);
+
+    await service.list(1, 20, "elin");
+
+    const expectedWhere = {
+      OR: [
+        { email: { contains: "elin", mode: "insensitive" } },
+        { firstName: { contains: "elin", mode: "insensitive" } },
+        { lastName: { contains: "elin", mode: "insensitive" } },
+        { phone: { contains: "elin", mode: "insensitive" } },
+      ],
+    };
+    expect(findMany).toHaveBeenCalledWith(expect.objectContaining({ where: expectedWhere }));
+    expect(count).toHaveBeenCalledWith({ where: expectedWhere });
   });
 
   it("maps rows, joining first/last name and surfacing the order count", async () => {

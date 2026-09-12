@@ -279,6 +279,79 @@ describe("AdminProductsService.list/getOne", () => {
     });
   });
 
+  // Admin search (task: "add a proper search function to every important
+  // list/table page") — Products must be searchable by name, Article
+  // Number, and SKU, all case-insensitive and by partial match.
+  describe("list — search (q)", () => {
+    it("searches by product name via a translations relation filter", async () => {
+      const findMany = vi.fn().mockResolvedValue([makeAdminProductRow()]);
+      const queryRaw = vi.fn().mockResolvedValue([]); // no variant matches "mössa" by Article Number/SKU
+      const prisma = {
+        product: { findMany, count: vi.fn().mockResolvedValue(1) },
+        promotionVariant: { findMany: vi.fn().mockResolvedValue([]) },
+        $queryRaw: queryRaw,
+        $transaction: vi.fn(),
+      } as unknown as PrismaService;
+      const service = new AdminProductsService(prisma, new AuditService(prisma), makeImageStorageMock());
+
+      await service.list(1, 20, undefined, "mössa");
+
+      expect(findMany).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: {
+            OR: [
+              {
+                translations: {
+                  some: {
+                    OR: [
+                      { name: { contains: "mössa", mode: "insensitive" } },
+                      { slug: { contains: "mössa", mode: "insensitive" } },
+                    ],
+                  },
+                },
+              },
+            ],
+          },
+        }),
+      );
+    });
+
+    it("searches by Article Number via the raw substring lookup, folded in as an id filter", async () => {
+      const findMany = vi.fn().mockResolvedValue([makeAdminProductRow()]);
+      const queryRaw = vi.fn().mockResolvedValue([{ productId: "prod-1" }]);
+      const prisma = {
+        product: { findMany, count: vi.fn().mockResolvedValue(1) },
+        promotionVariant: { findMany: vi.fn().mockResolvedValue([]) },
+        $queryRaw: queryRaw,
+        $transaction: vi.fn(),
+      } as unknown as PrismaService;
+      const service = new AdminProductsService(prisma, new AuditService(prisma), makeImageStorageMock());
+
+      await service.list(1, 20, undefined, "100042");
+
+      expect(queryRaw).toHaveBeenCalled();
+      const whereArg = findMany.mock.calls[0]![0].where;
+      expect(whereArg.OR).toContainEqual({ id: { in: ["prod-1"] } });
+    });
+
+    it("searches by SKU via the same raw substring lookup", async () => {
+      const findMany = vi.fn().mockResolvedValue([makeAdminProductRow()]);
+      const queryRaw = vi.fn().mockResolvedValue([{ productId: "prod-1" }]);
+      const prisma = {
+        product: { findMany, count: vi.fn().mockResolvedValue(1) },
+        promotionVariant: { findMany: vi.fn().mockResolvedValue([]) },
+        $queryRaw: queryRaw,
+        $transaction: vi.fn(),
+      } as unknown as PrismaService;
+      const service = new AdminProductsService(prisma, new AuditService(prisma), makeImageStorageMock());
+
+      await service.list(1, 20, undefined, "SKU-1");
+
+      const whereArg = findMany.mock.calls[0]![0].where;
+      expect(whereArg.OR).toContainEqual({ id: { in: ["prod-1"] } });
+    });
+  });
+
   it("list filters by status when one is given", async () => {
     const prisma = {
       product: {

@@ -24,11 +24,11 @@ import { RequirePermissions } from "../common/decorators/require-permissions.dec
 import { ZodValidationPipe } from "../common/pipes/zod-validation.pipe.ts";
 import { ApiErrorResponses } from "../common/api-error-responses.ts";
 import { ApiZodParam, ApiZodQuery, toOpenApiSchema } from "../common/zod-openapi.ts";
-import { paginationQuerySchema, type PaginationQuery } from "../common/dto/pagination.schema.ts";
 import type { AuthContext } from "../common/types/auth-context.ts";
 import { InventoryService } from "./inventory.service.ts";
 import { adjustStockSchema, type AdjustStockInput } from "./dto/adjust-stock.dto.ts";
 import { variantIdParamSchema, type VariantIdParam } from "./dto/variant-id.param.ts";
+import { listInventoryQuerySchema, type ListInventoryQuery } from "./dto/list-inventory-query.dto.ts";
 import { listReservationsQuerySchema, type ListReservationsQuery } from "./dto/list-reservations.dto.ts";
 import { listMovementsQuerySchema, type ListMovementsQuery } from "./dto/list-movements.dto.ts";
 import {
@@ -51,12 +51,12 @@ export class InventoryController {
   @Get()
   @RequirePermissions("inventory.view")
   @ApiOperation({ summary: "List inventory items with stock/availability" })
-  @ApiZodQuery(paginationQuerySchema)
+  @ApiZodQuery(listInventoryQuerySchema)
   @ApiOkResponse({ schema: toOpenApiSchema(listInventoryResponseSchema) })
   @ApiErrorResponses(400, 401, 403)
-  @UsePipes(new ZodValidationPipe(paginationQuerySchema))
-  async list(@Query() query: PaginationQuery) {
-    return this.inventory.list(query.page, query.pageSize);
+  @UsePipes(new ZodValidationPipe(listInventoryQuerySchema))
+  async list(@Query() query: ListInventoryQuery) {
+    return this.inventory.list(query.page, query.pageSize, query.q);
   }
 
   // Must be declared before @Get(":variantId") below — Nest/Express match
@@ -67,12 +67,12 @@ export class InventoryController {
   @ApiOperation({
     summary: "List finite-stock items where onHand - reserved is below their lowStockThreshold",
   })
-  @ApiZodQuery(paginationQuerySchema)
+  @ApiZodQuery(listInventoryQuerySchema)
   @ApiOkResponse({ schema: toOpenApiSchema(listInventoryResponseSchema) })
   @ApiErrorResponses(400, 401, 403)
-  @UsePipes(new ZodValidationPipe(paginationQuerySchema))
-  async listLowStock(@Query() query: PaginationQuery) {
-    return this.inventory.listLowStock(query.page, query.pageSize);
+  @UsePipes(new ZodValidationPipe(listInventoryQuerySchema))
+  async listLowStock(@Query() query: ListInventoryQuery) {
+    return this.inventory.listLowStock(query.page, query.pageSize, query.q);
   }
 
   // Same route-ordering requirement as "low-stock" above — must be

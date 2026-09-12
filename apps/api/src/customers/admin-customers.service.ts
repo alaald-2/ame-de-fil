@@ -1,4 +1,5 @@
 import { Injectable, NotFoundException } from "@nestjs/common";
+import type { Prisma } from "@ame-de-fil/database";
 import { PrismaService } from "../database/prisma.service.ts";
 import {
   ADMIN_CUSTOMER_DETAIL_SELECT,
@@ -24,15 +25,31 @@ const CUSTOMER_NOT_FOUND = () =>
 export class AdminCustomersService {
   constructor(private readonly prisma: PrismaService) {}
 
-  async list(page: number, pageSize: number) {
+  async list(page: number, pageSize: number, q?: string) {
+    // firstName/lastName/email/phone are all plain string columns on User
+    // itself — a straight OR, no raw SQL or relation join needed (unlike
+    // Products/Orders, which have to reach a numeric Article Number on a
+    // related table).
+    const where: Prisma.UserWhereInput = q
+      ? {
+          OR: [
+            { email: { contains: q, mode: "insensitive" } },
+            { firstName: { contains: q, mode: "insensitive" } },
+            { lastName: { contains: q, mode: "insensitive" } },
+            { phone: { contains: q, mode: "insensitive" } },
+          ],
+        }
+      : {};
+
     const [rows, total] = await Promise.all([
       this.prisma.user.findMany({
+        where,
         select: ADMIN_CUSTOMER_LIST_SELECT,
         orderBy: { createdAt: "desc" },
         skip: (page - 1) * pageSize,
         take: pageSize,
       }),
-      this.prisma.user.count(),
+      this.prisma.user.count({ where }),
     ]);
 
     return {

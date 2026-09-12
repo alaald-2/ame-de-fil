@@ -1,5 +1,5 @@
 import { getTranslations, getLocale } from "next-intl/server";
-import { Heading, Text, Pagination, EmptyState, ErrorState } from "@ame-de-fil/ui";
+import { Heading, Text, Pagination, SearchField, EmptyState, ErrorState } from "@ame-de-fil/ui";
 import { requireSession } from "../../../../lib/dal";
 import { getServerApiClient } from "../../../../lib/server-api";
 import { InventoryTabs } from "../../../../components/inventory-tabs";
@@ -8,7 +8,7 @@ import { MovementsTable } from "../../../../components/inventory-movements-table
 const PAGE_SIZE = 20;
 
 interface MovementsPageProps {
-  searchParams: Promise<{ page?: string }>;
+  searchParams: Promise<{ page?: string; q?: string }>;
 }
 
 // Real GET /admin/inventory/movements data, most-recent-first — the
@@ -18,8 +18,9 @@ interface MovementsPageProps {
 // every other Phase 5 list checkpoint.
 export default async function MovementsPage({ searchParams }: MovementsPageProps) {
   await requireSession();
-  const { page: pageParam } = await searchParams;
+  const { page: pageParam, q: qParam } = await searchParams;
   const page = Math.max(1, Number(pageParam ?? "1") || 1);
+  const q = qParam?.trim() ?? "";
 
   const t = await getTranslations("Inventory");
   const tNav = await getTranslations("Navigation");
@@ -27,7 +28,7 @@ export default async function MovementsPage({ searchParams }: MovementsPageProps
   const client = await getServerApiClient();
 
   const { data, error, response } = await client.GET("/api/v1/admin/inventory/movements", {
-    params: { query: { page, pageSize: PAGE_SIZE } },
+    params: { query: { page, pageSize: PAGE_SIZE, q: q || undefined } },
   });
 
   if (error) {
@@ -59,6 +60,10 @@ export default async function MovementsPage({ searchParams }: MovementsPageProps
         <Text tone="muted">{t("movementsCount", { count: data.total })}</Text>
       </div>
 
+      <div className="mt-4 max-w-sm">
+        <SearchField label={t("searchLabel")} placeholder={t("searchPlaceholder")} />
+      </div>
+
       <div className="mt-6">
         <InventoryTabs />
       </div>
@@ -66,8 +71,8 @@ export default async function MovementsPage({ searchParams }: MovementsPageProps
       {data.items.length === 0 ? (
         <EmptyState
           className="mt-6"
-          title={t("movementsEmptyTitle")}
-          description={t("movementsEmptyDescription")}
+          title={q ? t("emptyFilteredTitle") : t("movementsEmptyTitle")}
+          description={q ? t("emptyFilteredDescription") : t("movementsEmptyDescription")}
         />
       ) : (
         <>
@@ -79,7 +84,11 @@ export default async function MovementsPage({ searchParams }: MovementsPageProps
               className="mt-8"
               page={data.page}
               totalPages={totalPages}
-              makeHref={(targetPage) => `/inventory/movements?page=${targetPage}`}
+              makeHref={(targetPage) =>
+                q
+                  ? `/inventory/movements?page=${targetPage}&q=${encodeURIComponent(q)}`
+                  : `/inventory/movements?page=${targetPage}`
+              }
               previousLabel={t("paginationPrevious")}
               nextLabel={t("paginationNext")}
               pageLabel={(current, total) => t("paginationPage", { page: current, totalPages: total })}

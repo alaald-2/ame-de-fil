@@ -1,5 +1,5 @@
 import { getTranslations, getLocale } from "next-intl/server";
-import { Heading, Text, Pagination, EmptyState, ErrorState } from "@ame-de-fil/ui";
+import { Heading, Text, Pagination, SearchField, EmptyState, ErrorState } from "@ame-de-fil/ui";
 import { requireSession } from "../../../../lib/dal";
 import { getServerApiClient } from "../../../../lib/server-api";
 import { InventoryTabs } from "../../../../components/inventory-tabs";
@@ -8,7 +8,7 @@ import { ReservationsTable } from "../../../../components/inventory-reservations
 const PAGE_SIZE = 20;
 
 interface ReservationsPageProps {
-  searchParams: Promise<{ page?: string }>;
+  searchParams: Promise<{ page?: string; q?: string }>;
 }
 
 // Real GET /admin/inventory/reservations data, PENDING-only (the API's own
@@ -17,8 +17,9 @@ interface ReservationsPageProps {
 // so status/variant filtering is deliberately not built here (ROADMAP.md).
 export default async function ReservationsPage({ searchParams }: ReservationsPageProps) {
   await requireSession();
-  const { page: pageParam } = await searchParams;
+  const { page: pageParam, q: qParam } = await searchParams;
   const page = Math.max(1, Number(pageParam ?? "1") || 1);
+  const q = qParam?.trim() ?? "";
 
   const t = await getTranslations("Inventory");
   const tNav = await getTranslations("Navigation");
@@ -26,7 +27,7 @@ export default async function ReservationsPage({ searchParams }: ReservationsPag
   const client = await getServerApiClient();
 
   const { data, error, response } = await client.GET("/api/v1/admin/inventory/reservations", {
-    params: { query: { page, pageSize: PAGE_SIZE, status: "PENDING" } },
+    params: { query: { page, pageSize: PAGE_SIZE, status: "PENDING", q: q || undefined } },
   });
 
   if (error) {
@@ -58,6 +59,10 @@ export default async function ReservationsPage({ searchParams }: ReservationsPag
         <Text tone="muted">{t("reservationsCount", { count: data.total })}</Text>
       </div>
 
+      <div className="mt-4 max-w-sm">
+        <SearchField label={t("searchLabel")} placeholder={t("searchPlaceholder")} />
+      </div>
+
       <div className="mt-6">
         <InventoryTabs />
       </div>
@@ -65,8 +70,8 @@ export default async function ReservationsPage({ searchParams }: ReservationsPag
       {data.items.length === 0 ? (
         <EmptyState
           className="mt-6"
-          title={t("reservationsEmptyTitle")}
-          description={t("reservationsEmptyDescription")}
+          title={q ? t("emptyFilteredTitle") : t("reservationsEmptyTitle")}
+          description={q ? t("emptyFilteredDescription") : t("reservationsEmptyDescription")}
         />
       ) : (
         <>
@@ -78,7 +83,11 @@ export default async function ReservationsPage({ searchParams }: ReservationsPag
               className="mt-8"
               page={data.page}
               totalPages={totalPages}
-              makeHref={(targetPage) => `/inventory/reservations?page=${targetPage}`}
+              makeHref={(targetPage) =>
+                q
+                  ? `/inventory/reservations?page=${targetPage}&q=${encodeURIComponent(q)}`
+                  : `/inventory/reservations?page=${targetPage}`
+              }
               previousLabel={t("paginationPrevious")}
               nextLabel={t("paginationNext")}
               pageLabel={(current, total) => t("paginationPage", { page: current, totalPages: total })}

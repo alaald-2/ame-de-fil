@@ -143,7 +143,7 @@ describe("GET /admin/orders — authorization", () => {
       .set("Cookie", "ame_session=token");
 
     expect(response.status).toBe(200);
-    expect(booted.listOrders).toHaveBeenCalledWith(1, 20, undefined, undefined);
+    expect(booted.listOrders).toHaveBeenCalledWith(1, 20, undefined, undefined, undefined);
   });
 
   it("passes page/pageSize query params through to the service", async () => {
@@ -155,7 +155,7 @@ describe("GET /admin/orders — authorization", () => {
       .set("Cookie", "ame_session=token");
 
     expect(response.status).toBe(200);
-    expect(booted.listOrders).toHaveBeenCalledWith(2, 5, undefined, undefined);
+    expect(booted.listOrders).toHaveBeenCalledWith(2, 5, undefined, undefined, undefined);
   });
 
   it("passes paymentStatus/refundStatus filters through to the service", async () => {
@@ -167,7 +167,7 @@ describe("GET /admin/orders — authorization", () => {
       .set("Cookie", "ame_session=token");
 
     expect(response.status).toBe(200);
-    expect(booted.listOrders).toHaveBeenCalledWith(1, 20, "DISPUTED", "FAILED");
+    expect(booted.listOrders).toHaveBeenCalledWith(1, 20, "DISPUTED", "FAILED", undefined);
   });
 
   it("returns 400 for an invalid paymentStatus value", async () => {

@@ -231,6 +231,85 @@ describe("AdminOrdersService.listOrders", () => {
     expect(orderFindMany).toHaveBeenCalledWith(expect.objectContaining({ where: expectedWhere }));
     expect(orderCount).toHaveBeenCalledWith({ where: expectedWhere });
   });
+
+  // Admin search (task: "add a proper search function to every important
+  // list/table page") — Orders must be searchable by order number,
+  // customer name/email/phone (registered or guest), and line-item SKU/
+  // Article Number, all case-insensitive and by partial match.
+  describe("search (q)", () => {
+    function makeSearchPrismaMock(queryRawResult: { orderId: string }[] = []) {
+      return makePrismaMock({ $queryRaw: vi.fn().mockResolvedValue(queryRawResult) });
+    }
+
+    it("searches by order number", async () => {
+      const { prisma, orderFindMany, orderCount } = makeSearchPrismaMock();
+      const service = new AdminOrdersService(
+        prisma,
+        makeNotificationsMock(),
+        new AuditService(prisma),
+        makeUnusedPaymentProviderMock(),
+        makeUnusedConfigMock(),
+      );
+
+      await service.listOrders(1, 20, undefined, undefined, "AF-20260910-M55CL5Q7");
+
+      const whereArg = orderFindMany.mock.calls[0]![0].where;
+      expect(whereArg.OR).toContainEqual({
+        orderNumber: { contains: "AF-20260910-M55CL5Q7", mode: "insensitive" },
+      });
+      expect(orderCount).toHaveBeenCalledWith(expect.objectContaining({ where: whereArg }));
+    });
+
+    it("searches by customer name, email, and phone — both guest fields and the registered user's own", async () => {
+      const { prisma, orderFindMany } = makeSearchPrismaMock();
+      const service = new AdminOrdersService(
+        prisma,
+        makeNotificationsMock(),
+        new AuditService(prisma),
+        makeUnusedPaymentProviderMock(),
+        makeUnusedConfigMock(),
+      );
+
+      await service.listOrders(1, 20, undefined, undefined, "elin");
+
+      const whereArg = orderFindMany.mock.calls[0]![0].where;
+      // Guest-order fields, searched directly on Order.
+      expect(whereArg.OR).toContainEqual({ guestEmail: { contains: "elin", mode: "insensitive" } });
+      expect(whereArg.OR).toContainEqual({ shippingName: { contains: "elin", mode: "insensitive" } });
+      expect(whereArg.OR).toContainEqual({ billingName: { contains: "elin", mode: "insensitive" } });
+      expect(whereArg.OR).toContainEqual({ shippingPhone: { contains: "elin", mode: "insensitive" } });
+      expect(whereArg.OR).toContainEqual({ billingPhone: { contains: "elin", mode: "insensitive" } });
+      // Registered-customer fields, searched through the user relation.
+      expect(whereArg.OR).toContainEqual({
+        user: {
+          is: {
+            OR: [
+              { email: { contains: "elin", mode: "insensitive" } },
+              { firstName: { contains: "elin", mode: "insensitive" } },
+              { lastName: { contains: "elin", mode: "insensitive" } },
+              { phone: { contains: "elin", mode: "insensitive" } },
+            ],
+          },
+        },
+      });
+    });
+
+    it("searches by line-item SKU/Article Number via a raw lookup, folded in as an id filter", async () => {
+      const { prisma, orderFindMany } = makeSearchPrismaMock([{ orderId: "order-1" }]);
+      const service = new AdminOrdersService(
+        prisma,
+        makeNotificationsMock(),
+        new AuditService(prisma),
+        makeUnusedPaymentProviderMock(),
+        makeUnusedConfigMock(),
+      );
+
+      await service.listOrders(1, 20, undefined, undefined, "MOSSA-BLA-ONE");
+
+      const whereArg = orderFindMany.mock.calls[0]![0].where;
+      expect(whereArg.OR).toContainEqual({ id: { in: ["order-1"] } });
+    });
+  });
 });
 
 describe("AdminOrdersService.getOrderDetail", () => {

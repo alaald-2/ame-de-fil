@@ -76,7 +76,7 @@ export class AdminProductsController {
   @ApiOkResponse({ schema: toOpenApiSchema(listAdminProductsResponseSchema) })
   @ApiErrorResponses(400, 401, 403)
   async list(@Query(new ZodValidationPipe(listAdminProductsQuerySchema)) query: ListAdminProductsQuery) {
-    return this.adminProducts.list(query.page, query.pageSize, query.status);
+    return this.adminProducts.list(query.page, query.pageSize, query.status, query.q);
   }
 
   // Registered before ":id" — Nest matches routes in registration order,

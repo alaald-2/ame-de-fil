@@ -54,8 +54,19 @@ export class AdminUsersService {
     private readonly audit: AuditService,
   ) {}
 
-  async list(page: number, pageSize: number) {
-    const where = { roles: { some: {} } };
+  async list(page: number, pageSize: number, q?: string) {
+    const where: Prisma.UserWhereInput = {
+      roles: { some: {} },
+      ...(q
+        ? {
+            OR: [
+              { email: { contains: q, mode: "insensitive" } },
+              { firstName: { contains: q, mode: "insensitive" } },
+              { lastName: { contains: q, mode: "insensitive" } },
+            ],
+          }
+        : {}),
+    };
     const [rows, total] = await Promise.all([
       this.prisma.user.findMany({
         where,
