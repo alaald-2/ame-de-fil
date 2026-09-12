@@ -156,9 +156,25 @@
         "close": "Close",
         "missingFileError": "Choose an image file first.",
         "genericError": "Something went wrong. Please try again.",
-        "moveUp": "Move up",
-        "moveDown": "Move down",
-        "reorderError": "Couldn't save the new order. Please try again."
+        "dragHandle": "Drag to reorder",
+        "reorderError": "Couldn't save the new order. Please try again.",
+        "chooseDifferentFile": "Choose a different file",
+        "dropzoneLabel": "Drag and drop images here, or click to upload",
+        "invalidFileError": "Some files were skipped — only JPEG, PNG, or WebP images up to 5MB are allowed.",
+        "queueProgress": "Image {current} of {total}",
+        "editor": {
+          "rotateLeft": "Rotate left",
+          "rotateRight": "Rotate right",
+          "flipHorizontal": "Flip horizontal",
+          "flipVertical": "Flip vertical",
+          "reset": "Reset",
+          "zoomOut": "Zoom out",
+          "zoomIn": "Zoom in",
+          "zoomHint": "Scroll or pinch on the image to zoom",
+          "aspectRatioLabel": "Aspect ratio",
+          "aspectFree": "Free",
+          "previewLabel": "Preview"
+        }
       },
       "updated": "Updated",
       "translationsSwedish": "Swedish content",

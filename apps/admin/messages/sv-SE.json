@@ -156,9 +156,25 @@
         "close": "Stäng",
         "missingFileError": "Välj en bildfil först.",
         "genericError": "Något gick fel. Försök igen.",
-        "moveUp": "Flytta upp",
-        "moveDown": "Flytta ner",
-        "reorderError": "Det gick inte att spara den nya ordningen. Försök igen."
+        "dragHandle": "Dra för att ändra ordning",
+        "reorderError": "Det gick inte att spara den nya ordningen. Försök igen.",
+        "chooseDifferentFile": "Välj en annan fil",
+        "dropzoneLabel": "Dra och släpp bilder här eller klicka för att ladda upp",
+        "invalidFileError": "Vissa filer hoppades över — endast JPEG-, PNG- eller WebP-bilder upp till 5 MB är tillåtna.",
+        "queueProgress": "Bild {current} av {total}",
+        "editor": {
+          "rotateLeft": "Rotera vänster",
+          "rotateRight": "Rotera höger",
+          "flipHorizontal": "Vänd horisontellt",
+          "flipVertical": "Vänd vertikalt",
+          "reset": "Återställ",
+          "zoomOut": "Zooma ut",
+          "zoomIn": "Zooma in",
+          "zoomHint": "Scrolla eller nyp på bilden för att zooma",
+          "aspectRatioLabel": "Bildförhållande",
+          "aspectFree": "Fritt",
+          "previewLabel": "Förhandsgranskning"
+        }
       },
       "updated": "Uppdaterad",
       "translationsSwedish": "Svenskt innehåll",

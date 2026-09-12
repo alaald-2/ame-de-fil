@@ -25,7 +25,14 @@ export * from "./components/Logo";
 // other component here already keeps (Pagination/SearchField bake their
 // own icons in rather than exposing them). Only re-exported as they're
 // actually needed by a caller outside packages/ui — not the whole icon set.
-export { ArrowUpIcon, ArrowDownIcon } from "@radix-ui/react-icons";
+export {
+  DragHandleDots2Icon,
+  RotateCounterClockwiseIcon,
+  ResetIcon,
+  ZoomInIcon,
+  ZoomOutIcon,
+  UploadIcon,
+} from "@radix-ui/react-icons";
 export * from "./components/Skeleton";
 export * from "./components/EmptyState";
 export * from "./components/ErrorState";
