@@ -1,6 +1,6 @@
 import { useTranslations } from "next-intl";
 import type { Product } from "@ame-de-fil/types";
-import { Text } from "@ame-de-fil/ui";
+import { Text, PlaceholderImage } from "@ame-de-fil/ui";
 import { Link } from "../i18n/navigation";
 import { SalePrice } from "./sale-price";
 
@@ -36,7 +36,9 @@ export function ProductCard({ product, locale }: ProductCardProps) {
             alt={image.altText ?? ""}
             className="h-full w-full object-cover transition-opacity group-hover:opacity-90"
           />
-        ) : null}
+        ) : (
+          <PlaceholderImage className="h-full w-full" />
+        )}
       </div>
       <div className="mt-3">
         <Text size="sm" className="text-neutral-900">

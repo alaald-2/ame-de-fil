@@ -20,7 +20,8 @@
   "Home": {
     "heroTitle": "Handmade with care",
     "heroSubtitle": "Unique crochet garments and homeware, made in Sweden.",
-    "cta": "Explore the collection"
+    "cta": "Explore the collection",
+    "newArrivalsTitle": "New arrivals"
   },
   "Common": {
     "loading": "Loading…",
@@ -56,7 +57,11 @@
     "notFoundBody": "The product you're looking for no longer exists or has moved.",
     "backToShop": "Back to shop",
     "materials": "Materials",
-    "careInstructions": "Care instructions"
+    "careInstructions": "Care instructions",
+    "breadcrumbLabel": "Breadcrumb",
+    "viewImage": "View image {number}",
+    "relatedTitle": "You might also like",
+    "handmadeNotice": "Handmade in Sweden"
   },
   "Category": {
     "notFoundTitle": "Category not found",

@@ -32,9 +32,11 @@ export {
   ZoomInIcon,
   ZoomOutIcon,
   UploadIcon,
+  HamburgerMenuIcon,
 } from "@radix-ui/react-icons";
 export * from "./components/Skeleton";
 export * from "./components/EmptyState";
 export * from "./components/ErrorState";
 export * from "./components/Card";
 export * from "./components/Dialog";
+export * from "./components/PlaceholderImage";

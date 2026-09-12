@@ -20,7 +20,8 @@
   "Home": {
     "heroTitle": "Handgjort med omsorg",
     "heroSubtitle": "Unika virkade plagg och inredning, tillverkade i Sverige.",
-    "cta": "Utforska kollektionen"
+    "cta": "Utforska kollektionen",
+    "newArrivalsTitle": "Nyheter"
   },
   "Common": {
     "loading": "Laddar…",
@@ -56,7 +57,11 @@
     "notFoundBody": "Produkten du letar efter finns inte längre eller har flyttats.",
     "backToShop": "Till butiken",
     "materials": "Material",
-    "careInstructions": "Skötselråd"
+    "careInstructions": "Skötselråd",
+    "breadcrumbLabel": "Brödsmula",
+    "viewImage": "Visa bild {number}",
+    "relatedTitle": "Du kanske också gillar",
+    "handmadeNotice": "Handgjort i Sverige"
   },
   "Category": {
     "notFoundTitle": "Kategorin hittades inte",

@@ -4,9 +4,11 @@ import { getTranslations } from "next-intl/server";
 import { Container, Heading, Text, Alert } from "@ame-de-fil/ui";
 import { api } from "../../../../lib/api-client";
 import type { AppLocale } from "../../../../lib/locale";
-import { AddToCartButton } from "../../../../components/add-to-cart-button";
+import { Link } from "../../../../i18n/navigation";
 import { CartErrorAlert } from "../../../../components/cart-error-alert";
-import { SalePrice } from "../../../../components/sale-price";
+import { ProductGallery } from "../../../../components/product-gallery";
+import { ProductVariantSelector } from "../../../../components/product-variant-selector";
+import { ProductCard } from "../../../../components/product-card";
 
 type PageParams = { locale: AppLocale; slug: string };
 
@@ -37,93 +39,116 @@ export default async function ProductPage({ params }: { params: Promise<PagePara
   const { locale, slug } = await params;
   const product = await loadProduct(slug, locale);
   const t = await getTranslations("Product");
-  const tShop = await getTranslations("Shop");
+  const tNav = await getTranslations("Navigation");
+  const tFooter = await getTranslations("Footer");
 
   if (!product) notFound();
 
-  const primaryImage = product.images[0];
+  const primaryCategory = product.categories[0];
+  const relatedFilter = primaryCategory
+    ? { category: primaryCategory.id }
+    : product.collections[0]
+      ? { collection: product.collections[0].id }
+      : null;
+
+  // Same category/collection as this product, real published items only —
+  // never both filters at once (products.service.ts's own `where` clause
+  // ANDs category+collection together, which would under-match a product
+  // that isn't in both).
+  const relatedProducts = relatedFilter
+    ? await api
+        .GET("/api/v1/products", {
+          params: { query: { locale, page: 1, pageSize: 5, ...relatedFilter } },
+        })
+        .then(({ data }) => (data?.items ?? []).filter((item) => item.id !== product.id).slice(0, 4))
+    : [];
 
   return (
-    <Container className="grid gap-10 py-16 md:grid-cols-2">
-      <div className="aspect-[3/4] bg-neutral-100">
-        {primaryImage ? (
-          // Plain <img>, not next/image — see product-card.tsx (remotePatterns
-          // is still empty; image storage vendor deferred, ADR-020).
-          <img
-            src={primaryImage.url}
-            alt={primaryImage.altText ?? ""}
-            className="h-full w-full object-cover"
-          />
-        ) : null}
-      </div>
-      <div>
-        <Heading level={1}>{product.name}</Heading>
-        {product.description ? (
-          <Text tone="muted" className="mt-3">
-            {product.description}
-          </Text>
-        ) : null}
-
-        <div className="mt-6 flex flex-col gap-3">
-          {product.variants.map((variant) => (
-            <div
-              key={variant.id}
-              className="flex items-center justify-between border-b border-neutral-200 pb-3"
+    <Container className="py-16">
+      <nav aria-label={t("breadcrumbLabel")} className="mb-8 flex flex-wrap items-center gap-2 text-sm">
+        <Link href="/shop" className="text-neutral-600 hover:text-neutral-900">
+          {tNav("shop")}
+        </Link>
+        {primaryCategory ? (
+          <>
+            <span aria-hidden="true" className="text-neutral-400">
+              /
+            </span>
+            <Link
+              href={{ pathname: "/categories/[slug]", params: { slug: primaryCategory.slug } }}
+              className="text-neutral-600 hover:text-neutral-900"
             >
-              <div>
-                <Text size="sm">
-                  {variant.options.map((o) => o.label).join(" / ") || variant.sku || `#${variant.articleNumber}`}
-                </Text>
-                {!variant.available ? (
-                  <Text size="sm" tone="muted">
-                    {tShop("soldOut")}
-                  </Text>
-                ) : variant.productionTimeDays ? (
-                  <Text size="sm" tone="muted">
-                    {tShop("productionTime", { days: variant.productionTimeDays })}
-                  </Text>
-                ) : null}
-              </div>
-              <div className="flex items-center gap-4">
-                <SalePrice
-                  price={variant.price}
-                  originalPrice={variant.originalPrice}
-                  promotion={variant.promotion}
-                  locale={locale}
-                  size="base"
-                />
-                <AddToCartButton variantId={variant.id} available={variant.available} />
-              </div>
+              {primaryCategory.name}
+            </Link>
+          </>
+        ) : null}
+        <span aria-hidden="true" className="text-neutral-400">
+          /
+        </span>
+        <Text size="sm" className="text-neutral-900">
+          {product.name}
+        </Text>
+      </nav>
+
+      <div className="grid gap-10 md:grid-cols-2">
+        <ProductGallery images={product.images} />
+        <div>
+          <Heading level={1}>{product.name}</Heading>
+          {product.description ? (
+            <Text tone="muted" className="mt-3">
+              {product.description}
+            </Text>
+          ) : null}
+
+          <ProductVariantSelector variants={product.variants} locale={locale} />
+
+          <CartErrorAlert />
+
+          <div className="mt-8 flex flex-col gap-1 border-t border-neutral-200 pt-6">
+            <Text size="sm" tone="muted">
+              {t("handmadeNotice")}
+            </Text>
+            <Link href="/shipping" className="w-fit text-sm text-neutral-600 hover:text-neutral-900">
+              {tFooter("shipping")}
+            </Link>
+          </div>
+
+          {product.materials ? (
+            <div className="mt-8">
+              <Heading level={4}>{t("materials")}</Heading>
+              <Text tone="muted" className="mt-1">
+                {product.materials}
+              </Text>
             </div>
-          ))}
+          ) : null}
+
+          {product.careInstructions ? (
+            <div className="mt-6">
+              <Heading level={4}>{t("careInstructions")}</Heading>
+              <Text tone="muted" className="mt-1">
+                {product.careInstructions}
+              </Text>
+            </div>
+          ) : null}
+
+          {product.story ? (
+            <Alert tone="info" className="mt-8">
+              {product.story}
+            </Alert>
+          ) : null}
         </div>
-
-        <CartErrorAlert />
-
-        {product.materials ? (
-          <div className="mt-8">
-            <Heading level={4}>{t("materials")}</Heading>
-            <Text tone="muted" className="mt-1">
-              {product.materials}
-            </Text>
-          </div>
-        ) : null}
-
-        {product.careInstructions ? (
-          <div className="mt-6">
-            <Heading level={4}>{t("careInstructions")}</Heading>
-            <Text tone="muted" className="mt-1">
-              {product.careInstructions}
-            </Text>
-          </div>
-        ) : null}
-
-        {product.story ? (
-          <Alert tone="info" className="mt-8">
-            {product.story}
-          </Alert>
-        ) : null}
       </div>
+
+      {relatedProducts.length > 0 ? (
+        <div className="mt-20">
+          <Heading level={2}>{t("relatedTitle")}</Heading>
+          <div className="mt-8 grid grid-cols-2 gap-x-6 gap-y-10 sm:grid-cols-4">
+            {relatedProducts.map((related) => (
+              <ProductCard key={related.id} product={related} locale={locale} />
+            ))}
+          </div>
+        </div>
+      ) : null}
     </Container>
   );
 }
