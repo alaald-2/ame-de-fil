@@ -10,7 +10,8 @@ interface ReceiptItem {
   id: string;
   productName: string;
   variantLabel: string;
-  sku: string;
+  sku: string | null;
+  articleNumber: number | null;
   quantity: number;
   lineTotal: ReceiptMoney;
 }
@@ -164,7 +165,9 @@ export function OrderReceipt({ order, settings, locale, translations: t }: Order
                 {item.productName}
                 <br />
                 <span className="text-xs">
-                  {item.variantLabel} · {item.sku}
+                  {item.variantLabel}
+                  {item.articleNumber !== null ? ` · #${item.articleNumber}` : ""}
+                  {item.sku ? ` · ${item.sku}` : ""}
                 </span>
               </td>
               <td className="py-1 text-right">{item.quantity}</td>

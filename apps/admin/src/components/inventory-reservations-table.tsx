@@ -10,7 +10,8 @@ export interface ReservationListItem {
   expiresAt: string;
   createdAt: string;
   variantId: string;
-  sku: string;
+  articleNumber: number;
+  sku: string | null;
   productName: string;
   orderId: string;
   orderNumber: string;
@@ -48,7 +49,10 @@ export function ReservationsTable({ reservations, locale }: ReservationsTablePro
             <TableRow key={reservation.id}>
               <TableCell className="font-medium text-neutral-900">
                 {reservation.productName}
-                <div className="text-xs font-normal text-neutral-600">{reservation.sku}</div>
+                <div className="text-xs font-normal text-neutral-600">
+                  {reservation.articleNumber}
+                  {reservation.sku ? ` · ${reservation.sku}` : ""}
+                </div>
               </TableCell>
               <TableCell numeric>{reservation.quantity}</TableCell>
               <TableCell>
@@ -80,7 +84,8 @@ export function ReservationsTable({ reservations, locale }: ReservationsTablePro
               </Badge>
             </div>
             <Text size="sm" tone="muted" className="mt-0.5">
-              {reservation.sku}
+              {reservation.articleNumber}
+              {reservation.sku ? ` · ${reservation.sku}` : ""}
             </Text>
             <div className="mt-3 grid grid-cols-3 gap-2">
               <div>

@@ -9,7 +9,8 @@ const promotionSummaryResponseSchema = z.object({
 export const cartItemResponseSchema = z.object({
   id: z.string(),
   variantId: z.string(),
-  sku: z.string(),
+  articleNumber: z.number().int(),
+  sku: z.string().nullable(),
   productName: z.string(),
   quantity: z.number().int(),
   // The effective (post-promotion) price — what the customer actually

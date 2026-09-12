@@ -100,6 +100,7 @@
       "removeVariant": "Quitar variante",
       "variantN": "Variante {n}",
       "skuLabel": "SKU",
+      "skuHint": "Opcional — tu propio código de negocio/proveedor, si usas uno. El número de artículo permanente se genera automáticamente.",
       "skuPlaceholder": "p. ej. TROJA-ROST-M",
       "priceLabel": "Precio (SEK)",
       "taxClassCodeLabel": "Clase fiscal",
@@ -191,10 +192,17 @@
       "productionTimeDaysLabel": "Tiempo de producción (días)",
       "isActiveLabel": "Activa",
       "isLimitedEditionLabel": "Edición limitada",
+      "articleNumberLabel": "N.º art. {number}",
+      "skuLabel": "SKU",
       "stockOnHand": "{count} en stock",
       "stockReserved": "{count} reservadas",
       "detailErrorTitle": "No se pudo cargar este producto",
-      "detailErrorDescription": "Algo salió mal al cargar los detalles de este producto."
+      "detailErrorDescription": "Algo salió mal al cargar los detalles de este producto.",
+      "activePromotionLabel": "En oferta — {name} ({percentage}% de descuento): {price} (antes {originalPrice})",
+      "removePromotionButton": "Quitar promoción",
+      "removePromotionConfirmTitle": "¿Quitar esta promoción de esta variante?",
+      "removePromotionConfirmDescription": "La variante vuelve de inmediato a su precio normal. Esto no afecta a la promoción en ninguna otra variante a la que se aplique.",
+      "removePromotionGenericError": "Algo salió mal. Inténtalo de nuevo."
     }
   },
   "Promotions": {
@@ -223,7 +231,7 @@
     "statusNotYetEffective": "No vigente ahora",
     "variantPicker": {
       "filterLabel": "Filtrar",
-      "filterPlaceholder": "Buscar por nombre de producto o SKU",
+      "filterPlaceholder": "Buscar por nombre de producto, número de artículo o SKU",
       "selectedCount": "{count} variante(s) seleccionadas",
       "noMatches": "Ninguna variante coincide con este filtro."
     },
@@ -463,7 +471,7 @@
     "reservationsCount": "{count} pendientes",
     "movementsCount": "{count} movimientos",
     "columnProduct": "Producto",
-    "columnSku": "SKU",
+    "columnArticleNumber": "N.º artículo",
     "columnOnHand": "En stock",
     "columnReserved": "Reservado",
     "columnAvailable": "Disponible",
@@ -661,7 +669,13 @@
         "showVatNumber": "Mostrar número de IVA",
         "showPhone": "Mostrar teléfono",
         "showEmail": "Mostrar correo electrónico",
-        "updatedAt": "Última actualización"
+        "updatedAt": "Última actualización",
+        "name": "Nombre",
+        "percentage": "Porcentaje de descuento",
+        "active": "Activa",
+        "startsAt": "Fecha de inicio",
+        "endsAt": "Fecha de fin",
+        "variantIds": "Variantes"
       }
     },
     "storeSettings": {

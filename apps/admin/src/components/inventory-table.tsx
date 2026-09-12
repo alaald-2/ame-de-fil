@@ -4,7 +4,8 @@ import { AdjustStockDialog } from "./adjust-stock-dialog";
 
 export interface InventoryListItem {
   variantId: string;
-  sku: string;
+  articleNumber: number;
+  sku: string | null;
   productName: string;
   onHand: number;
   reserved: number;
@@ -39,7 +40,7 @@ export function InventoryTable({ items, canAdjust }: InventoryTableProps) {
         <TableHead>
           <TableRow>
             <TableHeaderCell>{t("columnProduct")}</TableHeaderCell>
-            <TableHeaderCell>{t("columnSku")}</TableHeaderCell>
+            <TableHeaderCell>{t("columnArticleNumber")}</TableHeaderCell>
             <TableHeaderCell className="text-right">{t("columnOnHand")}</TableHeaderCell>
             <TableHeaderCell className="text-right">{t("columnReserved")}</TableHeaderCell>
             <TableHeaderCell>{t("columnAvailable")}</TableHeaderCell>
@@ -51,7 +52,10 @@ export function InventoryTable({ items, canAdjust }: InventoryTableProps) {
           {items.map((item) => (
             <TableRow key={item.variantId}>
               <TableCell className="font-medium text-neutral-900">{item.productName}</TableCell>
-              <TableCell className="text-neutral-600">{item.sku}</TableCell>
+              <TableCell className="text-neutral-600">
+                {item.articleNumber}
+                {item.sku ? <span className="text-neutral-600"> · {item.sku}</span> : null}
+              </TableCell>
               <TableCell numeric>{item.tracksStock ? item.onHand : t("notTracked")}</TableCell>
               <TableCell numeric>{item.tracksStock ? item.reserved : t("notTracked")}</TableCell>
               <TableCell>
@@ -67,7 +71,7 @@ export function InventoryTable({ items, canAdjust }: InventoryTableProps) {
                     <AdjustStockDialog
                       variantId={item.variantId}
                       productName={item.productName}
-                      sku={item.sku}
+                      sku={item.sku ?? `#${item.articleNumber}`}
                       onHand={item.onHand}
                     />
                   ) : null}
@@ -89,7 +93,8 @@ export function InventoryTable({ items, canAdjust }: InventoryTableProps) {
               </Badge>
             </div>
             <Text size="sm" tone="muted" className="mt-0.5">
-              {item.sku}
+              {item.articleNumber}
+              {item.sku ? ` · ${item.sku}` : ""}
             </Text>
             <div className="mt-3 grid grid-cols-3 gap-2">
               <div>
@@ -122,7 +127,7 @@ export function InventoryTable({ items, canAdjust }: InventoryTableProps) {
                 <AdjustStockDialog
                   variantId={item.variantId}
                   productName={item.productName}
-                  sku={item.sku}
+                  sku={item.sku ?? `#${item.articleNumber}`}
                   onHand={item.onHand}
                 />
               </div>

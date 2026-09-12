@@ -10,7 +10,8 @@ export interface MovementListItem {
   reason: string | null;
   createdAt: string;
   variantId: string;
-  sku: string;
+  articleNumber: number;
+  sku: string | null;
   productName: string;
   createdBy: { id: string; email: string } | null;
   orderId: string | null;
@@ -61,7 +62,10 @@ export function MovementsTable({ movements, locale }: MovementsTableProps) {
             <TableRow key={movement.id}>
               <TableCell className="font-medium text-neutral-900">
                 {movement.productName}
-                <div className="text-xs font-normal text-neutral-600">{movement.sku}</div>
+                <div className="text-xs font-normal text-neutral-600">
+                  {movement.articleNumber}
+                  {movement.sku ? ` · ${movement.sku}` : ""}
+                </div>
               </TableCell>
               <TableCell>
                 <Badge tone={movementTypeTone(movement.type)}>{t(`movementType.${movement.type}`)}</Badge>
@@ -97,7 +101,8 @@ export function MovementsTable({ movements, locale }: MovementsTableProps) {
               <Badge tone={movementTypeTone(movement.type)}>{t(`movementType.${movement.type}`)}</Badge>
             </div>
             <Text size="sm" tone="muted" className="mt-0.5">
-              {movement.sku}
+              {movement.articleNumber}
+              {movement.sku ? ` · ${movement.sku}` : ""}
             </Text>
             <div className="mt-3 grid grid-cols-3 gap-2">
               <div>

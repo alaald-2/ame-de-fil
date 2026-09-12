@@ -1,4 +1,16 @@
-import { Body, Controller, Get, HttpCode, HttpStatus, Param, Patch, Post, Query, Req } from "@nestjs/common";
+import {
+  Body,
+  Controller,
+  Delete,
+  Get,
+  HttpCode,
+  HttpStatus,
+  Param,
+  Patch,
+  Post,
+  Query,
+  Req,
+} from "@nestjs/common";
 import {
   ApiBody,
   ApiCookieAuth,
@@ -19,7 +31,12 @@ import type { AuthContext } from "../common/types/auth-context.ts";
 import { PromotionsService } from "./promotions.service.ts";
 import { createPromotionSchema, type CreatePromotionInput } from "./dto/create-promotion.dto.ts";
 import { updatePromotionSchema, type UpdatePromotionInput } from "./dto/update-promotion.dto.ts";
-import { promotionIdParamSchema, type PromotionIdParam } from "./dto/promotion-id.param.ts";
+import {
+  promotionIdParamSchema,
+  promotionVariantParamSchema,
+  type PromotionIdParam,
+  type PromotionVariantParam,
+} from "./dto/promotion-id.param.ts";
 import {
   createPromotionResponseSchema,
   adminPromotionResponseSchema,
@@ -100,5 +117,23 @@ export class PromotionsController {
     @Req() request: Request,
   ) {
     return this.promotions.update(params.id, body, auth.userId, request.ip);
+  }
+
+  // Lets the Products admin page ("remove promotion" on a single variant
+  // card) detach a variant without opening the Promotions area at all —
+  // see promotions.service.ts's removeVariant for why this is a thin
+  // wrapper around update() rather than its own write path.
+  @Delete(":id/variants/:variantId")
+  @RequirePermissions("promotions.manage")
+  @ApiOperation({ summary: "Detach one variant from a promotion" })
+  @ApiZodParam(promotionVariantParamSchema)
+  @ApiOkResponse({ schema: toOpenApiSchema(adminPromotionResponseSchema) })
+  @ApiErrorResponses(401, 403, 404)
+  async removeVariant(
+    @Param(new ZodValidationPipe(promotionVariantParamSchema)) params: PromotionVariantParam,
+    @CurrentUser() auth: AuthContext,
+    @Req() request: Request,
+  ) {
+    return this.promotions.removeVariant(params.id, params.variantId, auth.userId, request.ip);
   }
 }

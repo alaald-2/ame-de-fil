@@ -220,6 +220,7 @@ describe("AdminProductsService.list/getOne", () => {
         findMany: vi.fn().mockResolvedValue([makeAdminProductRow()]),
         count: vi.fn().mockResolvedValue(1),
       },
+      promotionVariant: { findMany: vi.fn().mockResolvedValue([]) },
       $transaction: vi.fn(),
     } as unknown as PrismaService;
     const service = new AdminProductsService(prisma, new AuditService(prisma), makeImageStorageMock());
@@ -227,10 +228,55 @@ describe("AdminProductsService.list/getOne", () => {
     const result = await service.list(1, 20);
 
     expect(result.total).toBe(1);
-    expect(result.items[0]).toMatchObject({ id: "prod-1", status: "DRAFT", name: "Virkad tröja", variantCount: 1 });
+    expect(result.items[0]).toMatchObject({
+      id: "prod-1",
+      status: "DRAFT",
+      name: "Virkad tröja",
+      variantCount: 1,
+      hasActivePromotion: false,
+      minEffectivePriceMinor: 29900,
+      maxEffectivePriceMinor: 29900,
+    });
     expect(vi.mocked(prisma.product.findMany)).toHaveBeenCalledWith(
       expect.objectContaining({ where: {}, orderBy: { updatedAt: "desc" } }),
     );
+  });
+
+  // The Products list surfaces the same effective-price.ts result the
+  // storefront/cart/checkout/admin-detail already use (task: "Products
+  // list should show the promotional price") — covers both the service's
+  // batched promotion lookup and mapAdminProductListItem's own min/max
+  // effective-price arithmetic, mirroring how mapAdminProduct's own
+  // activePromotion field is exercised (there is no separate
+  // admin-product.mapper.spec.ts; this mapper is covered through the
+  // service, same as its sibling fields).
+  it("list shows the effective (post-promotion) price range and hasActivePromotion when a variant is on sale", async () => {
+    const prisma = {
+      product: {
+        findMany: vi.fn().mockResolvedValue([makeAdminProductRow()]),
+        count: vi.fn().mockResolvedValue(1),
+      },
+      promotionVariant: {
+        findMany: vi.fn().mockResolvedValue([
+          {
+            productVariantId: "var-1",
+            promotion: { id: "promo-1", name: "Autumn Sale", percentage: 25, active: true, startsAt: null, endsAt: null },
+          },
+        ]),
+      },
+      $transaction: vi.fn(),
+    } as unknown as PrismaService;
+    const service = new AdminProductsService(prisma, new AuditService(prisma), makeImageStorageMock());
+
+    const result = await service.list(1, 20);
+
+    expect(result.items[0]).toMatchObject({
+      minPriceMinor: 29900,
+      maxPriceMinor: 29900,
+      minEffectivePriceMinor: 22425,
+      maxEffectivePriceMinor: 22425,
+      hasActivePromotion: true,
+    });
   });
 
   it("list filters by status when one is given", async () => {
@@ -270,6 +316,7 @@ describe("AdminProductsService.list/getOne", () => {
     });
     const prisma = {
       product: { findUnique: vi.fn().mockResolvedValue(row) },
+      promotionVariant: { findMany: vi.fn().mockResolvedValue([]) },
       $transaction: vi.fn(),
     } as unknown as PrismaService;
     const service = new AdminProductsService(prisma, new AuditService(prisma), makeImageStorageMock());
@@ -316,6 +363,7 @@ describe("AdminProductsService.update", () => {
           .mockResolvedValueOnce({ id: "prod-1", status: "DRAFT", variants: [] })
           .mockResolvedValueOnce(finalRow),
       },
+      promotionVariant: { findMany: vi.fn().mockResolvedValue([]) },
       $transaction: vi.fn().mockImplementation((callback: (tx: unknown) => unknown) => callback(tx)),
     } as unknown as PrismaService;
     const service = new AdminProductsService(prisma, new AuditService(prisma), makeImageStorageMock());
@@ -352,6 +400,7 @@ describe("AdminProductsService.update", () => {
           .mockResolvedValueOnce({ id: "prod-1", status: "ARCHIVED", variants: [] })
           .mockResolvedValueOnce(finalRow),
       },
+      promotionVariant: { findMany: vi.fn().mockResolvedValue([]) },
       $transaction: vi.fn().mockImplementation((callback: (tx: unknown) => unknown) => callback(tx)),
     } as unknown as PrismaService;
     const service = new AdminProductsService(prisma, new AuditService(prisma), makeImageStorageMock());
@@ -393,6 +442,7 @@ describe("AdminProductsService.update", () => {
       },
       category: { findMany: vi.fn().mockResolvedValue([{ id: "cat-1" }]) },
       collection: { findMany: vi.fn().mockResolvedValue([{ id: "col-1" }]) },
+      promotionVariant: { findMany: vi.fn().mockResolvedValue([]) },
       $transaction: vi.fn().mockImplementation((callback: (tx: unknown) => unknown) => callback(tx)),
     } as unknown as PrismaService;
     const service = new AdminProductsService(prisma, new AuditService(prisma), makeImageStorageMock());

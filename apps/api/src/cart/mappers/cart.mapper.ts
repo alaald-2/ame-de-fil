@@ -48,7 +48,7 @@ function resolveDisplayName(
     requestedLocale,
     defaultLocale,
   );
-  return translation?.name ?? item.variant.sku;
+  return translation?.name ?? item.variant.sku ?? String(item.variant.articleNumber);
 }
 
 export function mapCartItem(
@@ -75,6 +75,7 @@ export function mapCartItem(
   return {
     id: item.id,
     variantId: item.variant.id,
+    articleNumber: item.variant.articleNumber,
     sku: item.variant.sku,
     productName: resolveDisplayName(item, requestedLocale, defaultLocale),
     quantity: item.quantity,

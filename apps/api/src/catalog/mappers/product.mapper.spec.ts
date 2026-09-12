@@ -112,6 +112,7 @@ describe("mapProductVariant", () => {
   const baseVariant: ProductWithRelations["variants"][number] = {
     id: "var-1",
     productId: "prod-1",
+    articleNumber: 100001,
     sku: "SKU-1",
     priceMinor: 29900,
     currency: "SEK",

@@ -3,18 +3,25 @@
 import { useState, type FormEvent } from "react";
 import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
-import { Heading, Text, Button, Alert, Card, Spinner } from "@ame-de-fil/ui";
+import { Heading, Text, Button, Alert, Badge, Card, Dialog, DialogTrigger, DialogContent, Spinner } from "@ame-de-fil/ui";
 import { api } from "../lib/api-client";
 import { readCsrfCookie } from "../lib/csrf";
+import { formatMoney } from "../lib/format-money";
+import type { AdminLocale } from "../i18n/config";
 
 export interface ProductVariantData {
   id: string;
-  sku: string;
+  articleNumber: number;
+  sku: string | null;
   priceMinor: number;
   taxClassCode: string;
   weightGrams: number | null;
   isActive: boolean;
   selectedOptionValues: Record<string, string>;
+  // Mirrors effective-price.ts's own result for this variant, if any
+  // promotion is currently discounting it — see admin-product.mapper.ts's
+  // own comment. priceMinor above always stays the permanent base price.
+  activePromotion: { id: string; name: string; percentage: number; effectivePriceMinor: number } | null;
   inventory: {
     onHand: number;
     reserved: number;
@@ -43,6 +50,7 @@ interface ProductVariantsFormProps {
   productId: string;
   variants: ProductVariantData[];
   taxClasses: TaxClassOption[];
+  locale: AdminLocale;
 }
 
 function toDraft(variant: ProductVariantData): VariantDraft {
@@ -65,7 +73,7 @@ type ErrorKind = "unknownTaxClass" | "generic" | null;
 // still the only way to define a product's variant matrix); stock levels
 // (onHand/reserved) stay exclusively in the existing Inventory module,
 // shown here read-only for context.
-export function ProductVariantsForm({ productId, variants, taxClasses }: ProductVariantsFormProps) {
+export function ProductVariantsForm({ productId, variants, taxClasses, locale }: ProductVariantsFormProps) {
   const t = useTranslations("Products.detail");
   const router = useRouter();
 
@@ -75,6 +83,29 @@ export function ProductVariantsForm({ productId, variants, taxClasses }: Product
   const [pendingId, setPendingId] = useState<string | null>(null);
   const [errorKind, setErrorKind] = useState<ErrorKind>(null);
   const [savedId, setSavedId] = useState<string | null>(null);
+  const [removingPromotionId, setRemovingPromotionId] = useState<string | null>(null);
+  const [removePromotionError, setRemovePromotionError] = useState<string | null>(null);
+  const [openDialogVariantId, setOpenDialogVariantId] = useState<string | null>(null);
+
+  async function handleRemovePromotion(promotionId: string, variantId: string) {
+    setRemovePromotionError(null);
+    setRemovingPromotionId(variantId);
+
+    const { error } = await api.DELETE("/api/v1/admin/promotions/{id}/variants/{variantId}", {
+      params: { path: { id: promotionId, variantId } },
+      headers: { "x-csrf-token": readCsrfCookie() },
+    });
+
+    setRemovingPromotionId(null);
+
+    if (error) {
+      setRemovePromotionError(variantId);
+      return;
+    }
+
+    setOpenDialogVariantId(null);
+    router.refresh();
+  }
 
   function updateDraft<K extends keyof VariantDraft>(variantId: string, field: K, value: VariantDraft[K]) {
     setSavedId(null);
@@ -138,7 +169,14 @@ export function ProductVariantsForm({ productId, variants, taxClasses }: Product
         return (
           <Card key={variant.id} className="flex flex-col gap-4">
             <div className="flex flex-wrap items-baseline justify-between gap-2">
-              <Heading level={3}>{variant.sku}</Heading>
+              <div className="flex flex-wrap items-baseline gap-2">
+                <Heading level={3}>{t("articleNumberLabel", { number: variant.articleNumber })}</Heading>
+                {variant.sku ? (
+                  <Text size="sm" tone="muted">
+                    {t("skuLabel")}: {variant.sku}
+                  </Text>
+                ) : null}
+              </div>
               {Object.keys(variant.selectedOptionValues).length > 0 ? (
                 <Text size="sm" tone="muted">
                   {Object.entries(variant.selectedOptionValues)
@@ -153,6 +191,48 @@ export function ProductVariantsForm({ productId, variants, taxClasses }: Product
                 {t("stockOnHand", { count: variant.inventory.onHand })} ·{" "}
                 {t("stockReserved", { count: variant.inventory.reserved })}
               </Text>
+            ) : null}
+
+            {variant.activePromotion ? (
+              <div className="flex flex-wrap items-center gap-3">
+                <Badge tone="danger">
+                  {t("activePromotionLabel", {
+                    name: variant.activePromotion.name,
+                    percentage: variant.activePromotion.percentage,
+                    price: formatMoney(variant.activePromotion.effectivePriceMinor, locale),
+                    originalPrice: formatMoney(variant.priceMinor, locale),
+                  })}
+                </Badge>
+                <Dialog
+                  open={openDialogVariantId === variant.id}
+                  onOpenChange={(open) => setOpenDialogVariantId(open ? variant.id : null)}
+                >
+                  <DialogTrigger asChild>
+                    <Button type="button" variant="ghost">
+                      {t("removePromotionButton")}
+                    </Button>
+                  </DialogTrigger>
+                  <DialogContent
+                    title={t("removePromotionConfirmTitle")}
+                    description={t("removePromotionConfirmDescription")}
+                    closeLabel={t("close")}
+                  >
+                    {removePromotionError === variant.id ? (
+                      <Alert tone="danger">{t("removePromotionGenericError")}</Alert>
+                    ) : null}
+                    <div className="mt-6 flex justify-end gap-3">
+                      <Button
+                        type="button"
+                        onClick={() => handleRemovePromotion(variant.activePromotion!.id, variant.id)}
+                        disabled={removingPromotionId === variant.id}
+                      >
+                        {removingPromotionId === variant.id ? <Spinner className="h-4 w-4" /> : null}
+                        {t("removePromotionButton")}
+                      </Button>
+                    </div>
+                  </DialogContent>
+                </Dialog>
+              </div>
             ) : null}
 
             {savedId === variant.id ? <Alert tone="success">{t("savedMessage")}</Alert> : null}

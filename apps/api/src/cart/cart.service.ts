@@ -76,7 +76,7 @@ export class CartService {
     if (availability.availableQuantity !== null && newQuantity > availability.availableQuantity) {
       throw new BadRequestException({
         error: "InsufficientStock",
-        message: `Only ${availability.availableQuantity} unit(s) of "${variant.sku}" available`,
+        message: `Only ${availability.availableQuantity} unit(s) of "${variant.sku ?? variant.articleNumber}" available`,
         availableQuantity: availability.availableQuantity,
       });
     }
@@ -111,7 +111,7 @@ export class CartService {
     if (availability.availableQuantity !== null && quantity > availability.availableQuantity) {
       throw new BadRequestException({
         error: "InsufficientStock",
-        message: `Only ${availability.availableQuantity} unit(s) of "${item.variant.sku}" available`,
+        message: `Only ${availability.availableQuantity} unit(s) of "${item.variant.sku ?? item.variant.articleNumber}" available`,
         availableQuantity: availability.availableQuantity,
       });
     }

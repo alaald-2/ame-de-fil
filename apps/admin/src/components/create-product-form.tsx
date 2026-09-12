@@ -408,7 +408,7 @@ export function CreateProductForm({ categories, collections, taxClasses }: Creat
             .map((v) => ({ value: v.value, labelSv: v.labelSv, labelEn: v.labelEn })),
         })),
       variants: variants.map((v) => ({
-        sku: v.sku,
+        sku: v.sku.trim() || undefined,
         priceMinor: Math.round(Number.parseFloat(v.priceMinor || "0") * 100),
         taxClassCode: v.taxClassCode,
         weightGrams: v.weightGrams ? Number.parseInt(v.weightGrams, 10) : undefined,
@@ -653,11 +653,10 @@ export function CreateProductForm({ categories, collections, taxClasses }: Creat
               </div>
 
               <div className="mt-4 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-                <FormField label={t("skuLabel")} required>
+                <FormField label={t("skuLabel")} hint={t("skuHint")}>
                   {(fieldProps) => (
                     <Input
                       {...fieldProps}
-                      required
                       placeholder={t("skuPlaceholder")}
                       value={variant.sku}
                       onChange={(e) => updateVariant(variant.clientId, "sku", e.target.value)}

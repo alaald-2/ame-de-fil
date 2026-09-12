@@ -20,7 +20,8 @@ export type AdminPromotionWithRelations = Prisma.PromotionGetPayload<{
 
 export interface PromotionVariantSummary {
   variantId: string;
-  sku: string;
+  articleNumber: number;
+  sku: string | null;
   productId: string;
   productName: string;
 }
@@ -63,9 +64,10 @@ function mapVariantSummary(
   );
   return {
     variantId: row.variant.id,
+    articleNumber: row.variant.articleNumber,
     sku: row.variant.sku,
     productId: row.variant.product.id,
-    productName: translation?.name ?? row.variant.sku,
+    productName: translation?.name ?? row.variant.sku ?? String(row.variant.articleNumber),
   };
 }
 

@@ -97,7 +97,8 @@ export default async function PromotionDetailPage({ params }: PromotionDetailPag
             {promotion.variants.map((variant) => (
               <li key={variant.variantId}>
                 <Text size="sm">
-                  {variant.productName} — {variant.sku}
+                  {variant.productName} — {variant.articleNumber}
+                  {variant.sku ? ` (${variant.sku})` : ""}
                 </Text>
               </li>
             ))}

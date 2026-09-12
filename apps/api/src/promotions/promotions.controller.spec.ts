@@ -23,11 +23,12 @@ async function bootApp(validateSession: (token: string) => Promise<AuthContext |
   const list = vi.fn().mockResolvedValue({ items: [], page: 1, pageSize: 20, total: 0 });
   const getOne = vi.fn().mockResolvedValue({ id: "promo-1", name: "Autumn Sale" });
   const update = vi.fn().mockResolvedValue({ id: "promo-1", name: "Autumn Sale", active: false });
+  const removeVariant = vi.fn().mockResolvedValue({ id: "promo-1", name: "Autumn Sale" });
 
   const moduleRef = await Test.createTestingModule({
     controllers: [PromotionsController],
     providers: [
-      { provide: PromotionsService, useValue: { create, list, getOne, update } },
+      { provide: PromotionsService, useValue: { create, list, getOne, update, removeVariant } },
       { provide: SessionService, useValue: { validateSession } },
       {
         provide: ConfigService,
@@ -44,7 +45,7 @@ async function bootApp(validateSession: (token: string) => Promise<AuthContext |
   app.use(cookieParser());
   app.useGlobalFilters(new AllExceptionsFilter());
   await app.init();
-  return { app, create, list, getOne, update };
+  return { app, create, list, getOne, update, removeVariant };
 }
 
 describe("POST /admin/promotions — authorization", () => {
@@ -224,5 +225,48 @@ describe("PATCH /admin/promotions/:id — authorization", () => {
 
     expect(response.status).toBe(200);
     expect(booted.update).toHaveBeenCalledWith("promo-1", { active: false }, "user-1", expect.anything());
+  });
+});
+
+describe("DELETE /admin/promotions/:id/variants/:variantId — authorization", () => {
+  let app: INestApplication | undefined;
+
+  afterEach(async () => {
+    await app?.close();
+    app = undefined;
+  });
+
+  it("returns 403 for a valid session lacking promotions.manage", async () => {
+    const booted = await bootApp(async () => ({
+      userId: "user-1",
+      sessionId: "sess-1",
+      csrfToken: "csrf",
+      permissions: ["promotions.view"],
+    }));
+    app = booted.app;
+
+    const response = await supertest(app.getHttpServer())
+      .delete("/admin/promotions/promo-1/variants/var-1")
+      .set("Cookie", "ame_session=some-token");
+
+    expect(response.status).toBe(403);
+    expect(booted.removeVariant).not.toHaveBeenCalled();
+  });
+
+  it("returns 200 and calls the service for a valid session with promotions.manage", async () => {
+    const booted = await bootApp(async () => ({
+      userId: "user-1",
+      sessionId: "sess-1",
+      csrfToken: "csrf",
+      permissions: ["promotions.manage"],
+    }));
+    app = booted.app;
+
+    const response = await supertest(app.getHttpServer())
+      .delete("/admin/promotions/promo-1/variants/var-1")
+      .set("Cookie", "ame_session=some-token");
+
+    expect(response.status).toBe(200);
+    expect(booted.removeVariant).toHaveBeenCalledWith("promo-1", "var-1", "user-1", expect.anything());
   });
 });

@@ -1,6 +1,10 @@
 import type { Prisma } from "@ame-de-fil/database";
 import { fromPrismaLocale } from "../../common/locale.ts";
 import { computeAvailability } from "../../common/inventory-availability.ts";
+import {
+  computeEffectivePriceMinor,
+  type ActivePromotionSummary,
+} from "../../promotions/effective-price.ts";
 import { PRODUCT_INCLUDE } from "./product.mapper.ts";
 
 // The public mapper (product.mapper.ts) resolves every translation/label to
@@ -63,7 +67,8 @@ export interface AdminProductOptionResponse {
 
 export interface AdminProductVariantResponse {
   id: string;
-  sku: string;
+  articleNumber: number;
+  sku: string | null;
   priceMinor: number;
   taxClassCode: string;
   weightGrams: number | null;
@@ -80,6 +85,13 @@ export interface AdminProductVariantResponse {
     productionTimeDays: number | null;
     available: boolean;
   } | null;
+  // Surfaces the same effective-price.ts result the storefront/cart/
+  // checkout already use, so the admin can see (and, via the product page's
+  // own "remove promotion" action, detach) whichever Promotion is currently
+  // discounting this variant, without leaving Products for the dedicated
+  // Promotions area. priceMinor above is never touched by this — it stays
+  // the permanent base price exactly as effective-price.ts requires.
+  activePromotion: { id: string; name: string; percentage: number; effectivePriceMinor: number } | null;
 }
 
 export interface AdminProductImageResponse {
@@ -130,11 +142,21 @@ export interface AdminProductListItemResponse {
   variantCount: number;
   minPriceMinor: number | null;
   maxPriceMinor: number | null;
+  // The post-promotion range — computeEffectivePriceMinor per variant when
+  // it currently has an active promotion, its own priceMinor otherwise.
+  // Equal to min/maxPriceMinor whenever nothing on this product is
+  // discounted, so the frontend never has to recompute a discount itself
+  // (this task's own "don't duplicate the promotion calculation in the
+  // admin frontend" requirement) — it just compares the two ranges.
+  minEffectivePriceMinor: number | null;
+  maxEffectivePriceMinor: number | null;
+  hasActivePromotion: boolean;
   updatedAt: string;
 }
 
 function mapAdminVariant(
   variant: AdminProductWithRelations["variants"][number],
+  promotionsByVariantId: ReadonlyMap<string, ActivePromotionSummary>,
 ): AdminProductVariantResponse {
   const selectedOptionValues: Record<string, string> = {};
   for (const ov of variant.optionValues) {
@@ -142,15 +164,25 @@ function mapAdminVariant(
   }
 
   const inventory = variant.inventoryItem;
+  const promotion = promotionsByVariantId.get(variant.id);
 
   return {
     id: variant.id,
+    articleNumber: variant.articleNumber,
     sku: variant.sku,
     priceMinor: variant.priceMinor,
     taxClassCode: variant.taxClass.code,
     weightGrams: variant.weightGrams,
     isActive: variant.isActive,
     selectedOptionValues,
+    activePromotion: promotion
+      ? {
+          id: promotion.id,
+          name: promotion.name,
+          percentage: promotion.percentage,
+          effectivePriceMinor: computeEffectivePriceMinor(variant.priceMinor, promotion.percentage),
+        }
+      : null,
     inventory: inventory
       ? {
           onHand: inventory.onHand,
@@ -164,7 +196,10 @@ function mapAdminVariant(
   };
 }
 
-export function mapAdminProduct(product: AdminProductWithRelations): AdminProductResponse {
+export function mapAdminProduct(
+  product: AdminProductWithRelations,
+  promotionsByVariantId: ReadonlyMap<string, ActivePromotionSummary>,
+): AdminProductResponse {
   return {
     id: product.id,
     status: product.status,
@@ -196,7 +231,7 @@ export function mapAdminProduct(product: AdminProductWithRelations): AdminProduc
     })),
     categoryIds: product.categories.map((pc) => pc.categoryId),
     collectionIds: product.collections.map((pc) => pc.collectionId),
-    variants: product.variants.map(mapAdminVariant),
+    variants: product.variants.map((v) => mapAdminVariant(v, promotionsByVariantId)),
     images: product.images.map(mapAdminProductImage),
   };
 }
@@ -206,12 +241,17 @@ export function mapAdminProduct(product: AdminProductWithRelations): AdminProduc
 export function mapAdminProductListItem(
   product: AdminProductWithRelations,
   defaultLocale: "sv-SE" | "en",
+  promotionsByVariantId: ReadonlyMap<string, ActivePromotionSummary>,
 ): AdminProductListItemResponse {
   const translation =
     product.translations.find((t) => fromPrismaLocale(t.locale) === defaultLocale) ??
     product.translations[0];
 
   const prices = product.variants.map((v) => v.priceMinor);
+  const effectivePrices = product.variants.map((v) => {
+    const promotion = promotionsByVariantId.get(v.id);
+    return promotion ? computeEffectivePriceMinor(v.priceMinor, promotion.percentage) : v.priceMinor;
+  });
 
   return {
     id: product.id,
@@ -220,6 +260,9 @@ export function mapAdminProductListItem(
     variantCount: product.variants.length,
     minPriceMinor: prices.length > 0 ? Math.min(...prices) : null,
     maxPriceMinor: prices.length > 0 ? Math.max(...prices) : null,
+    minEffectivePriceMinor: effectivePrices.length > 0 ? Math.min(...effectivePrices) : null,
+    maxEffectivePriceMinor: effectivePrices.length > 0 ? Math.max(...effectivePrices) : null,
+    hasActivePromotion: product.variants.some((v) => promotionsByVariantId.has(v.id)),
     updatedAt: product.updatedAt.toISOString(),
   };
 }

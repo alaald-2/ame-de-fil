@@ -372,19 +372,35 @@ model ProductOptionValue {
 
 // ProductVariant is the sellable unit — SKU/price/weight/stock (DATABASE.md §1).
 model ProductVariant {
-  id          String   @id @default(cuid())
-  productId   String
-  sku         String   @unique
-  priceMinor  Int
-  currency    Currency @default(SEK)
-  taxClassId  String
-  weightGrams Int?
-  lengthMm    Int?
-  widthMm     Int?
-  heightMm    Int?
-  isActive    Boolean  @default(true)
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  id            String   @id @default(cuid())
+  productId     String
+  // The main human/business identifier for this variant — permanent,
+  // unique, sequential (100001, 100002, ...), and assigned by the database
+  // itself the instant a variant is created (see the
+  // "ProductVariant_articleNumber_seq" sequence added by this field's
+  // migration), so generation can never race, skip, or be forgotten by an
+  // application code path. Never reused, even once a variant is deleted —
+  // Postgres sequences never hand out a value twice. Deliberately separate
+  // from `sku` (a free-text, optional business/vendor code an admin may or
+  // may not set) and from `id` (the real relational primary key everything
+  // else — orders, carts, inventory, promotions — still references; this
+  // column exists purely for humans, never as a join key).
+  articleNumber Int      @unique @default(dbgenerated("nextval('\"ProductVariant_articleNumber_seq\"'::regclass)"))
+  // Optional business/vendor code — no longer the primary identifier now
+  // that articleNumber exists, but kept for admins who track their own SKU
+  // scheme. Still unique when set; Postgres allows any number of NULLs
+  // under a unique constraint, so leaving it blank never collides.
+  sku           String?  @unique
+  priceMinor    Int
+  currency      Currency @default(SEK)
+  taxClassId    String
+  weightGrams   Int?
+  lengthMm      Int?
+  widthMm       Int?
+  heightMm      Int?
+  isActive      Boolean  @default(true)
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
 
   product                  Product                     @relation(fields: [productId], references: [id], onDelete: Restrict)
   taxClass                 TaxClass                    @relation(fields: [taxClassId], references: [id], onDelete: Restrict)
@@ -725,14 +741,24 @@ model OrderItem {
   productVariantId String
 
   // Snapshots — a later price/name/tax-rate change must never alter history.
-  productNameSnapshot  String
-  variantLabelSnapshot String
-  skuSnapshot          String
-  unitPriceMinor       Int
-  quantity             Int
-  taxRatePercent       Decimal @db.Decimal(5, 2)
-  lineSubtotalMinor    Int
-  lineTotalMinor       Int
+  productNameSnapshot   String
+  variantLabelSnapshot  String
+  // Nullable because the variant's own `sku` is optional (ProductVariant's
+  // own schema comment) — an order placed for a variant with no SKU set has
+  // nothing to snapshot here.
+  skuSnapshot           String?
+  // The variant's permanent articleNumber, snapshotted the same way as
+  // skuSnapshot — unlike sku, articleNumber can never be null on the live
+  // variant, but this column still is: pre-this-feature order rows have no
+  // value to backfill from (the variant they reference may since have been
+  // deleted), and there is deliberately no fabricated placeholder for that
+  // history gap.
+  articleNumberSnapshot Int?
+  unitPriceMinor        Int
+  quantity              Int
+  taxRatePercent        Decimal @db.Decimal(5, 2)
+  lineSubtotalMinor     Int
+  lineTotalMinor        Int
 
   // Promotion snapshot (separate domain from Order.discountId/discountMinor,
   // which is reserved for the still-unbuilt Coupon system — see

@@ -72,7 +72,7 @@ export default async function ProductPage({ params }: { params: Promise<PagePara
             >
               <div>
                 <Text size="sm">
-                  {variant.options.map((o) => o.label).join(" / ") || variant.sku}
+                  {variant.options.map((o) => o.label).join(" / ") || variant.sku || `#${variant.articleNumber}`}
                 </Text>
                 {!variant.available ? (
                   <Text size="sm" tone="muted">

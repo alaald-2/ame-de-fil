@@ -9,6 +9,7 @@ import { DeleteProductAction } from "../../../../components/delete-product-actio
 import { ProductDetailsForm } from "../../../../components/product-details-form";
 import { ProductVariantsForm } from "../../../../components/product-variants-form";
 import { ProductImagesForm } from "../../../../components/product-images-form";
+import type { AdminLocale } from "../../../../i18n/config";
 
 interface ProductDetailPageProps {
   params: Promise<{ id: string }>;
@@ -29,7 +30,7 @@ export default async function ProductDetailPage({ params }: ProductDetailPagePro
 
   const t = await getTranslations("Products");
   const td = await getTranslations("Products.detail");
-  const locale = await getLocale();
+  const locale = (await getLocale()) as AdminLocale;
   const client = await getServerApiClient();
   const permissions = session.user.permissions;
 
@@ -134,7 +135,12 @@ export default async function ProductDetailPage({ params }: ProductDetailPagePro
           {td("variantsHeading")}
         </Heading>
         {canUpdate ? (
-          <ProductVariantsForm productId={product.id} variants={product.variants} taxClasses={taxClasses} />
+          <ProductVariantsForm
+            productId={product.id}
+            variants={product.variants}
+            taxClasses={taxClasses}
+            locale={locale}
+          />
         ) : (
           <ul className="flex flex-col gap-2">
             {product.variants.map((variant) => (

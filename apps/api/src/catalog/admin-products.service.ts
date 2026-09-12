@@ -7,6 +7,8 @@ import { AuditService } from "../audit/audit.service.ts";
 import { isUniqueConstraintViolation } from "../checkout/prisma-errors.ts";
 import { IMAGE_STORAGE_PROVIDER, type ImageStorageProvider } from "./images/image-storage.provider.ts";
 import { resolveTranslation } from "./mappers/translation.mapper.ts";
+import { collectVariantIds } from "./mappers/product.mapper.ts";
+import { resolveActivePromotionsForVariants } from "../promotions/effective-price.ts";
 import {
   ADMIN_PRODUCT_INCLUDE,
   mapAdminProduct,
@@ -73,8 +75,19 @@ export class AdminProductsService {
       this.prisma.product.count({ where }),
     ]);
 
+    // Batched exactly like the public catalog list (products.service.ts) —
+    // one resolveActivePromotionsForVariants call across every variant on
+    // this page of products, never N+1 — so the list can show "was X, now
+    // Y" using effective-price.ts as the single source of truth, the same
+    // as everywhere else that number is computed.
+    const promotions = await resolveActivePromotionsForVariants(
+      this.prisma,
+      collectVariantIds(rows),
+      new Date(),
+    );
+
     return {
-      items: rows.map((row) => mapAdminProductListItem(row, DEFAULT_LOCALE)),
+      items: rows.map((row) => mapAdminProductListItem(row, DEFAULT_LOCALE, promotions)),
       page,
       pageSize,
       total,
@@ -97,23 +110,31 @@ export class AdminProductsService {
   // enough to label a checkbox. ARCHIVED excluded: promoting a discontinued
   // product's variant would be confusing and is never a real use case,
   // unlike DRAFT (an admin may want to schedule a sale ahead of a launch).
-  async listVariantOptions(
-    locale: AppLocale,
-  ): Promise<{ variantId: string; sku: string; priceMinor: number; productId: string; productName: string }[]> {
+  async listVariantOptions(locale: AppLocale): Promise<
+    {
+      variantId: string;
+      articleNumber: number;
+      sku: string | null;
+      priceMinor: number;
+      productId: string;
+      productName: string;
+    }[]
+  > {
     const variants = await this.prisma.productVariant.findMany({
       where: { product: { status: { not: "ARCHIVED" } } },
       include: { product: { include: { translations: true } } },
-      orderBy: { sku: "asc" },
+      orderBy: { articleNumber: "asc" },
     });
 
     return variants.map((variant) => {
       const translation = resolveTranslation(variant.product.translations, locale, DEFAULT_LOCALE);
       return {
         variantId: variant.id,
+        articleNumber: variant.articleNumber,
         sku: variant.sku,
         priceMinor: variant.priceMinor,
         productId: variant.product.id,
-        productName: translation?.name ?? variant.sku,
+        productName: translation?.name ?? variant.sku ?? String(variant.articleNumber),
       };
     });
   }
@@ -124,7 +145,13 @@ export class AdminProductsService {
       include: ADMIN_PRODUCT_INCLUDE,
     });
     if (!product) throw PRODUCT_NOT_FOUND();
-    return mapAdminProduct(product);
+
+    const promotions = await resolveActivePromotionsForVariants(
+      this.prisma,
+      product.variants.map((v) => v.id),
+      new Date(),
+    );
+    return mapAdminProduct(product, promotions);
   }
 
   async uploadImage(
@@ -541,7 +568,11 @@ export class AdminProductsService {
         const variant = await tx.productVariant.create({
           data: {
             productId: created.id,
-            sku: variantInput.sku,
+            // articleNumber is never supplied here — the database assigns
+            // it itself from ProductVariant_articleNumber_seq the instant
+            // this row is created (schema.prisma's own comment on the
+            // field), so creation can never race, skip, or forget it.
+            sku: variantInput.sku ?? null,
             priceMinor: variantInput.priceMinor,
             currency: Currency.SEK,
             taxClassId: taxClass.id,
@@ -599,7 +630,7 @@ export class AdminProductsService {
               name: t.name,
               slug: t.slug,
             })),
-            skus: input.variants.map((v) => v.sku),
+            skus: input.variants.map((v) => v.sku ?? null),
           },
           ipAddress,
         },
@@ -624,7 +655,7 @@ export class AdminProductsService {
         if (!values || !values.has(value)) {
           throw new BadRequestException({
             error: "InvalidOptionSelection",
-            message: `Variant "${variant.sku}" selects "${key}=${value}", which was not declared in options[]`,
+            message: `Variant "${variant.sku ?? "(no SKU)"}" selects "${key}=${value}", which was not declared in options[]`,
           });
         }
       }
@@ -632,7 +663,12 @@ export class AdminProductsService {
   }
 
   private validateUniqueSkus(input: CreateProductInput): void {
-    const skus = input.variants.map((v) => v.sku);
+    // Blank/omitted SKUs are excluded from the uniqueness check — sku is
+    // optional now that articleNumber is the permanent identifier
+    // (ProductVariant's own schema comment), and Postgres's own unique
+    // index already allows any number of NULLs, so two variants left
+    // without one is never a real collision.
+    const skus = input.variants.map((v) => v.sku).filter((sku): sku is string => !!sku);
     if (new Set(skus).size !== skus.length) {
       throw new BadRequestException({
         error: "DuplicateSku",

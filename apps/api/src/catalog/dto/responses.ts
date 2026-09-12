@@ -24,7 +24,8 @@ const variantPromotionResponseSchema = z.object({
 
 const productVariantResponseSchema = z.object({
   id: z.string(),
-  sku: z.string(),
+  articleNumber: z.number().int(),
+  sku: z.string().nullable(),
   // Effective (post-promotion) price — see product.mapper.ts's own comment.
   price: moneyResponseSchema,
   // Only set when a promotion currently discounts this variant.
@@ -135,14 +136,23 @@ const adminProductVariantInventoryResponseSchema = z.object({
   available: z.boolean(),
 });
 
+const adminActivePromotionResponseSchema = z.object({
+  id: z.string(),
+  name: z.string(),
+  percentage: z.number().int(),
+  effectivePriceMinor: z.number().int(),
+});
+
 const adminProductVariantResponseSchema = z.object({
   id: z.string(),
-  sku: z.string(),
+  articleNumber: z.number().int(),
+  sku: z.string().nullable(),
   priceMinor: z.number().int(),
   taxClassCode: z.string(),
   weightGrams: z.number().int().nullable(),
   isActive: z.boolean(),
   selectedOptionValues: z.record(z.string(), z.string()),
+  activePromotion: adminActivePromotionResponseSchema.nullable(),
   inventory: adminProductVariantInventoryResponseSchema.nullable(),
 });
 
@@ -179,6 +189,9 @@ export const adminProductListItemResponseSchema = z.object({
   variantCount: z.number().int(),
   minPriceMinor: z.number().int().nullable(),
   maxPriceMinor: z.number().int().nullable(),
+  minEffectivePriceMinor: z.number().int().nullable(),
+  maxEffectivePriceMinor: z.number().int().nullable(),
+  hasActivePromotion: z.boolean(),
   updatedAt: z.iso.datetime(),
 });
 
@@ -194,7 +207,8 @@ export const listAdminProductsResponseSchema = z.object({
 // listVariantOptions for the full rationale.
 export const adminProductVariantOptionResponseSchema = z.object({
   variantId: z.string(),
-  sku: z.string(),
+  articleNumber: z.number().int(),
+  sku: z.string().nullable(),
   priceMinor: z.number().int(),
   productId: z.string(),
   productName: z.string(),

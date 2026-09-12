@@ -303,4 +303,39 @@ export class PromotionsService {
 
     return this.getOne(id, DEFAULT_LOCALE);
   }
+
+  // Lets the Products admin page detach a single variant from whichever
+  // promotion is currently discounting it, without needing to open the
+  // Promotions area at all — delegates entirely to update()'s own
+  // validated, locked, audited write path rather than duplicating it.
+  // Deactivates the promotion instead of leaving a variant-less active row
+  // when this was its last variant (an active Promotion with nothing to
+  // apply to is meaningless, and there is deliberately no delete path for
+  // Promotion at all — see schema.prisma's own comment on OrderItem.promotionId).
+  async removeVariant(
+    id: string,
+    variantId: string,
+    actorUserId: string,
+    ipAddress?: string,
+  ): Promise<AdminPromotionResponse> {
+    const existing = await this.prisma.promotion.findUnique({
+      where: { id },
+      include: { variants: { select: { productVariantId: true } } },
+    });
+    if (!existing) throw PROMOTION_NOT_FOUND();
+
+    const remaining = existing.variants
+      .map((v) => v.productVariantId)
+      .filter((v) => v !== variantId);
+    if (remaining.length === existing.variants.length) {
+      throw new NotFoundException({
+        error: "PromotionVariantNotFound",
+        message: "This promotion does not apply to that variant",
+      });
+    }
+
+    const input: UpdatePromotionInput =
+      remaining.length > 0 ? { variantIds: remaining } : { variantIds: [], active: false };
+    return this.update(id, input, actorUserId, ipAddress);
+  }
 }

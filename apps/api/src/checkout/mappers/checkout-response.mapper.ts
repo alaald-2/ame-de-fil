@@ -27,6 +27,7 @@ export function mapCheckoutResponse(
       productName: item.productNameSnapshot,
       variantLabel: item.variantLabelSnapshot,
       sku: item.skuSnapshot,
+      articleNumber: item.articleNumberSnapshot,
       unitPrice: { amountMinor: item.unitPriceMinor, currency: "SEK" },
       quantity: item.quantity,
       taxRatePercent: item.taxRatePercent.toNumber(),

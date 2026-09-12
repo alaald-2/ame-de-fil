@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, type FormEvent } from "react";
+import { useEffect, useRef, useState, type FormEvent } from "react";
 import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { Heading, Text, Button, Alert, FormField, Input, Spinner } from "@ame-de-fil/ui";
@@ -79,6 +79,19 @@ export function StoreSettingsForm({ settings }: StoreSettingsFormProps) {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [errorKind, setErrorKind] = useState<"generic" | null>(null);
   const [saved, setSaved] = useState(false);
+  const feedbackRef = useRef<HTMLDivElement>(null);
+
+  // This form is long enough that the Save button sits well below the
+  // fold — without this, a failure (or success) rendered only in the
+  // top-of-form banner was invisible from where the admin was actually
+  // scrolled, which read as "I clicked Save and nothing happened" (the
+  // "no navigation" half of the freeze report) even on a request that
+  // failed and recovered correctly.
+  useEffect(() => {
+    if (errorKind || saved) {
+      feedbackRef.current?.scrollIntoView({ behavior: "smooth", block: "center" });
+    }
+  }, [errorKind, saved]);
 
   function updateField(field: keyof Draft, value: string | boolean) {
     setSaved(false);
@@ -91,26 +104,44 @@ export function StoreSettingsForm({ settings }: StoreSettingsFormProps) {
     setSaved(false);
     setIsSubmitting(true);
 
-    const { error } = await api.PATCH("/api/v1/admin/store-settings", {
-      headers: { "x-csrf-token": readCsrfCookie() },
-      body: draft,
-    });
+    // A genuine network failure (offline, DNS, CORS) makes fetch() itself
+    // reject rather than resolve to openapi-fetch's own {error} shape —
+    // without this try/catch, that rejection was never caught, so
+    // setIsSubmitting(false) below never ran and the Save button stayed
+    // permanently disabled/spinning (the "screen freezes" report). A
+    // 10s AbortController timeout closes the matching case where the
+    // request neither resolves nor rejects in any reasonable time.
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 10_000);
 
-    setIsSubmitting(false);
+    try {
+      const { error } = await api.PATCH("/api/v1/admin/store-settings", {
+        headers: { "x-csrf-token": readCsrfCookie() },
+        body: draft,
+        signal: controller.signal,
+      });
 
-    if (error) {
+      if (error) {
+        setErrorKind("generic");
+        return;
+      }
+
+      setSaved(true);
+      router.refresh();
+    } catch {
       setErrorKind("generic");
-      return;
+    } finally {
+      clearTimeout(timeout);
+      setIsSubmitting(false);
     }
-
-    setSaved(true);
-    router.refresh();
   }
 
   return (
     <form onSubmit={handleSubmit} className="mt-6 flex flex-col gap-8">
-      {errorKind ? <Alert tone="danger">{t("genericError")}</Alert> : null}
-      {saved ? <Alert tone="success">{t("savedMessage")}</Alert> : null}
+      <div ref={feedbackRef}>
+        {errorKind ? <Alert tone="danger">{t("genericError")}</Alert> : null}
+        {saved ? <Alert tone="success">{t("savedMessage")}</Alert> : null}
+      </div>
 
       <section>
         <Heading level={2} className="mb-1">

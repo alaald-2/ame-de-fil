@@ -22,6 +22,9 @@ export interface AdminProductListItem {
   variantCount: number;
   minPriceMinor: number | null;
   maxPriceMinor: number | null;
+  minEffectivePriceMinor: number | null;
+  maxEffectivePriceMinor: number | null;
+  hasActivePromotion: boolean;
   updatedAt: string;
 }
 
@@ -34,13 +37,31 @@ function formatDate(iso: string, locale: string): string {
   return new Intl.DateTimeFormat(locale, { dateStyle: "medium" }).format(new Date(iso));
 }
 
+function formatPriceRange(min: number, max: number, locale: AdminLocale): string {
+  return min === max ? formatMoney(min, locale) : `${formatMoney(min, locale)}–${formatMoney(max, locale)}`;
+}
+
+// Renders effective-price.ts's own result (via minEffectivePriceMinor/
+// maxEffectivePriceMinor/hasActivePromotion on the list item, computed by
+// admin-product.mapper.ts) — never recomputes a discount here, only
+// compares the two already-computed ranges to decide whether to show the
+// struck-through original at all.
 function PriceCell({ item, locale, none }: { item: AdminProductListItem; locale: AdminLocale; none: string }) {
   if (item.minPriceMinor === null || item.maxPriceMinor === null) return <>{none}</>;
-  if (item.minPriceMinor === item.maxPriceMinor) return <>{formatMoney(item.minPriceMinor, locale)}</>;
+
+  if (!item.hasActivePromotion || item.minEffectivePriceMinor === null || item.maxEffectivePriceMinor === null) {
+    return <>{formatPriceRange(item.minPriceMinor, item.maxPriceMinor, locale)}</>;
+  }
+
   return (
-    <>
-      {formatMoney(item.minPriceMinor, locale)}–{formatMoney(item.maxPriceMinor, locale)}
-    </>
+    <span className="inline-flex flex-wrap items-baseline justify-end gap-1.5">
+      <span className="text-neutral-600 line-through">
+        {formatPriceRange(item.minPriceMinor, item.maxPriceMinor, locale)}
+      </span>
+      <span className="font-medium text-danger">
+        {formatPriceRange(item.minEffectivePriceMinor, item.maxEffectivePriceMinor, locale)}
+      </span>
+    </span>
   );
 }
 

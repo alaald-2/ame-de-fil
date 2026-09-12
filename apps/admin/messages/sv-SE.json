@@ -99,7 +99,8 @@
       "addVariant": "Lägg till variant",
       "removeVariant": "Ta bort variant",
       "variantN": "Variant {n}",
-      "skuLabel": "Artikelnummer",
+      "skuLabel": "SKU",
+      "skuHint": "Valfritt — din egen affärs-/leverantörskod, om du använder en. Ett permanent artikelnummer genereras automatiskt.",
       "skuPlaceholder": "t.ex. TROJA-ROST-M",
       "priceLabel": "Pris (SEK)",
       "taxClassCodeLabel": "Skatteklass",
@@ -124,7 +125,7 @@
       "categoriesLabel": "Kategorier",
       "collectionsLabel": "Kollektioner",
       "submit": "Skapa produkt",
-      "duplicateSkuError": "Artikelnummer måste vara unika för alla varianter.",
+      "duplicateSkuError": "SKU måste vara unikt för varje variant.",
       "invalidOptionSelectionError": "En variant väljer ett alternativvärde som inte deklarerats ovan.",
       "unknownTaxClassError": "En av skatteklasskoderna finns inte.",
       "unknownCategoryError": "En av de valda kategorierna finns inte längre.",
@@ -191,10 +192,17 @@
       "productionTimeDaysLabel": "Tillverkningstid (dagar)",
       "isActiveLabel": "Aktiv",
       "isLimitedEditionLabel": "Begränsad upplaga",
+      "articleNumberLabel": "Art.nr {number}",
+      "skuLabel": "SKU",
       "stockOnHand": "{count} i lager",
       "stockReserved": "{count} reserverade",
       "detailErrorTitle": "Det gick inte att läsa in den här produkten",
-      "detailErrorDescription": "Något gick fel när produktens uppgifter skulle läsas in."
+      "detailErrorDescription": "Något gick fel när produktens uppgifter skulle läsas in.",
+      "activePromotionLabel": "Rea — {name} ({percentage}% rabatt): {price} (ordinarie {originalPrice})",
+      "removePromotionButton": "Ta bort kampanj",
+      "removePromotionConfirmTitle": "Ta bort den här kampanjen från den här varianten?",
+      "removePromotionConfirmDescription": "Varianten återgår omedelbart till ordinarie pris. Detta påverkar inte kampanjen för andra varianter den gäller för.",
+      "removePromotionGenericError": "Något gick fel. Försök igen."
     }
   },
   "Promotions": {
@@ -223,7 +231,7 @@
     "statusNotYetEffective": "Gäller inte just nu",
     "variantPicker": {
       "filterLabel": "Filtrera",
-      "filterPlaceholder": "Sök på produktnamn eller SKU",
+      "filterPlaceholder": "Sök på produktnamn, artikelnummer eller SKU",
       "selectedCount": "{count} variant(er) valda",
       "noMatches": "Inga varianter matchar det här filtret."
     },
@@ -463,7 +471,7 @@
     "reservationsCount": "{count} väntande",
     "movementsCount": "{count} rörelser",
     "columnProduct": "Produkt",
-    "columnSku": "Artikelnummer",
+    "columnArticleNumber": "Artikelnr",
     "columnOnHand": "I lager",
     "columnReserved": "Reserverat",
     "columnAvailable": "Tillgängligt",
@@ -661,7 +669,13 @@
         "showVatNumber": "Visa momsregistreringsnummer",
         "showPhone": "Visa telefon",
         "showEmail": "Visa e-post",
-        "updatedAt": "Senast uppdaterad"
+        "updatedAt": "Senast uppdaterad",
+        "name": "Namn",
+        "percentage": "Rabattprocent",
+        "active": "Aktiv",
+        "startsAt": "Startdatum",
+        "endsAt": "Slutdatum",
+        "variantIds": "Varianter"
       }
     },
     "storeSettings": {

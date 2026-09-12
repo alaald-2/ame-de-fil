@@ -35,21 +35,24 @@ export function resolveProductName(
     requestedLocale,
     defaultLocale,
   );
-  return translation?.name ?? item.variant.sku;
+  return translation?.name ?? item.variant.sku ?? String(item.variant.articleNumber);
 }
 
 export function resolveVariantLabel(item: CheckoutCartItem, locale: AppLocale): string {
   const labels = item.variant.optionValues.map((ov) =>
     locale === "sv-SE" ? ov.optionValue.labelSv : ov.optionValue.labelEn,
   );
-  return labels.length > 0 ? labels.join(" / ") : item.variant.sku;
+  return labels.length > 0
+    ? labels.join(" / ")
+    : (item.variant.sku ?? String(item.variant.articleNumber));
 }
 
 export interface OrderItemSnapshot extends PricedLine {
   productVariantId: string;
   productNameSnapshot: string;
   variantLabelSnapshot: string;
-  skuSnapshot: string;
+  skuSnapshot: string | null;
+  articleNumberSnapshot: number;
   // DECISIONS.md ADR-030 — snapshot of InventoryItem.tracksStock/
   // productionTimeDays at checkout-start, immutable from then on (same
   // principle as the price/tax/name snapshots above).
@@ -81,6 +84,7 @@ export function buildOrderItemSnapshot(
     productNameSnapshot: resolveProductName(item, requestedLocale, defaultLocale),
     variantLabelSnapshot: resolveVariantLabel(item, requestedLocale),
     skuSnapshot: item.variant.sku,
+    articleNumberSnapshot: item.variant.articleNumber,
     madeToOrder: !(item.variant.inventoryItem?.tracksStock ?? true),
     productionTimeDaysSnapshot: item.variant.inventoryItem?.productionTimeDays ?? null,
     basePriceMinor: effective.basePriceMinor,

@@ -34,6 +34,7 @@ const ORDER_ITEM_SCALAR_COLUMNS = new Set([
   "productNameSnapshot",
   "variantLabelSnapshot",
   "skuSnapshot",
+  "articleNumberSnapshot",
   "unitPriceMinor",
   "quantity",
   "taxRatePercent",

@@ -26,7 +26,8 @@ interface MappableInventoryItem {
   lowStockThreshold: number | null;
   variant: {
     id: string;
-    sku: string;
+    articleNumber: number;
+    sku: string | null;
     product: { translations: { locale: Locale; name: string }[] };
   };
 }
@@ -48,6 +49,7 @@ export const LOW_STOCK_ITEM_SELECT = {
   variant: {
     select: {
       id: true,
+      articleNumber: true,
       sku: true,
       product: { select: { translations: { select: { locale: true, name: true } } } },
     },
@@ -63,12 +65,13 @@ export const LOW_STOCK_ITEM_SELECT = {
 // via a nested select — can reuse the identical resolution rule rather
 // than duplicating it a third time.
 function resolveVariantDisplayName(variant: {
-  sku: string;
+  articleNumber: number;
+  sku: string | null;
   product: { translations: { locale: Locale; name: string }[] };
 }): string {
   const translations = variant.product.translations;
   const preferred = translations.find((t) => t.locale === Locale.sv_SE);
-  return (preferred ?? translations[0])?.name ?? variant.sku;
+  return (preferred ?? translations[0])?.name ?? variant.sku ?? String(variant.articleNumber);
 }
 
 function resolveDisplayName(item: MappableInventoryItem): string {
@@ -79,6 +82,7 @@ export function mapInventoryItem(item: MappableInventoryItem) {
   const { available, availableQuantity } = computeAvailability(item);
   return {
     variantId: item.variant.id,
+    articleNumber: item.variant.articleNumber,
     sku: item.variant.sku,
     productName: resolveDisplayName(item),
     onHand: item.onHand,
@@ -120,6 +124,7 @@ export const RESERVATION_LIST_SELECT = {
       variant: {
         select: {
           id: true,
+          articleNumber: true,
           sku: true,
           product: { select: { translations: { select: { locale: true, name: true } } } },
         },
@@ -144,6 +149,7 @@ export function mapReservationListItem(row: ReservationListRow) {
     expiresAt: row.expiresAt.toISOString(),
     createdAt: row.createdAt.toISOString(),
     variantId: variant.id,
+    articleNumber: variant.articleNumber,
     sku: variant.sku,
     productName: resolveVariantDisplayName(variant),
     orderId: row.orderItem.order.id,
@@ -168,6 +174,7 @@ export const MOVEMENT_LEDGER_SELECT = {
       variant: {
         select: {
           id: true,
+          articleNumber: true,
           sku: true,
           product: { select: { translations: { select: { locale: true, name: true } } } },
         },
@@ -193,6 +200,7 @@ export function mapMovementLedgerItem(row: MovementLedgerRow) {
     reason: row.reason,
     createdAt: row.createdAt.toISOString(),
     variantId: variant.id,
+    articleNumber: variant.articleNumber,
     sku: variant.sku,
     productName: resolveVariantDisplayName(variant),
     createdBy: row.createdBy ? { id: row.createdBy.id, email: row.createdBy.email } : null,

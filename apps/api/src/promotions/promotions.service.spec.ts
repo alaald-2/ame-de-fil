@@ -296,3 +296,97 @@ describe("PromotionsService.update", () => {
     );
   });
 });
+
+// Feeds the Products admin page's "remove promotion" action on a single
+// variant card (product-variants-form.tsx) — a thin wrapper around
+// update() itself, so these tests only cover its own branching (last
+// variant vs. one of several), not update()'s already-covered internals.
+describe("PromotionsService.removeVariant", () => {
+  it("404s when the promotion doesn't exist", async () => {
+    const prisma = {
+      promotion: { findUnique: vi.fn().mockResolvedValue(null) },
+    } as unknown as PrismaService;
+    const service = new PromotionsService(prisma, new AuditService(prisma));
+
+    await expect(service.removeVariant("missing", "var-1", ACTOR_USER_ID)).rejects.toThrow(
+      NotFoundException,
+    );
+  });
+
+  it("404s when the promotion doesn't apply to that variant", async () => {
+    const prisma = {
+      promotion: {
+        findUnique: vi.fn().mockResolvedValue(existingPromotionRow({ variants: [{ productVariantId: "var-1" }] })),
+      },
+    } as unknown as PrismaService;
+    const service = new PromotionsService(prisma, new AuditService(prisma));
+
+    await expect(service.removeVariant("promo-1", "var-unrelated", ACTOR_USER_ID)).rejects.toThrow(
+      NotFoundException,
+    );
+  });
+
+  it("keeps the promotion active and drops just the one variant when others remain", async () => {
+    const tx = makeTxMock();
+    const prisma = {
+      promotion: {
+        findUnique: vi
+          .fn()
+          .mockResolvedValueOnce(
+            existingPromotionRow({
+              variants: [{ productVariantId: "var-1" }, { productVariantId: "var-2" }],
+            }),
+          )
+          // update()'s own lookup — same current state, re-read fresh.
+          .mockResolvedValueOnce(
+            existingPromotionRow({
+              variants: [{ productVariantId: "var-1" }, { productVariantId: "var-2" }],
+            }),
+          )
+          // getOne()'s final read, at the end of update().
+          .mockResolvedValueOnce({ ...existingPromotionRow(), variants: [] }),
+      },
+      productVariant: { findMany: vi.fn().mockResolvedValue([{ id: "var-1" }]) },
+      $transaction: vi.fn().mockImplementation((callback: (tx: unknown) => unknown) => callback(tx)),
+    } as unknown as PrismaService;
+    const service = new PromotionsService(prisma, new AuditService(prisma));
+
+    await service.removeVariant("promo-1", "var-2", ACTOR_USER_ID);
+
+    expect(tx.promotion.update).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({
+          active: true, // preserved, not touched
+          variants: { create: [expect.objectContaining({ productVariantId: "var-1" })] },
+        }),
+      }),
+    );
+  });
+
+  it("deactivates the promotion instead of leaving it variant-less when this was the last variant", async () => {
+    const tx = makeTxMock();
+    const prisma = {
+      promotion: {
+        findUnique: vi
+          .fn()
+          .mockResolvedValueOnce(existingPromotionRow({ variants: [{ productVariantId: "var-1" }] }))
+          // update()'s own lookup — same current state, re-read fresh.
+          .mockResolvedValueOnce(existingPromotionRow({ variants: [{ productVariantId: "var-1" }] }))
+          // getOne()'s final read, at the end of update().
+          .mockResolvedValueOnce({ ...existingPromotionRow({ active: false }), variants: [] }),
+      },
+      productVariant: { findMany: vi.fn().mockResolvedValue([]) },
+      $transaction: vi.fn().mockImplementation((callback: (tx: unknown) => unknown) => callback(tx)),
+    } as unknown as PrismaService;
+    const service = new PromotionsService(prisma, new AuditService(prisma));
+
+    await service.removeVariant("promo-1", "var-1", ACTOR_USER_ID);
+
+    expect(tx.promotionVariant.deleteMany).toHaveBeenCalledWith({ where: { promotionId: "promo-1" } });
+    expect(tx.promotion.update).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({ active: false, variants: { create: [] } }),
+      }),
+    );
+  });
+});

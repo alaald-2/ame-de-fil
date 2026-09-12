@@ -27,7 +27,10 @@ const productOptionInputSchema = z.object({
 });
 
 const productVariantInputSchema = z.object({
-  sku: z.string().min(1).max(100),
+  // Optional business/vendor code — articleNumber (auto-assigned by the
+  // database on create, see admin-products.service.ts) is the permanent
+  // identifier now; this is never required to create a variant.
+  sku: z.string().min(1).max(100).optional(),
   priceMinor: z.number().int().nonnegative(),
   taxClassCode: z.string().min(1),
   weightGrams: z.number().int().positive().optional(),

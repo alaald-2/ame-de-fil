@@ -27,7 +27,8 @@ export type ProductWithRelations = Prisma.ProductGetPayload<{ include: typeof PR
 
 export interface ProductVariantResponse {
   id: string;
-  sku: string;
+  articleNumber: number;
+  sku: string | null;
   // The effective (post-promotion) price — what the customer actually
   // pays. Was always the base price before the Promotion domain existed;
   // now the authoritative "price to charge/display" field, matching cart's
@@ -83,6 +84,7 @@ export function mapProductVariant(
 
   return {
     id: variant.id,
+    articleNumber: variant.articleNumber,
     sku: variant.sku,
     price: { amountMinor: effective.effectivePriceMinor, currency: "SEK" },
     originalPrice:

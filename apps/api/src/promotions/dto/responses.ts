@@ -6,7 +6,8 @@ import { z } from "zod";
 // truth.
 const promotionVariantSummarySchema = z.object({
   variantId: z.string(),
-  sku: z.string(),
+  articleNumber: z.number().int(),
+  sku: z.string().nullable(),
   productId: z.string(),
   productName: z.string(),
 });

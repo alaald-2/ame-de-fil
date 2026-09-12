@@ -128,7 +128,9 @@ export default async function OrderDetailPage({ params }: OrderDetailPageProps) 
                       <TableCell>
                         <div className="font-medium text-neutral-900">{item.productName}</div>
                         <div className="text-xs text-neutral-600">
-                          {item.variantLabel} · {item.sku}
+                          {item.variantLabel}
+                          {item.articleNumber !== null ? ` · #${item.articleNumber}` : ""}
+                          {item.sku ? ` · ${item.sku}` : ""}
                           {item.madeToOrder ? ` · ${td("madeToOrder")}` : ""}
                         </div>
                       </TableCell>

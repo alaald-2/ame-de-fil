@@ -8,7 +8,8 @@ import type { AdminLocale } from "../i18n/config";
 
 export interface VariantOption {
   variantId: string;
-  sku: string;
+  articleNumber: number;
+  sku: string | null;
   priceMinor: number;
   productId: string;
   productName: string;
@@ -54,7 +55,10 @@ export function PromotionVariantPicker({
     const term = filter.trim().toLowerCase();
     const filtered = term
       ? options.filter(
-          (o) => o.productName.toLowerCase().includes(term) || o.sku.toLowerCase().includes(term),
+          (o) =>
+            o.productName.toLowerCase().includes(term) ||
+            (o.sku?.toLowerCase().includes(term) ?? false) ||
+            String(o.articleNumber).includes(term),
         )
       : options;
 
@@ -120,7 +124,8 @@ export function PromotionVariantPicker({
                         checked={checked}
                         onChange={() => toggle(variant.variantId)}
                       />
-                      {variant.sku}
+                      {variant.articleNumber}
+                      {variant.sku ? <span className="text-neutral-600"> · {variant.sku}</span> : null}
                     </span>
                     <span className="tabular-nums text-neutral-600">
                       {checked && percentage > 0 ? (
