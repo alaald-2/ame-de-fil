@@ -1,5 +1,5 @@
 import { getTranslations } from "next-intl/server";
-import { Container, Cluster } from "@ame-de-fil/ui";
+import { Container, Cluster, Logo } from "@ame-de-fil/ui";
 import { Link } from "../i18n/navigation";
 import { SiteNav } from "./site-nav";
 import { LocaleSwitcher } from "./locale-switcher";
@@ -16,8 +16,8 @@ export async function Header() {
     <header className="border-b border-neutral-200">
       <Container>
         <Cluster align="center" className="justify-between py-5">
-          <Link href="/" className="font-display text-xl text-neutral-900 hover:no-underline">
-            Âme de Fil
+          <Link href="/" className="hover:no-underline">
+            <Logo height={30} />
           </Link>
           <Cluster gap="lg">
             <SiteNav />

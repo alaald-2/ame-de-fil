@@ -1,5 +1,5 @@
 import { Suspense } from "react";
-import { Container, Spinner } from "@ame-de-fil/ui";
+import { Container, Spinner, Logo } from "@ame-de-fil/ui";
 import { LoginForm } from "../../components/login-form";
 import { LanguageSwitcher } from "../../components/language-switcher";
 
@@ -21,11 +21,14 @@ export default function LoginPage() {
             admin must be able to pick their language before they can even
             read the form's own labels. */}
         <LanguageSwitcher className="absolute top-6 right-4 sm:right-6 lg:right-8" />
-        {/* Same brand-mark styling as the dashboard sidebar (layout.tsx) —
+        {/* Same brand-mark placement as the dashboard sidebar (layout.tsx) —
             the login page has no sidebar of its own, so without this it
             was the only screen in the app carrying zero "Âme de Fil"
-            identity. */}
-        <h1 className="mb-8 text-center font-display text-lg text-neutral-900">Âme de Fil</h1>
+            identity. The full lockup (subtitle included), not the sidebar's
+            compact crop — this is the one screen with room for it. */}
+        <h1 className="mb-8 flex justify-center">
+          <Logo variant="full" height={110} />
+        </h1>
         <Suspense fallback={<Spinner />}>
           <LoginForm />
         </Suspense>

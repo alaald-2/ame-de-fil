@@ -18,6 +18,7 @@ export * from "./components/Table";
 export * from "./components/Badge";
 export * from "./components/Pagination";
 export * from "./components/SearchField";
+export * from "./components/Logo";
 export * from "./components/Skeleton";
 export * from "./components/EmptyState";
 export * from "./components/ErrorState";

@@ -1,5 +1,5 @@
 import { getTranslations } from "next-intl/server";
-import { Container, Cluster, Text } from "@ame-de-fil/ui";
+import { Container, Cluster, Text, Logo } from "@ame-de-fil/ui";
 import { Link } from "../i18n/navigation";
 
 export async function Footer() {
@@ -10,9 +10,12 @@ export async function Footer() {
     <footer className="border-t border-neutral-200 py-10">
       <Container>
         <Cluster align="center" className="justify-between">
-          <Text size="sm" tone="muted">
-            © {year} Âme de Fil. {t("rights")}
-          </Text>
+          <Cluster gap="sm">
+            <Logo height={16} />
+            <Text size="sm" tone="muted">
+              © {year} Âme de Fil. {t("rights")}
+            </Text>
+          </Cluster>
           <Cluster gap="md">
             <Link
               href="/shipping"

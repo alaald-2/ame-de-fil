@@ -1,4 +1,5 @@
 import { getTranslations } from "next-intl/server";
+import { Logo } from "@ame-de-fil/ui";
 import { formatMoney } from "../lib/format-money";
 import type { AdminLocale } from "../i18n/config";
 
@@ -112,6 +113,7 @@ export function OrderReceipt({ order, settings, locale, translations: t }: Order
 
   return (
     <div className="print-only p-8 text-sm text-black">
+      <Logo height={40} className="mb-4" />
       {settings?.businessName ? (
         <div className="text-lg font-semibold">{settings.businessName}</div>
       ) : null}
