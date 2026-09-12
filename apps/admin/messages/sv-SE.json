@@ -155,7 +155,10 @@
         "deleteConfirmDescription": "Detta tar bort bilden från produkten och raderar den permanent från lagringen. Det går inte att ångra.",
         "close": "Stäng",
         "missingFileError": "Välj en bildfil först.",
-        "genericError": "Något gick fel. Försök igen."
+        "genericError": "Något gick fel. Försök igen.",
+        "moveUp": "Flytta upp",
+        "moveDown": "Flytta ner",
+        "reorderError": "Det gick inte att spara den nya ordningen. Försök igen."
       },
       "updated": "Uppdaterad",
       "translationsSwedish": "Svenskt innehåll",

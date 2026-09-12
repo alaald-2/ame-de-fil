@@ -245,6 +245,60 @@ export class AdminProductsService {
     return mapAdminProductImage(image);
   }
 
+  // Rejects anything that isn't exactly the product's current image ids,
+  // each listed once — silently ignoring an unknown id or dropping one
+  // that wasn't mentioned would either assign positions to images from a
+  // different product or leave one of this product's own images with a
+  // stale position nothing else agrees with.
+  async reorderImages(
+    productId: string,
+    imageIds: string[],
+    actorUserId: string,
+    ipAddress?: string,
+  ): Promise<AdminProductImageResponse[]> {
+    const product = await this.prisma.product.findUnique({
+      where: { id: productId },
+      include: { images: { select: { id: true } } },
+    });
+    if (!product) throw PRODUCT_NOT_FOUND();
+
+    const existingIds = product.images.map((image) => image.id);
+    const isExactlyTheCurrentSet =
+      imageIds.length === existingIds.length &&
+      new Set(imageIds).size === existingIds.length &&
+      existingIds.every((id) => imageIds.includes(id));
+    if (!isExactlyTheCurrentSet) {
+      throw new BadRequestException({
+        error: "InvalidImageOrder",
+        message: "imageIds must list exactly this product's current images, each exactly once",
+      });
+    }
+
+    const reordered = await this.prisma.$transaction(async (tx) => {
+      await Promise.all(
+        imageIds.map((imageId, position) =>
+          tx.productImage.update({ where: { id: imageId }, data: { position } }),
+        ),
+      );
+
+      await this.audit.record(
+        {
+          actorUserId,
+          action: "product.images_reordered",
+          entityType: "Product",
+          entityId: productId,
+          after: { imageIds },
+          ipAddress,
+        },
+        tx,
+      );
+
+      return tx.productImage.findMany({ where: { productId }, orderBy: { position: "asc" } });
+    });
+
+    return reordered.map(mapAdminProductImage);
+  }
+
   async updateImage(
     productId: string,
     imageId: string,

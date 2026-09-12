@@ -155,7 +155,10 @@
         "deleteConfirmDescription": "This removes the image from the product and permanently deletes it from storage. This can't be undone.",
         "close": "Close",
         "missingFileError": "Choose an image file first.",
-        "genericError": "Something went wrong. Please try again."
+        "genericError": "Something went wrong. Please try again.",
+        "moveUp": "Move up",
+        "moveDown": "Move down",
+        "reorderError": "Couldn't save the new order. Please try again."
       },
       "updated": "Updated",
       "translationsSwedish": "Swedish content",

@@ -155,7 +155,10 @@
         "deleteConfirmDescription": "Esto elimina la imagen del producto y la borra permanentemente del almacenamiento. Esta acción no se puede deshacer.",
         "close": "Cerrar",
         "missingFileError": "Elige primero un archivo de imagen.",
-        "genericError": "Algo salió mal. Inténtalo de nuevo."
+        "genericError": "Algo salió mal. Inténtalo de nuevo.",
+        "moveUp": "Subir",
+        "moveDown": "Bajar",
+        "reorderError": "No se pudo guardar el nuevo orden. Inténtalo de nuevo."
       },
       "updated": "Actualizado",
       "translationsSwedish": "Contenido en sueco",

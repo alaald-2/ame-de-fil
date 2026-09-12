@@ -19,6 +19,13 @@ export * from "./components/Badge";
 export * from "./components/Pagination";
 export * from "./components/SearchField";
 export * from "./components/Logo";
+
+// Icon primitives — apps import icons through this package rather than
+// depending on @radix-ui/react-icons directly, the same boundary every
+// other component here already keeps (Pagination/SearchField bake their
+// own icons in rather than exposing them). Only re-exported as they're
+// actually needed by a caller outside packages/ui — not the whole icon set.
+export { ArrowUpIcon, ArrowDownIcon } from "@radix-ui/react-icons";
 export * from "./components/Skeleton";
 export * from "./components/EmptyState";
 export * from "./components/ErrorState";

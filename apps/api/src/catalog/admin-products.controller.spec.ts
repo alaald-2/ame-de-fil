@@ -55,6 +55,10 @@ async function bootApp(validateSession: (token: string) => Promise<AuthContext |
     altTextEn: null,
     position: 0,
   });
+  const reorderImages = vi.fn().mockResolvedValue([
+    { id: "img-2", url: "https://res.cloudinary.com/x/b.jpg", altTextSv: null, altTextEn: null, position: 0 },
+    { id: "img-1", url: "https://res.cloudinary.com/x/a.jpg", altTextSv: null, altTextEn: null, position: 1 },
+  ]);
   const deleteImage = vi.fn().mockResolvedValue(undefined);
   const deleteProduct = vi.fn().mockResolvedValue(undefined);
 
@@ -63,7 +67,17 @@ async function bootApp(validateSession: (token: string) => Promise<AuthContext |
     providers: [
       {
         provide: AdminProductsService,
-        useValue: { createProduct, list, getOne, update, uploadImage, updateImage, deleteImage, deleteProduct },
+        useValue: {
+          createProduct,
+          list,
+          getOne,
+          update,
+          uploadImage,
+          updateImage,
+          reorderImages,
+          deleteImage,
+          deleteProduct,
+        },
       },
       { provide: SessionService, useValue: { validateSession } },
       {
@@ -81,7 +95,18 @@ async function bootApp(validateSession: (token: string) => Promise<AuthContext |
   app.use(cookieParser());
   app.useGlobalFilters(new AllExceptionsFilter());
   await app.init();
-  return { app, createProduct, list, getOne, update, uploadImage, updateImage, deleteImage, deleteProduct };
+  return {
+    app,
+    createProduct,
+    list,
+    getOne,
+    update,
+    uploadImage,
+    updateImage,
+    reorderImages,
+    deleteImage,
+    deleteProduct,
+  };
 }
 
 describe("POST /admin/products — authorization", () => {
@@ -411,6 +436,79 @@ describe("POST /admin/products/:id/images — authorization", () => {
 
     expect(response.status).toBe(400);
     expect(booted.uploadImage).not.toHaveBeenCalled();
+  });
+});
+
+describe("PATCH /admin/products/:id/images/order — authorization", () => {
+  let app: INestApplication | undefined;
+
+  afterEach(async () => {
+    await app?.close();
+    app = undefined;
+  });
+
+  it("returns 403 for a valid session lacking products.update", async () => {
+    const booted = await bootApp(async () => ({
+      userId: "user-1",
+      sessionId: "sess-1",
+      csrfToken: "csrf",
+      permissions: ["products.view"],
+    }));
+    app = booted.app;
+
+    const response = await supertest(app.getHttpServer())
+      .patch("/admin/products/prod-1/images/order")
+      .set("Cookie", "ame_session=some-token")
+      .send({ imageIds: ["img-2", "img-1"] });
+
+    expect(response.status).toBe(403);
+    expect(booted.reorderImages).not.toHaveBeenCalled();
+  });
+
+  // The real risk this route introduces: @Patch(":id/images/:imageId")
+  // below is registered in the same controller and would otherwise swallow
+  // "order" as a literal image id — this must reach reorderImages, never
+  // updateImage("prod-1", "order", ...).
+  it("returns 200 and calls reorderImages, not updateImage — route ordering regression", async () => {
+    const booted = await bootApp(async () => ({
+      userId: "user-1",
+      sessionId: "sess-1",
+      csrfToken: "csrf",
+      permissions: ["products.update"],
+    }));
+    app = booted.app;
+
+    const response = await supertest(app.getHttpServer())
+      .patch("/admin/products/prod-1/images/order")
+      .set("Cookie", "ame_session=some-token")
+      .send({ imageIds: ["img-2", "img-1"] });
+
+    expect(response.status).toBe(200);
+    expect(booted.reorderImages).toHaveBeenCalledWith(
+      "prod-1",
+      ["img-2", "img-1"],
+      "user-1",
+      expect.anything(),
+    );
+    expect(booted.updateImage).not.toHaveBeenCalled();
+  });
+
+  it("returns 400 when imageIds is missing", async () => {
+    const booted = await bootApp(async () => ({
+      userId: "user-1",
+      sessionId: "sess-1",
+      csrfToken: "csrf",
+      permissions: ["products.update"],
+    }));
+    app = booted.app;
+
+    const response = await supertest(app.getHttpServer())
+      .patch("/admin/products/prod-1/images/order")
+      .set("Cookie", "ame_session=some-token")
+      .send({});
+
+    expect(response.status).toBe(400);
+    expect(booted.reorderImages).not.toHaveBeenCalled();
   });
 });
 

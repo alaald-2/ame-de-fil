@@ -41,9 +41,14 @@ import { productIdParamSchema, type ProductIdParam } from "./dto/product-id.para
 import { productImageIdParamSchema, type ProductImageIdParam } from "./dto/product-image-id.param.ts";
 import { productImageAltTextSchema, type ProductImageAltTextInput } from "./dto/product-image.dto.ts";
 import {
+  reorderProductImagesSchema,
+  type ReorderProductImagesInput,
+} from "./dto/reorder-product-images.dto.ts";
+import {
   createProductResponseSchema,
   adminProductResponseSchema,
   adminProductImageResponseSchema,
+  reorderProductImagesResponseSchema,
   listAdminProductsResponseSchema,
   listAdminProductVariantOptionsResponseSchema,
 } from "./dto/responses.ts";
@@ -173,6 +178,27 @@ export class AdminProductsController {
       auth.userId,
       request.ip,
     );
+  }
+
+  // Must be declared before @Patch(":id/images/:imageId") below — Nest/
+  // Express match routes in registration order, and ":imageId" would
+  // otherwise swallow "order" as a literal image id (same route-ordering
+  // hazard inventory.controller.ts's own "low-stock"/"reservations"/
+  // "movements" routes guard against, ahead of their own ":variantId").
+  @Patch(":id/images/order")
+  @RequirePermissions("products.update")
+  @ApiOperation({ summary: "Reorder a product's images (the full, ordered list of image ids)" })
+  @ApiZodParam(productIdParamSchema)
+  @ApiBody({ schema: toOpenApiSchema(reorderProductImagesSchema) })
+  @ApiOkResponse({ schema: toOpenApiSchema(reorderProductImagesResponseSchema) })
+  @ApiErrorResponses(400, 401, 403, 404)
+  async reorderImages(
+    @Param(new ZodValidationPipe(productIdParamSchema)) params: ProductIdParam,
+    @Body(new ZodValidationPipe(reorderProductImagesSchema)) body: ReorderProductImagesInput,
+    @CurrentUser() auth: AuthContext,
+    @Req() request: Request,
+  ) {
+    return this.adminProducts.reorderImages(params.id, body.imageIds, auth.userId, request.ip);
   }
 
   @Patch(":id/images/:imageId")

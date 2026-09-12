@@ -5,6 +5,8 @@ import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
 import {
   Alert,
+  ArrowUpIcon,
+  ArrowDownIcon,
   Button,
   Card,
   Dialog,
@@ -14,6 +16,7 @@ import {
   Input,
   Spinner,
   Text,
+  VisuallyHidden,
 } from "@ame-de-fil/ui";
 import { api } from "../lib/api-client";
 import { readCsrfCookie } from "../lib/csrf";
@@ -34,21 +37,63 @@ interface ProductImagesFormProps {
 // Images can only be added once a product exists (the endpoints are
 // productId-scoped), so this only ever renders on the Product Detail page,
 // never during creation — the create flow already ends with a redirect
-// here (create-product-form.tsx). Position is append-only for this pass;
-// reordering isn't built (see DECISIONS.md ADR-034's checkpoint notes).
+// here (create-product-form.tsx). `images` arrives pre-sorted by position
+// (ADMIN_PRODUCT_INCLUDE's own `orderBy`), which is what makes "swap this
+// card with its neighbor, then send the whole new order" correct without
+// this component re-deriving the current order itself.
 export function ProductImagesForm({ productId, images }: ProductImagesFormProps) {
   const t = useTranslations("Products.detail.images");
+  const router = useRouter();
+  const [reorderingId, setReorderingId] = useState<string | null>(null);
+  const [reorderErrorKind, setReorderErrorKind] = useState<"generic" | null>(null);
+
+  // Full-list PATCH, not a single "move this one to position N" request —
+  // see reorder-product-images.dto.ts's own comment for why: it's the only
+  // shape where the server and this optimistic swap can never disagree
+  // about everyone else's position afterward.
+  async function move(index: number, direction: -1 | 1) {
+    const targetIndex = index + direction;
+    if (targetIndex < 0 || targetIndex >= images.length) return;
+
+    const reordered = [...images];
+    const [moved] = reordered.splice(index, 1);
+    reordered.splice(targetIndex, 0, moved!);
+
+    setReorderErrorKind(null);
+    setReorderingId(images[index]!.id);
+    const { error } = await api.PATCH("/api/v1/admin/products/{id}/images/order", {
+      params: { path: { id: productId } },
+      headers: { "x-csrf-token": readCsrfCookie() },
+      body: { imageIds: reordered.map((image) => image.id) },
+    });
+    setReorderingId(null);
+
+    if (error) {
+      setReorderErrorKind("generic");
+      return;
+    }
+    router.refresh();
+  }
 
   return (
     <div className="flex flex-col gap-6">
+      {reorderErrorKind ? <Alert tone="danger">{t("reorderError")}</Alert> : null}
       {images.length === 0 ? (
         <Text size="sm" tone="muted">
           {t("emptyState")}
         </Text>
       ) : (
         <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-4">
-          {images.map((image) => (
-            <ProductImageCard key={image.id} productId={productId} image={image} />
+          {images.map((image, index) => (
+            <ProductImageCard
+              key={image.id}
+              productId={productId}
+              image={image}
+              canMoveUp={index > 0}
+              canMoveDown={index < images.length - 1}
+              isReordering={reorderingId === image.id}
+              onMove={(direction) => move(index, direction)}
+            />
           ))}
         </div>
       )}
@@ -59,7 +104,23 @@ export function ProductImagesForm({ productId, images }: ProductImagesFormProps)
   );
 }
 
-function ProductImageCard({ productId, image }: { productId: string; image: ProductImage }) {
+interface ProductImageCardProps {
+  productId: string;
+  image: ProductImage;
+  canMoveUp: boolean;
+  canMoveDown: boolean;
+  isReordering: boolean;
+  onMove: (direction: -1 | 1) => void;
+}
+
+function ProductImageCard({
+  productId,
+  image,
+  canMoveUp,
+  canMoveDown,
+  isReordering,
+  onMove,
+}: ProductImageCardProps) {
   const t = useTranslations("Products.detail.images");
   const router = useRouter();
   const [altTextSv, setAltTextSv] = useState(image.altTextSv ?? "");
@@ -114,6 +175,26 @@ function ProductImageCard({ productId, image }: { productId: string; image: Prod
         className="aspect-square w-full rounded-sm border border-neutral-200 object-cover"
         loading="lazy"
       />
+      <div className="flex items-center gap-1">
+        <Button
+          type="button"
+          variant="ghost"
+          onClick={() => onMove(-1)}
+          disabled={!canMoveUp || isReordering}
+        >
+          {isReordering ? <Spinner className="h-4 w-4" /> : <ArrowUpIcon aria-hidden="true" className="h-4 w-4" />}
+          <VisuallyHidden>{t("moveUp")}</VisuallyHidden>
+        </Button>
+        <Button
+          type="button"
+          variant="ghost"
+          onClick={() => onMove(1)}
+          disabled={!canMoveDown || isReordering}
+        >
+          <ArrowDownIcon aria-hidden="true" className="h-4 w-4" />
+          <VisuallyHidden>{t("moveDown")}</VisuallyHidden>
+        </Button>
+      </div>
       <form onSubmit={handleSaveAltText} className="flex flex-col gap-3">
         {saveErrorKind ? <Alert tone="danger">{t("genericError")}</Alert> : null}
         <FormField label={t("altTextSvLabel")}>

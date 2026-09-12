@@ -168,6 +168,11 @@ export const adminProductImageResponseSchema = z.object({
   position: z.number().int(),
 });
 
+// PATCH .../images/order returns the product's full image list, re-sorted —
+// the admin form replaces its whole grid from this rather than trusting its
+// own optimistic reorder matched what the server actually persisted.
+export const reorderProductImagesResponseSchema = z.array(adminProductImageResponseSchema);
+
 export const adminProductResponseSchema = z.object({
   id: z.string(),
   status: z.string(),
