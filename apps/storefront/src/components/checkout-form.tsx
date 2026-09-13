@@ -6,6 +6,7 @@ import { Heading, Text, Button, Input, FormField, Alert, Spinner } from "@ame-de
 import type { ShippingMethod, CheckoutResponse, InitiateCheckoutRequest } from "@ame-de-fil/types";
 import { api } from "../lib/api-client";
 import { getErrorMessage } from "../lib/error-message";
+import { readCsrfCookie } from "../lib/csrf";
 import { formatMoney } from "../lib/format-money";
 import { saveCheckoutOrder } from "../lib/checkout-order-storage";
 import type { AppLocale } from "../lib/locale";
@@ -91,6 +92,9 @@ export function CheckoutForm({ locale, shippingMethods, onSuccess }: CheckoutFor
 
     const { data, error } = await api.POST("/api/v1/checkout", {
       params: { header: { "idempotency-key": idempotencyKeyRef.current } },
+      // @OptionalAuth() — required once a customer is signed in
+      // (cart-store.ts's own comment on the identical CsrfGuard interaction).
+      headers: { "x-csrf-token": readCsrfCookie() },
       body,
     });
 

@@ -44,7 +44,9 @@
     "market": "Sweden · SEK",
     "previousSlide": "Previous slide",
     "nextSlide": "Next slide",
-    "goToSlide": "Go to slide {number}"
+    "goToSlide": "Go to slide {number}",
+    "signOut": "Sign out",
+    "signOutError": "Something went wrong while signing out. Please try again."
   },
   "Errors": {
     "notFoundTitle": "Page not found",
@@ -148,5 +150,20 @@
     "orderCanceledTitle": "Payment didn't go through",
     "orderCanceledBody": "Your order was canceled and your items were released. You can try checking out again.",
     "retryCheckout": "Try again"
+  },
+  "Login": {
+    "title": "Sign in",
+    "continueWithGoogle": "Continue with Google",
+    "googleHint": "New here? Continuing with Google creates your account instantly.",
+    "orDivider": "or",
+    "emailLabel": "Email",
+    "passwordLabel": "Password",
+    "submit": "Sign in",
+    "signingIn": "Signing in…",
+    "invalidCredentials": "Incorrect email or password.",
+    "genericError": "Something went wrong. Please try again."
+  },
+  "Account": {
+    "title": "My account"
   }
 }

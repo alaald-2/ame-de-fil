@@ -44,7 +44,9 @@
     "market": "Sverige · SEK",
     "previousSlide": "Föregående bild",
     "nextSlide": "Nästa bild",
-    "goToSlide": "Gå till bild {number}"
+    "goToSlide": "Gå till bild {number}",
+    "signOut": "Logga ut",
+    "signOutError": "Något gick fel vid utloggningen. Försök igen."
   },
   "Errors": {
     "notFoundTitle": "Sidan kunde inte hittas",
@@ -148,5 +150,20 @@
     "orderCanceledTitle": "Betalningen gick inte igenom",
     "orderCanceledBody": "Din beställning avbröts och dina varor släpptes. Du kan försöka gå till kassan igen.",
     "retryCheckout": "Försök igen"
+  },
+  "Login": {
+    "title": "Logga in",
+    "continueWithGoogle": "Fortsätt med Google",
+    "googleHint": "Ny här? Om du fortsätter med Google skapas ditt konto direkt.",
+    "orDivider": "eller",
+    "emailLabel": "E-post",
+    "passwordLabel": "Lösenord",
+    "submit": "Logga in",
+    "signingIn": "Loggar in…",
+    "invalidCredentials": "Fel e-postadress eller lösenord.",
+    "genericError": "Något gick fel. Försök igen."
+  },
+  "Account": {
+    "title": "Mitt konto"
   }
 }

@@ -15,6 +15,8 @@ export const routing = defineRouting({
     "/collections/[slug]": { "sv-SE": "/kollektioner/[slug]", en: "/collections/[slug]" },
     "/cart": { "sv-SE": "/varukorg", en: "/cart" },
     "/checkout": { "sv-SE": "/kassa", en: "/checkout" },
+    "/login": { "sv-SE": "/logga-in", en: "/login" },
+    "/account": { "sv-SE": "/mitt-konto", en: "/account" },
     // Placeholder footer/nav links — no page exists behind these yet
     // (content module is a later phase); declared here only so next-intl's
     // typed Link doesn't reject them, identical path in both locales for now.

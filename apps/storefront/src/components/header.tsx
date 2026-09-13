@@ -1,5 +1,5 @@
 import { getTranslations } from "next-intl/server";
-import { Container, Logo } from "@ame-de-fil/ui";
+import { Container, Logo, PersonIcon, VisuallyHidden } from "@ame-de-fil/ui";
 import { Link } from "../i18n/navigation";
 import { AnnouncementBar } from "./announcement-bar";
 import { DesktopNav, MobileNav } from "./site-nav";
@@ -8,17 +8,18 @@ import { LocaleSwitcher } from "./locale-switcher";
 import { CartLink } from "./cart-link";
 
 // Three rows, top to bottom, matching the reference's structure:
-// announcement bar / [search — centered logo — market+locale+cart] / a
-// separate centered nav row (desktop only; mobile folds nav into the
+// announcement bar / [search — centered logo — market+locale+account+cart]
+// / a separate centered nav row (desktop only; mobile folds nav into the
 // hamburger drawer instead of a second row, same as the reference).
 //
-// No account icon: this storefront has no customer-account/login feature
-// today (checkout is guest-only) — an icon that opens nothing would be
-// worse than a header that's honest about what exists, same reasoning
-// footer.tsx already applied to skip a fake newsletter form. "Sweden · SEK"
-// is a static label, not a working country switcher — ADR-021 fixes this
-// storefront to a single Sweden/SEK market, so there is nothing to switch
-// between; it exists only to match the reference's visual rhythm.
+// The account icon always points at /account regardless of session state —
+// that page itself redirects a signed-out visitor to /login (lib/dal.ts's
+// requireSession), so there's no need to know auth state here just to
+// render a link; keeps this a Server Component with no session fetch of
+// its own. "Sweden · SEK" is a static label, not a working country
+// switcher — ADR-021 fixes this storefront to a single Sweden/SEK market,
+// so there is nothing to switch between; it exists only to match the
+// reference's visual rhythm.
 export async function Header() {
   const t = await getTranslations("Common");
   const tNav = await getTranslations("Navigation");
@@ -47,6 +48,13 @@ export async function Header() {
               {t("market")}
             </span>
             <LocaleSwitcher />
+            <Link
+              href="/account"
+              className="rounded-sm p-1 text-neutral-700 transition-colors hover:text-neutral-900 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent-500"
+            >
+              <PersonIcon aria-hidden="true" className="h-5 w-5" />
+              <VisuallyHidden>{tNav("account")}</VisuallyHidden>
+            </Link>
             <CartLink label={tNav("cart")} />
           </div>
         </div>

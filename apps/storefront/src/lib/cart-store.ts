@@ -1,6 +1,7 @@
 import type { CartResponse } from "@ame-de-fil/types";
 import { api } from "./api-client";
 import { getErrorMessage } from "./error-message";
+import { readCsrfCookie } from "./csrf";
 import type { AppLocale } from "./locale";
 
 export const EMPTY_CART: CartResponse = {
@@ -25,6 +26,13 @@ const INITIAL_STATE: CartState = { cart: EMPTY_CART, isLoading: true, errorMessa
 // effect lifecycle entirely, and CartProvider just reads it via
 // useSyncExternalStore. Avoids the classic "fetch in useEffect + setState"
 // shape the adopted eslint-plugin-react-hooks ruleset flags.
+//
+// Every mutation sends an x-csrf-token header — harmless (and previously
+// omitted) for a guest with no session at all (CsrfGuard's own
+// @OptionalAuth() bypass), but required the moment a customer is signed in:
+// these routes are @OptionalAuth(), not @Public(), so CsrfGuard enforces
+// the double-submit check as soon as request.auth is populated from a real
+// session cookie (csrf.guard.ts's own comment on exactly this bypass).
 export class CartStore {
   private state: CartState = INITIAL_STATE;
   private readonly listeners = new Set<() => void>();
@@ -54,6 +62,7 @@ export class CartStore {
     this.setState({ errorMessage: null });
     const { data, error } = await api.POST("/api/v1/cart/items", {
       params: { query: { locale: this.locale } },
+      headers: { "x-csrf-token": readCsrfCookie() },
       body: { variantId, quantity },
     });
     if (error) {
@@ -68,6 +77,7 @@ export class CartStore {
     this.setState({ errorMessage: null });
     const { data, error } = await api.PATCH("/api/v1/cart/items/{itemId}", {
       params: { path: { itemId }, query: { locale: this.locale } },
+      headers: { "x-csrf-token": readCsrfCookie() },
       body: { quantity },
     });
     if (error) {
@@ -82,6 +92,7 @@ export class CartStore {
     this.setState({ errorMessage: null });
     const { data, error } = await api.DELETE("/api/v1/cart/items/{itemId}", {
       params: { path: { itemId }, query: { locale: this.locale } },
+      headers: { "x-csrf-token": readCsrfCookie() },
     });
     if (error) {
       this.setState({ errorMessage: getErrorMessage(error, "Failed to remove item") });
