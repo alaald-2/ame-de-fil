@@ -33,6 +33,10 @@ export {
   ZoomOutIcon,
   UploadIcon,
   HamburgerMenuIcon,
+  Cross2Icon,
+  MagnifyingGlassIcon,
+  ChevronLeftIcon,
+  ChevronRightIcon,
 } from "@radix-ui/react-icons";
 export * from "./components/Skeleton";
 export * from "./components/EmptyState";
@@ -40,3 +44,4 @@ export * from "./components/ErrorState";
 export * from "./components/Card";
 export * from "./components/Dialog";
 export * from "./components/PlaceholderImage";
+export * from "./components/Reveal";

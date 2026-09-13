@@ -11,6 +11,7 @@ export interface ListProductsFilters {
   locale: AppLocale;
   category?: string;
   collection?: string;
+  q?: string;
   page: number;
   pageSize: number;
 }
@@ -35,6 +36,17 @@ export class ProductsService {
       ...(filters.category ? { categories: { some: { category: { id: filters.category } } } } : {}),
       ...(filters.collection
         ? { collections: { some: { collection: { id: filters.collection } } } }
+        : {}),
+      // Name-only (no SKU/Article Number — that's a staff lookup concern,
+      // admin-products.service.ts's own buildProductSearchOr, not a customer
+      // one) substring match across both locale translations, same
+      // case-insensitive `contains` idiom as the admin search.
+      ...(filters.q
+        ? {
+            translations: {
+              some: { name: { contains: filters.q, mode: "insensitive" as const } },
+            },
+          }
         : {}),
     };
 

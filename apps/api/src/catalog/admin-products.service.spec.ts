@@ -6,7 +6,7 @@ import type { CreateProductInput } from "./dto/create-product.dto.ts";
 import type { UpdateProductInput } from "./dto/update-product.dto.ts";
 import type { PrismaService } from "../database/prisma.service.ts";
 import { AuditService } from "../audit/audit.service.ts";
-import type { ImageStorageProvider } from "./images/image-storage.provider.ts";
+import type { ImageStorageProvider } from "../images/image-storage.provider.ts";
 
 const ACTOR_USER_ID = "user-1";
 
@@ -694,7 +694,7 @@ describe("AdminProductsService.uploadImage", () => {
       ACTOR_USER_ID,
     );
 
-    expect(imageStorage.upload).toHaveBeenCalledWith(expect.any(Buffer), { productId: "prod-1" });
+    expect(imageStorage.upload).toHaveBeenCalledWith(expect.any(Buffer), { folder: "products/prod-1" });
     expect(tx.productImage.create).toHaveBeenCalledWith(
       expect.objectContaining({
         data: expect.objectContaining({

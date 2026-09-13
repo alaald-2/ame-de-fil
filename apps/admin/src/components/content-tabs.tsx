@@ -8,10 +8,10 @@ interface ContentTabsProps {
   permissions: string[];
 }
 
-// Mirrors AdministrationTabs — Categories and Collections are gated by two
-// genuinely separate permissions (categories.view/collections.view), so an
-// admin holding only one may legitimately see only one tab, not a
-// disabled/greyed-out second tab.
+// Mirrors AdministrationTabs — Categories, Collections, and Homepage Hero
+// are each gated by their own permission (categories.view/collections.view/
+// marketing.view), so an admin holding only one may legitimately see only
+// that one tab, not disabled/greyed-out others.
 export function ContentTabs({ permissions }: ContentTabsProps) {
   const t = useTranslations("Content");
   const pathname = usePathname();
@@ -19,6 +19,7 @@ export function ContentTabs({ permissions }: ContentTabsProps) {
   const tabs = [
     { href: "/content", label: t("tabCategories"), permission: "categories.view" },
     { href: "/content/collections", label: t("tabCollections"), permission: "collections.view" },
+    { href: "/content/hero", label: t("tabHero"), permission: "marketing.view" },
   ] as const;
 
   const visibleTabs = tabs.filter((tab) => permissions.includes(tab.permission));

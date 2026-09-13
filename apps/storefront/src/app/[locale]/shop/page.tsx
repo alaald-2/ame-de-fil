@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import { getTranslations } from "next-intl/server";
-import { Container, Heading, Text } from "@ame-de-fil/ui";
+import { Container, Heading, Text, Reveal } from "@ame-de-fil/ui";
 import { api } from "../../../lib/api-client";
 import { ProductCard } from "../../../components/product-card";
 import type { AppLocale } from "../../../lib/locale";
@@ -22,15 +22,16 @@ export default async function ShopPage({
   searchParams,
 }: {
   params: Promise<LocaleParams>;
-  searchParams: Promise<{ page?: string }>;
+  searchParams: Promise<{ page?: string; q?: string }>;
 }) {
   const { locale } = await params;
-  const { page: pageParam } = await searchParams;
+  const { page: pageParam, q } = await searchParams;
   const t = await getTranslations("Shop");
   const page = Number(pageParam ?? "1") || 1;
+  const query = q?.trim() || undefined;
 
   const { data, error } = await api.GET("/api/v1/products", {
-    params: { query: { locale, page, pageSize: 24 } },
+    params: { query: { locale, page, pageSize: 24, q: query } },
   });
 
   if (error || !data) {
@@ -39,15 +40,17 @@ export default async function ShopPage({
 
   return (
     <Container className="py-16">
-      <Heading level={1}>{t("title")}</Heading>
+      <Heading level={1}>{query ? t("searchResultsFor", { query }) : t("title")}</Heading>
       {data.items.length === 0 ? (
         <Text tone="muted" className="mt-4">
-          {t("empty")}
+          {query ? t("emptySearch", { query }) : t("empty")}
         </Text>
       ) : (
         <div className="mt-10 grid grid-cols-2 gap-x-6 gap-y-10 sm:grid-cols-3 lg:grid-cols-4">
-          {data.items.map((product) => (
-            <ProductCard key={product.id} product={product} locale={locale} />
+          {data.items.map((product, index) => (
+            <Reveal key={product.id} delay={Math.min(index, 8) * 60}>
+              <ProductCard product={product} locale={locale} />
+            </Reveal>
           ))}
         </div>
       )}

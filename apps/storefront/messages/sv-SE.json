@@ -15,19 +15,36 @@
     "rights": "Alla rättigheter förbehållna.",
     "customerService": "Kundservice",
     "shipping": "Frakt och retur",
-    "contact": "Kontakt"
+    "contact": "Kontakt",
+    "tagline": "Handgjort i Sverige, en maska i taget."
   },
   "Home": {
     "heroTitle": "Handgjort med omsorg",
     "heroSubtitle": "Unika virkade plagg och inredning, tillverkade i Sverige.",
     "cta": "Utforska kollektionen",
-    "newArrivalsTitle": "Nyheter"
+    "newArrivalsTitle": "Nyheter",
+    "storyEyebrow": "Vårt hantverk",
+    "storyTitle": "Handgjort, i små serier",
+    "storyBody": "Varje plagg virkas på beställning i vårt svenska atelje — inga fabriker, ingen massproduktion. Bara tid, omsorg och en enda tråd.",
+    "storyCta": "Läs vår historia",
+    "madeToOrderEyebrow": "Tillverkas på beställning",
+    "madeToOrderTitle": "Värt att vänta på",
+    "madeToOrderBody": "Vissa plagg tillverkas först när du beställer dem. Det tar lite längre tid, men det betyder att inget görs förrän någon verkligen vill ha det.",
+    "madeToOrderCta": "Se kollektionen"
+  },
+  "Announcement": {
+    "message": "Handgjort i Sverige — små serier, tillverkade med omsorg."
   },
   "Common": {
     "loading": "Laddar…",
     "skipToContent": "Hoppa till innehåll",
     "close": "Stäng",
-    "menu": "Meny"
+    "menu": "Meny",
+    "search": "Sök",
+    "market": "Sverige · SEK",
+    "previousSlide": "Föregående bild",
+    "nextSlide": "Nästa bild",
+    "goToSlide": "Gå till bild {number}"
   },
   "Errors": {
     "notFoundTitle": "Sidan kunde inte hittas",
@@ -46,11 +63,14 @@
   "Shop": {
     "title": "Butik",
     "empty": "Inga produkter hittades.",
+    "emptySearch": "Inga produkter matchar “{query}”.",
     "soldOut": "Slutsåld",
     "madeToOrder": "Tillverkas på beställning",
     "productionTime": "Leveranstid ca {days} dagar",
     "percentOff": "{percentage}% rabatt",
-    "originalPriceLabel": "Ordinarie pris:"
+    "originalPriceLabel": "Ordinarie pris:",
+    "searchPlaceholder": "Sök produkter",
+    "searchResultsFor": "Sökresultat för “{query}”"
   },
   "Product": {
     "notFoundTitle": "Produkten hittades inte",

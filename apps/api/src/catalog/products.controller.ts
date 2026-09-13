@@ -23,7 +23,9 @@ export class ProductsController {
   constructor(private readonly products: ProductsService) {}
 
   @Get()
-  @ApiOperation({ summary: "List published products, optionally filtered by category/collection" })
+  @ApiOperation({
+    summary: "List published products, optionally filtered by category/collection/search term",
+  })
   @ApiZodQuery(listProductsQuerySchema)
   @ApiOkResponse({ schema: toOpenApiSchema(listProductsResponseSchema) })
   @ApiErrorResponses(400)

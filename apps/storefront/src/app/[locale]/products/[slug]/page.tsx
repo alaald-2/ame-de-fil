@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { getTranslations } from "next-intl/server";
-import { Container, Heading, Text, Alert } from "@ame-de-fil/ui";
+import { Container, Heading, Text, Alert, Reveal } from "@ame-de-fil/ui";
 import { api } from "../../../../lib/api-client";
 import type { AppLocale } from "../../../../lib/locale";
 import { Link } from "../../../../i18n/navigation";
@@ -66,7 +66,7 @@ export default async function ProductPage({ params }: { params: Promise<PagePara
   return (
     <Container className="py-16">
       <nav aria-label={t("breadcrumbLabel")} className="mb-8 flex flex-wrap items-center gap-2 text-sm">
-        <Link href="/shop" className="text-neutral-600 hover:text-neutral-900">
+        <Link href="/shop" className="text-neutral-600 transition-colors duration-300 ease-out-slow hover:text-neutral-900">
           {tNav("shop")}
         </Link>
         {primaryCategory ? (
@@ -76,7 +76,7 @@ export default async function ProductPage({ params }: { params: Promise<PagePara
             </span>
             <Link
               href={{ pathname: "/categories/[slug]", params: { slug: primaryCategory.slug } }}
-              className="text-neutral-600 hover:text-neutral-900"
+              className="text-neutral-600 transition-colors duration-300 ease-out-slow hover:text-neutral-900"
             >
               {primaryCategory.name}
             </Link>
@@ -108,7 +108,10 @@ export default async function ProductPage({ params }: { params: Promise<PagePara
             <Text size="sm" tone="muted">
               {t("handmadeNotice")}
             </Text>
-            <Link href="/shipping" className="w-fit text-sm text-neutral-600 hover:text-neutral-900">
+            <Link
+              href="/shipping"
+              className="w-fit text-sm text-neutral-600 transition-colors duration-300 ease-out-slow hover:text-neutral-900"
+            >
               {tFooter("shipping")}
             </Link>
           </div>
@@ -141,10 +144,14 @@ export default async function ProductPage({ params }: { params: Promise<PagePara
 
       {relatedProducts.length > 0 ? (
         <div className="mt-20">
-          <Heading level={2}>{t("relatedTitle")}</Heading>
+          <Reveal>
+            <Heading level={2}>{t("relatedTitle")}</Heading>
+          </Reveal>
           <div className="mt-8 grid grid-cols-2 gap-x-6 gap-y-10 sm:grid-cols-4">
-            {relatedProducts.map((related) => (
-              <ProductCard key={related.id} product={related} locale={locale} />
+            {relatedProducts.map((related, index) => (
+              <Reveal key={related.id} delay={Math.min(index, 8) * 60}>
+                <ProductCard product={related} locale={locale} />
+              </Reveal>
             ))}
           </div>
         </div>

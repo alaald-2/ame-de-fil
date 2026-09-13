@@ -1,6 +1,6 @@
 import { useTranslations } from "next-intl";
 import type { Product } from "@ame-de-fil/types";
-import { Text, PlaceholderImage } from "@ame-de-fil/ui";
+import { Text, PlaceholderImage, cn } from "@ame-de-fil/ui";
 import { Link } from "../i18n/navigation";
 import { SalePrice } from "./sale-price";
 
@@ -17,6 +17,7 @@ interface ProductCardProps {
 export function ProductCard({ product, locale }: ProductCardProps) {
   const t = useTranslations("Shop");
   const image = product.images[0];
+  const hoverImage = product.images[1];
   const firstVariant = product.variants[0];
   const anyAvailable = product.variants.some((v) => v.available);
   const allMadeToOrder = product.variants.every((v) => v.productionTimeDays !== null);
@@ -26,19 +27,37 @@ export function ProductCard({ product, locale }: ProductCardProps) {
       href={{ pathname: "/products/[slug]", params: { slug: product.slug } }}
       className="group block"
     >
-      <div className="aspect-[3/4] overflow-hidden bg-neutral-100">
+      <div className="relative aspect-[3/4] overflow-hidden bg-neutral-100">
         {image ? (
           // Plain <img>, not next/image: next.config.ts's remotePatterns is
           // still empty (image storage vendor deferred — DECISIONS.md
           // ADR-020), so next/image would reject any real remote URL today.
+          //
+          // Second image (when one exists) is stacked on top, opacity 0 →
+          // 100 on hover while the first fades the other way — the same
+          // "swap to the second product photo on hover" mechanic as the
+          // reference site's Dawn-theme card (its own
+          // `.media--hover-effect` CSS, inspected live), just as Tailwind
+          // group-hover classes instead of that theme's own stylesheet.
           <img
             src={image.url}
             alt={image.altText ?? ""}
-            className="h-full w-full object-cover transition-opacity group-hover:opacity-90"
+            className={cn(
+              "h-full w-full object-cover transition-all duration-500 ease-out-slow group-hover:scale-[1.03]",
+              hoverImage && "group-hover:opacity-0",
+            )}
           />
         ) : (
           <PlaceholderImage className="h-full w-full" />
         )}
+        {hoverImage ? (
+          <img
+            src={hoverImage.url}
+            alt=""
+            aria-hidden="true"
+            className="absolute inset-0 h-full w-full object-cover opacity-0 transition-all duration-500 ease-out-slow group-hover:scale-[1.03] group-hover:opacity-100"
+          />
+        ) : null}
       </div>
       <div className="mt-3">
         <Text size="sm" className="text-neutral-900">

@@ -15,19 +15,36 @@
     "rights": "All rights reserved.",
     "customerService": "Customer service",
     "shipping": "Shipping and returns",
-    "contact": "Contact"
+    "contact": "Contact",
+    "tagline": "Handmade in Sweden, one stitch at a time."
   },
   "Home": {
     "heroTitle": "Handmade with care",
     "heroSubtitle": "Unique crochet garments and homeware, made in Sweden.",
     "cta": "Explore the collection",
-    "newArrivalsTitle": "New arrivals"
+    "newArrivalsTitle": "New arrivals",
+    "storyEyebrow": "Our craft",
+    "storyTitle": "Made by hand, in small batches",
+    "storyBody": "Every piece is crocheted to order in our Swedish atelier — no factories, no mass production. Just time, care, and a single thread.",
+    "storyCta": "Read our story",
+    "madeToOrderEyebrow": "Made to order",
+    "madeToOrderTitle": "Worth the wait",
+    "madeToOrderBody": "Some pieces are made only once you order them. It takes a little longer, but it means nothing is made until it's truly wanted.",
+    "madeToOrderCta": "Shop the collection"
+  },
+  "Announcement": {
+    "message": "Handmade in Sweden — small batches, made with care."
   },
   "Common": {
     "loading": "Loading…",
     "skipToContent": "Skip to content",
     "close": "Close",
-    "menu": "Menu"
+    "menu": "Menu",
+    "search": "Search",
+    "market": "Sweden · SEK",
+    "previousSlide": "Previous slide",
+    "nextSlide": "Next slide",
+    "goToSlide": "Go to slide {number}"
   },
   "Errors": {
     "notFoundTitle": "Page not found",
@@ -46,11 +63,14 @@
   "Shop": {
     "title": "Shop",
     "empty": "No products found.",
+    "emptySearch": "No products match “{query}”.",
     "soldOut": "Sold out",
     "madeToOrder": "Made to order",
     "productionTime": "Approx. {days} day delivery",
     "percentOff": "{percentage}% off",
-    "originalPriceLabel": "Original price:"
+    "originalPriceLabel": "Original price:",
+    "searchPlaceholder": "Search products",
+    "searchResultsFor": "Search results for “{query}”"
   },
   "Product": {
     "notFoundTitle": "Product not found",

@@ -26,9 +26,18 @@ export function ProductGallery({ images }: ProductGalleryProps) {
 
   return (
     <div className="flex flex-col gap-3">
-      <div className="aspect-[3/4] w-full overflow-hidden bg-neutral-100">
+      <div className="group aspect-[3/4] w-full overflow-hidden bg-neutral-100">
         {active ? (
-          <img src={active.url} alt={active.altText ?? ""} className="h-full w-full object-cover" />
+          // `key` forces a remount on every swap, which restarts the
+          // `animate-fade-in` keyframe — a crossfade between images with no
+          // extra transition state to track (tokens.css's own reasoning for
+          // using a real animation over a transition here).
+          <img
+            key={active.url}
+            src={active.url}
+            alt={active.altText ?? ""}
+            className="h-full w-full animate-fade-in object-cover transition-transform duration-500 ease-out-slow group-hover:scale-[1.03]"
+          />
         ) : (
           <PlaceholderImage className="h-full w-full" />
         )}

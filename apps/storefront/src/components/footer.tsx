@@ -2,7 +2,8 @@ import { getTranslations } from "next-intl/server";
 import { Container, Heading, Text, Logo } from "@ame-de-fil/ui";
 import { Link } from "../i18n/navigation";
 
-const LINK_STYLES = "rounded-sm font-sans text-sm text-neutral-600 hover:text-neutral-900";
+const LINK_STYLES =
+  "rounded-sm font-sans text-sm text-neutral-600 transition-colors duration-300 ease-out-slow hover:text-neutral-900";
 
 // Two real link columns (Shop, Customer service) instead of two bare links
 // side by side — `customerService` already existed as a translation key
@@ -16,11 +17,14 @@ export async function Footer() {
   const year = new Date().getFullYear();
 
   return (
-    <footer className="border-t border-neutral-200 py-12">
+    <footer className="border-t border-neutral-200 bg-neutral-100 py-16">
       <Container className="flex flex-col gap-10 sm:flex-row sm:justify-between">
         <div>
           <Logo height={16} />
           <Text size="sm" tone="muted" className="mt-3 max-w-xs">
+            {t("tagline")}
+          </Text>
+          <Text size="sm" tone="muted" className="mt-8">
             © {year} Âme de Fil. {t("rights")}
           </Text>
         </div>

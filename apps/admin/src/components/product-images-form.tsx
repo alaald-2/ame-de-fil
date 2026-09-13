@@ -1,13 +1,6 @@
 "use client";
 
-import {
-  forwardRef,
-  useEffect,
-  useImperativeHandle,
-  useRef,
-  useState,
-  type FormEvent,
-} from "react";
+import { useRef, useState, type FormEvent } from "react";
 import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
 import {
@@ -27,8 +20,6 @@ import {
   sortableKeyboardCoordinates,
 } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
-import Cropper from "cropperjs";
-import "cropperjs/dist/cropper.css";
 import {
   Alert,
   Button,
@@ -37,20 +28,16 @@ import {
   DialogTrigger,
   DialogContent,
   DragHandleDots2Icon,
-  RotateCounterClockwiseIcon,
-  ResetIcon,
   UploadIcon,
-  ZoomInIcon,
-  ZoomOutIcon,
   FormField,
   Input,
   Spinner,
   Text,
-  VisuallyHidden,
   cn,
 } from "@ame-de-fil/ui";
 import { api } from "../lib/api-client";
 import { readCsrfCookie } from "../lib/csrf";
+import { ImageEditor, type ImageEditorHandle } from "./image-editor";
 
 interface ProductImage {
   id: string;
@@ -209,18 +196,23 @@ function SortableImageCard({ productId, image }: { productId: string; image: Pro
     <Card
       ref={setNodeRef}
       style={{ transform: CSS.Transform.toString(transform), transition }}
-      className={isDragging ? "relative z-10 opacity-70" : "relative"}
+      // animate-fade-in only ever plays once, right when a brand new card
+      // mounts with its own fresh `image.id` key — reordering or editing an
+      // existing card never remounts it, so this never replays for those.
+      className={cn("animate-fade-in", isDragging ? "relative z-10 opacity-70" : "relative")}
     >
       <div className="flex flex-col gap-3">
         {/* Plain <img>, not next/image — same idiom the storefront already uses
             for product images; no next/image remotePatterns config exists
             (DECISIONS.md ADR-034). */}
-        <img
-          src={image.url}
-          alt={altTextSv || altTextEn || ""}
-          className="aspect-square w-full rounded-sm border border-neutral-200 object-cover"
-          loading="lazy"
-        />
+        <div className="overflow-hidden rounded-sm border border-neutral-200">
+          <img
+            src={image.url}
+            alt={altTextSv || altTextEn || ""}
+            className="aspect-square w-full object-cover transition-transform duration-500 ease-out-slow hover:scale-[1.04]"
+            loading="lazy"
+          />
+        </div>
         <button
           type="button"
           {...attributes}
@@ -272,232 +264,6 @@ function SortableImageCard({ productId, image }: { productId: string; image: Pro
     </Card>
   );
 }
-
-// Cropper.js's own aspect-ratio convention: a plain width/height ratio, or
-// NaN for "free" (no constraint). 3:4 first and default — the ratio the
-// storefront actually renders products at (product-card.tsx and the PDP
-// hero both use aspect-[3/4]), so what an admin frames here is what a
-// customer sees, not something a later object-cover silently re-crops.
-const ASPECT_RATIOS = {
-  "3:4": 3 / 4,
-  "1:1": 1,
-  "4:3": 4 / 3,
-  "16:9": 16 / 9,
-  free: NaN,
-} as const;
-type AspectRatioKey = keyof typeof ASPECT_RATIOS;
-
-export interface ImageEditorHandle {
-  /** Renders the current crop/rotate/zoom/flip state to a blob of the original file's own type — this, never the original file, is what gets uploaded. */
-  exportBlob: () => Promise<Blob>;
-}
-
-interface ImageEditorProps {
-  file: File;
-}
-
-// The one place any product photo is edited before it ever reaches
-// Cloudinary — crop, rotate, zoom, flip, and a live preview, all via
-// Cropper.js (a plain DOM library, no React-specific wrapper needed).
-// Deliberately scoped to *new* uploads only: re-editing an image already in
-// Cloudinary would mean re-fetching a remote image into a canvas (its own
-// CORS/tainted-canvas handling) and is out of scope for this pass.
-export const ImageEditor = forwardRef<ImageEditorHandle, ImageEditorProps>(function ImageEditor(
-  { file },
-  ref,
-) {
-  const t = useTranslations("Products.detail.images.editor");
-  const imgRef = useRef<HTMLImageElement>(null);
-  const cropperRef = useRef<Cropper | null>(null);
-  const previewRef = useRef<HTMLDivElement>(null);
-  const flipRef = useRef({ x: 1, y: 1 });
-  const [aspect, setAspect] = useState<AspectRatioKey>("3:4");
-
-  // One object URL per selected file — Cropper.js reads the <img>'s own
-  // src, it never sees the File object directly. Created *and* revoked
-  // inside the same effect (not a useMemo + separate cleanup effect) —
-  // React Strict Mode's dev-only double-invoke runs an effect, its
-  // cleanup, then the effect again, and a memoized URL revoked by that
-  // interim cleanup would stay revoked for the second pass, since the
-  // memo itself is never recomputed. Tying create+revoke together means
-  // the second pass mints its own fresh URL instead of reusing a dead one.
-  const [objectUrl, setObjectUrl] = useState<string | null>(null);
-  // Deliberate: this isn't state derived from a prop, it's a browser
-  // resource (a blob URL) whose creation and revocation must be tied to the
-  // same effect run — see the comment above for the Strict Mode bug that
-  // splitting them into a useMemo + separate cleanup effect previously
-  // caused, hence the disable below rather than restructuring this away.
-  useEffect(() => {
-    const url = URL.createObjectURL(file);
-    // eslint-disable-next-line react-hooks/set-state-in-effect
-    setObjectUrl(url);
-    return () => URL.revokeObjectURL(url);
-  }, [file]);
-
-  useEffect(() => {
-    const img = imgRef.current;
-    if (!img || !objectUrl) return;
-    flipRef.current = { x: 1, y: 1 };
-    const cropper = new Cropper(img, {
-      aspectRatio: ASPECT_RATIOS[aspect],
-      viewMode: 1,
-      autoCropArea: 1,
-      preview: previewRef.current ?? undefined,
-    });
-    cropperRef.current = cropper;
-    return () => {
-      cropper.destroy();
-      cropperRef.current = null;
-    };
-    // Only re-init when the file itself changes — aspect ratio changes are
-    // applied to the live instance below instead of tearing it down, so an
-    // in-progress crop/zoom/rotate isn't lost when switching the ratio.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [objectUrl]);
-
-  useEffect(() => {
-    cropperRef.current?.setAspectRatio(ASPECT_RATIOS[aspect]);
-  }, [aspect]);
-
-  useImperativeHandle(ref, () => ({
-    exportBlob: () =>
-      new Promise<Blob>((resolve, reject) => {
-        const cropper = cropperRef.current;
-        if (!cropper) {
-          reject(new Error("Image editor is not ready"));
-          return;
-        }
-        cropper.getCroppedCanvas({ maxWidth: 2400, maxHeight: 2400, imageSmoothingQuality: "high" }).toBlob(
-          (blob) => {
-            if (blob) resolve(blob);
-            else reject(new Error("Could not export the edited image"));
-          },
-          file.type || "image/jpeg",
-          0.92,
-        );
-      }),
-  }));
-
-  const previewAspect = Number.isNaN(ASPECT_RATIOS[aspect]) ? 3 / 4 : ASPECT_RATIOS[aspect];
-
-  return (
-    <div className="flex flex-col gap-4 sm:flex-row">
-      <div className="min-w-0 flex-1">
-        <div className="max-h-72 overflow-hidden rounded-sm border border-neutral-200 bg-neutral-100">
-          {/* Plain <img>, not next/image — Cropper.js needs an element it controls directly. */}
-          <img ref={imgRef} src={objectUrl ?? undefined} alt="" className="block max-w-full" />
-        </div>
-
-        <div className="mt-3 flex flex-wrap items-center gap-1">
-          <Button
-            type="button"
-            variant="ghost"
-            onClick={() => cropperRef.current?.rotate(-90)}
-            title={t("rotateLeft")}
-          >
-            <RotateCounterClockwiseIcon aria-hidden="true" className="h-4 w-4" />
-            <VisuallyHidden>{t("rotateLeft")}</VisuallyHidden>
-          </Button>
-          <Button
-            type="button"
-            variant="ghost"
-            onClick={() => cropperRef.current?.rotate(90)}
-            title={t("rotateRight")}
-          >
-            <RotateCounterClockwiseIcon aria-hidden="true" className="h-4 w-4 -scale-x-100" />
-            <VisuallyHidden>{t("rotateRight")}</VisuallyHidden>
-          </Button>
-          <Button
-            type="button"
-            variant="ghost"
-            onClick={() => {
-              flipRef.current.x *= -1;
-              cropperRef.current?.scaleX(flipRef.current.x);
-            }}
-          >
-            {t("flipHorizontal")}
-          </Button>
-          <Button
-            type="button"
-            variant="ghost"
-            onClick={() => {
-              flipRef.current.y *= -1;
-              cropperRef.current?.scaleY(flipRef.current.y);
-            }}
-          >
-            {t("flipVertical")}
-          </Button>
-          <Button
-            type="button"
-            variant="ghost"
-            onClick={() => {
-              flipRef.current = { x: 1, y: 1 };
-              cropperRef.current?.reset();
-            }}
-            title={t("reset")}
-          >
-            <ResetIcon aria-hidden="true" className="h-4 w-4" />
-            <VisuallyHidden>{t("reset")}</VisuallyHidden>
-          </Button>
-        </div>
-
-        <div className="mt-3 flex items-center gap-2">
-          <Button
-            type="button"
-            variant="ghost"
-            onClick={() => cropperRef.current?.zoom(-0.1)}
-            title={t("zoomOut")}
-          >
-            <ZoomOutIcon aria-hidden="true" className="h-4 w-4" />
-            <VisuallyHidden>{t("zoomOut")}</VisuallyHidden>
-          </Button>
-          <Button
-            type="button"
-            variant="ghost"
-            onClick={() => cropperRef.current?.zoom(0.1)}
-            title={t("zoomIn")}
-          >
-            <ZoomInIcon aria-hidden="true" className="h-4 w-4" />
-            <VisuallyHidden>{t("zoomIn")}</VisuallyHidden>
-          </Button>
-          <Text size="sm" tone="muted">
-            {t("zoomHint")}
-          </Text>
-        </div>
-
-        <div className="mt-3 max-w-40">
-          <FormField label={t("aspectRatioLabel")}>
-            {(fieldProps) => (
-              <select
-                {...fieldProps}
-                value={aspect}
-                onChange={(e) => setAspect(e.target.value as AspectRatioKey)}
-                className="rounded-sm border border-neutral-300 bg-neutral-50 px-3 py-2 font-sans text-sm text-neutral-900 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent-500"
-              >
-                <option value="3:4">3:4</option>
-                <option value="1:1">1:1</option>
-                <option value="4:3">4:3</option>
-                <option value="16:9">16:9</option>
-                <option value="free">{t("aspectFree")}</option>
-              </select>
-            )}
-          </FormField>
-        </div>
-      </div>
-
-      <div className="sm:w-36">
-        <Text size="sm" tone="muted">
-          {t("previewLabel")}
-        </Text>
-        <div
-          ref={previewRef}
-          style={{ aspectRatio: previewAspect }}
-          className="mt-1 w-full overflow-hidden rounded-sm border border-neutral-200 bg-neutral-100"
-        />
-      </div>
-    </div>
-  );
-});
 
 // Mirrors admin-products.service.ts's own upload validation exactly (same
 // pair create-product-form.tsx already keeps for its own file input) — a
@@ -645,8 +411,10 @@ function UploadImageDialog({ productId }: { productId: string }) {
                     <div
                       aria-hidden="true"
                       className={cn(
-                        "flex flex-col items-center justify-center gap-2 rounded-sm border-2 border-dashed p-8 text-center transition-colors",
-                        isDraggingOver ? "border-accent-500 bg-accent-50" : "border-neutral-300 bg-neutral-50",
+                        "flex flex-col items-center justify-center gap-2 rounded-sm border-2 border-dashed p-8 text-center transition duration-300 ease-out-slow",
+                        isDraggingOver
+                          ? "scale-[1.01] border-accent-500 bg-accent-50"
+                          : "border-neutral-300 bg-neutral-50",
                       )}
                     >
                       <UploadIcon className="h-6 w-6 text-neutral-500" />
@@ -686,6 +454,7 @@ function UploadImageDialog({ productId }: { productId: string }) {
                   key={currentFile.name + currentFile.lastModified}
                   ref={editorRef}
                   file={currentFile}
+                  defaultAspect="3:4"
                 />
                 <Button type="button" variant="ghost" className="w-fit" onClick={() => setQueue([])}>
                   {t("chooseDifferentFile")}

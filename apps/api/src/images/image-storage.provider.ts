@@ -5,7 +5,12 @@ import type { Env } from "@ame-de-fil/config";
 
 // Provider-agnostic dispatch boundary (mirrors EmailProvider/PaymentProvider
 // — DECISIONS.md ADR-034/ADR-031/ADR-014): callers depend only on this,
-// never on the cloudinary SDK directly.
+// never on the cloudinary SDK directly. Originally catalog-only (product
+// images); promoted to its own top-level module (images.module.ts) once
+// marketing/hero-slides.service.ts needed the exact same upload/delete
+// dispatch under a different Cloudinary folder — see that module's own
+// comment for why this crossed a module boundary instead of being
+// duplicated.
 export const IMAGE_STORAGE_PROVIDER = Symbol("IMAGE_STORAGE_PROVIDER");
 
 export interface UploadedImage {
@@ -14,7 +19,10 @@ export interface UploadedImage {
 }
 
 export interface ImageStorageProvider {
-  upload(buffer: Buffer, options: { productId: string }): Promise<UploadedImage>;
+  // `folder` is the Cloudinary folder path *under* `ame-de-fil/` (e.g.
+  // `products/${productId}`, `hero-slides`) — the caller owns its own
+  // namespacing, this provider just prefixes it consistently.
+  upload(buffer: Buffer, options: { folder: string }): Promise<UploadedImage>;
   delete(publicId: string): Promise<void>;
 }
 
@@ -28,10 +36,10 @@ export class CloudinaryImageStorageProvider implements ImageStorageProvider {
     });
   }
 
-  async upload(buffer: Buffer, options: { productId: string }): Promise<UploadedImage> {
+  async upload(buffer: Buffer, options: { folder: string }): Promise<UploadedImage> {
     return new Promise((resolve, reject) => {
       const stream = cloudinary.uploader.upload_stream(
-        { folder: `ame-de-fil/products/${options.productId}`, resource_type: "image" },
+        { folder: `ame-de-fil/${options.folder}`, resource_type: "image" },
         (error, result) => {
           if (error || !result) {
             reject(error ?? new Error("Cloudinary upload returned no result"));

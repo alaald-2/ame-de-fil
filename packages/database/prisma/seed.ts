@@ -40,6 +40,8 @@ const PERMISSION_KEYS = [
   "dashboard.view",
   "settings.view",
   "settings.manage",
+  "marketing.view",
+  "marketing.manage",
 ] as const;
 
 const ADMIN_ROLE_NAME = "admin";

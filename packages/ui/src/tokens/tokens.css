@@ -72,6 +72,27 @@
   --animate-dialog-out: dialog-out 120ms ease-in forwards;
   --animate-overlay-in: overlay-in 150ms ease-out forwards;
   --animate-overlay-out: overlay-out 120ms ease-in forwards;
+
+  /* Mobile nav drawer (mobile-nav-drawer.tsx) — same Radix `data-state`
+     keyframe-not-transition reasoning as the dialog animations above (no
+     "before" frame to transition from on first mount), just sliding from
+     the edge instead of scaling from center. */
+  --animate-drawer-in: drawer-in 220ms var(--ease-out-slow) forwards;
+  --animate-drawer-out: drawer-out 180ms ease-in forwards;
+
+  /* Shared "settle into place" motion — Reveal.tsx, product image hover-zoom,
+     gallery crossfade. One easing curve used everywhere so every piece of
+     scroll/hover motion in the app reads as the same material: a fast start
+     that decelerates gently into rest, never a bounce or overshoot (French
+     atelier / Scandinavian-restraint brief, not a SaaS-demo bounce). */
+  --ease-out-slow: cubic-bezier(0, 0, 0.3, 1);
+
+  /* Plain fade-in-on-mount (product-gallery.tsx's image crossfade,
+     product-images-form.tsx's newly-uploaded card) — a @keyframes animation
+     rather than a transition because it needs to play its full timeline on
+     every mount (a fresh `key`), the same reasoning as the dialog animations
+     above. */
+  --animate-fade-in: fade-in 400ms var(--ease-out-slow) forwards;
 }
 
 /* No translate(-50%, -50%) in these keyframes: Dialog.tsx's own
@@ -118,9 +139,33 @@
     opacity: 0;
   }
 }
+@keyframes fade-in {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+@keyframes drawer-in {
+  from {
+    transform: translateX(100%);
+  }
+  to {
+    transform: translateX(0);
+  }
+}
+@keyframes drawer-out {
+  from {
+    transform: translateX(0);
+  }
+  to {
+    transform: translateX(100%);
+  }
+}
 
-/* Every animation above is purely presentational (opacity/scale), never
-   information-bearing, so reduced motion collapses them to an instant
+/* Every animation above is purely presentational (opacity/scale/position),
+   never information-bearing, so reduced motion collapses them to an instant
    opacity swap rather than removing the animation property entirely —
    Radix's Presence still needs an `animationend` event to fire before it
    unmounts a closing dialog. */
@@ -128,7 +173,30 @@
   .animate-dialog-in,
   .animate-dialog-out,
   .animate-overlay-in,
-  .animate-overlay-out {
+  .animate-overlay-out,
+  .animate-fade-in,
+  .animate-drawer-in,
+  .animate-drawer-out {
     animation-duration: 0.01ms !important;
   }
+}
+
+/* Scroll-reveal (Reveal.tsx). A `transition`, not a @keyframes animation
+   like the ones above — this has no Radix Presence "removal" phase to hold
+   a final frame for, and a transition lets the component toggle one boolean
+   class from an IntersectionObserver instead of remounting anything.
+   Reduced-motion users never get the observer at all (decided in the
+   component, in JS) — they never see the `.reveal` base state applied long
+   enough to perceive, rather than seeing it and having the animation itself
+   suppressed. */
+.reveal {
+  opacity: 0;
+  transform: translateY(1.25rem);
+  transition:
+    opacity 700ms var(--ease-out-slow),
+    transform 700ms var(--ease-out-slow);
+}
+.reveal--visible {
+  opacity: 1;
+  transform: translateY(0);
 }

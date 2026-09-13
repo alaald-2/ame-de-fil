@@ -77,6 +77,20 @@ describe("ProductsService.list", () => {
     });
   });
 
+  it("applies a case-insensitive name filter when q is provided", async () => {
+    const prisma = makePrismaMock();
+    const service = new ProductsService(prisma);
+
+    await service.list({ locale: "sv-SE", q: "tröja", page: 1, pageSize: 20 });
+
+    const call = vi.mocked(prisma.product.findMany).mock.calls[0]?.[0] as {
+      where: Record<string, unknown>;
+    };
+    expect(call.where).toMatchObject({
+      translations: { some: { name: { contains: "tröja", mode: "insensitive" } } },
+    });
+  });
+
   it("paginates using skip/take derived from page and pageSize", async () => {
     const prisma = makePrismaMock();
     const service = new ProductsService(prisma);

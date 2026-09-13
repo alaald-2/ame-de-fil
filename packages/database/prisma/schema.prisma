@@ -1183,3 +1183,63 @@ model StoreSettings {
 
   updatedAt DateTime @updatedAt
 }
+
+// ─────────────────────────────────────────────────────────────────────────
+// Homepage hero — admin-managed slider images, no product coupling
+// ─────────────────────────────────────────────────────────────────────────
+
+// One row per slide. Deliberately its own flat model, not something bolted
+// onto Product/Collection — a hero slide is marketing content about the
+// storefront itself (it may promote a collection, or nothing at all), not
+// a property of any single catalog entity. `isActive` lets an admin queue
+// up a slide (or pull one for a sale that's ended) without losing its
+// position in the ordering — same reasoning as ProductVariant.isActive.
+// CTA is optional per slide (bare imagery is a valid slide) and, like
+// ProductImage's altTextSv/altTextEn, a flat bilingual pair rather than a
+// separate translation table — there's no per-locale slug/SEO surface here
+// that would justify one.
+model HeroSlide {
+  id                 String   @id @default(cuid())
+  imageUrl           String
+  // Nullable for the same migration-safety reason as ProductImage's own —
+  // every row created through the admin upload endpoint always sets it.
+  cloudinaryPublicId String?
+  position           Int      @default(0)
+  isActive           Boolean  @default(true)
+  ctaLabelSv         String?
+  ctaLabelEn         String?
+  // A path or absolute URL, stored and rendered exactly as entered — no
+  // locale-prefixing magic applied to it (an admin enters the already-
+  // correct locale-specific path, e.g. "/en/shop" or "/produkter", the same
+  // way any other freeform link elsewhere in this codebase is entered).
+  ctaHref            String?
+  createdAt          DateTime @default(now())
+  updatedAt          DateTime @updatedAt
+
+  @@index([isActive])
+}
+
+// A small, fixed set of named image slots for the homepage's own
+// alternating-section content (the "Our craft" / "Made to order" sections,
+// page.tsx on the storefront) — not a list an admin adds to or reorders
+// like HeroSlide, exactly two rows that already exist by name in the
+// storefront's own layout. Copy/CTA for these sections stays UI content
+// (next-intl, Home.storyTitle etc.) since only the *images* were asked to
+// be admin-manageable here; adding a third section means adding a third
+// enum value and a third place in page.tsx, not a schema change to make
+// this a list.
+enum HomepageSectionKey {
+  STORY
+  MADE_TO_ORDER
+}
+
+// Rows are created lazily (upserted) on first image upload, not pre-seeded
+// — admin-homepage-sections.service.ts's list always returns both known
+// keys regardless of whether a row exists yet, the same
+// "upsert-on-first-read, never a 404" posture as StoreSettings' own comment.
+model HomepageSection {
+  key                HomepageSectionKey @id
+  imageUrl           String?
+  cloudinaryPublicId String?
+  updatedAt          DateTime           @updatedAt
+}

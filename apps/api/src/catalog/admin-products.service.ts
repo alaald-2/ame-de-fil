@@ -5,7 +5,7 @@ import { PrismaService } from "../database/prisma.service.ts";
 import { toPrismaLocale } from "../common/locale.ts";
 import { AuditService } from "../audit/audit.service.ts";
 import { isUniqueConstraintViolation } from "../checkout/prisma-errors.ts";
-import { IMAGE_STORAGE_PROVIDER, type ImageStorageProvider } from "./images/image-storage.provider.ts";
+import { IMAGE_STORAGE_PROVIDER, type ImageStorageProvider } from "../images/image-storage.provider.ts";
 import { resolveTranslation } from "./mappers/translation.mapper.ts";
 import { collectVariantIds } from "./mappers/product.mapper.ts";
 import { resolveActivePromotionsForVariants } from "../promotions/effective-price.ts";
@@ -207,7 +207,7 @@ export class AdminProductsService {
       });
     }
 
-    const uploaded = await this.imageStorage.upload(file.buffer, { productId });
+    const uploaded = await this.imageStorage.upload(file.buffer, { folder: `products/${productId}` });
 
     const { _max } = await this.prisma.productImage.aggregate({
       where: { productId },
