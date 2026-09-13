@@ -242,11 +242,15 @@ export function CreateProductForm({ categories, collections, taxClasses }: Creat
     setVariants((current) => current.map((v) => (v.clientId === clientId ? { ...v, [field]: value } : v)));
   }
 
-  function updateVariantOptionSelection(variantClientId: string, optionKey: string, valueSlug: string) {
+  // Keyed by the option's stable clientId, not its freely-editable key text —
+  // otherwise renaming an option's key after a variant already selected one
+  // of its values would silently orphan that selection under the old key
+  // string (see handleSubmit, which resolves clientId -> current key).
+  function updateVariantOptionSelection(variantClientId: string, optionClientId: string, valueSlug: string) {
     setVariants((current) =>
       current.map((v) =>
         v.clientId === variantClientId
-          ? { ...v, selectedOptionValues: { ...v.selectedOptionValues, [optionKey]: valueSlug } }
+          ? { ...v, selectedOptionValues: { ...v.selectedOptionValues, [optionClientId]: valueSlug } }
           : v,
       ),
     );
@@ -407,17 +411,28 @@ export function CreateProductForm({ categories, collections, taxClasses }: Creat
             .filter((v) => v.value.trim())
             .map((v) => ({ value: v.value, labelSv: v.labelSv, labelEn: v.labelEn })),
         })),
-      variants: variants.map((v) => ({
-        sku: v.sku.trim() || undefined,
-        priceMinor: Math.round(Number.parseFloat(v.priceMinor || "0") * 100),
-        taxClassCode: v.taxClassCode,
-        weightGrams: v.weightGrams ? Number.parseInt(v.weightGrams, 10) : undefined,
-        selectedOptionValues: v.selectedOptionValues,
-        initialStock: Number.parseInt(v.initialStock || "0", 10),
-        tracksStock: v.tracksStock,
-        isLimitedEdition: v.isLimitedEdition,
-        productionTimeDays: v.productionTimeDays ? Number.parseInt(v.productionTimeDays, 10) : undefined,
-      })),
+      variants: variants.map((v) => {
+        // Resolve each option's stable clientId to its current key text here,
+        // at submit time — this is also where a selection referencing an
+        // option the admin has since removed gets dropped (see removeOption).
+        const selectedOptionValues: Record<string, string> = {};
+        for (const option of options) {
+          const key = option.key.trim();
+          const valueSlug = v.selectedOptionValues[option.clientId];
+          if (key && valueSlug) selectedOptionValues[key] = valueSlug;
+        }
+        return {
+          sku: v.sku.trim() || undefined,
+          priceMinor: Math.round(Number.parseFloat(v.priceMinor || "0") * 100),
+          taxClassCode: v.taxClassCode,
+          weightGrams: v.weightGrams ? Number.parseInt(v.weightGrams, 10) : undefined,
+          selectedOptionValues,
+          initialStock: Number.parseInt(v.initialStock || "0", 10),
+          tracksStock: v.tracksStock,
+          isLimitedEdition: v.isLimitedEdition,
+          productionTimeDays: v.productionTimeDays ? Number.parseInt(v.productionTimeDays, 10) : undefined,
+        };
+      }),
       categoryIds,
       collectionIds,
     };
@@ -743,9 +758,9 @@ export function CreateProductForm({ categories, collections, taxClasses }: Creat
                           {option.key}
                         </Text>
                         <select
-                          value={variant.selectedOptionValues[option.key] ?? ""}
+                          value={variant.selectedOptionValues[option.clientId] ?? ""}
                           onChange={(e) =>
-                            updateVariantOptionSelection(variant.clientId, option.key, e.target.value)
+                            updateVariantOptionSelection(variant.clientId, option.clientId, e.target.value)
                           }
                           className="rounded-sm border border-neutral-300 bg-neutral-50 px-3 py-2 font-sans text-sm text-neutral-900 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent-500"
                         >
