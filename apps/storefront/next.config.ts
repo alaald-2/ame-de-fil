@@ -18,9 +18,16 @@ const API_URL = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:3000";
 // middleware plumbing that's a separate, larger piece of work than this
 // checkpoint's scope (SECURITY.md §8 flags CSP as needing care, not as
 // requiring the nonce approach specifically).
+//
+// 'unsafe-eval' is added to script-src in development only: Next/React's
+// dev-mode tooling (Turbopack HMR, component-stack reconstruction) calls
+// eval() for debugging, which this CSP was otherwise blocking outright
+// ("eval() is not supported in this environment" in the browser console).
+// React never uses eval() in a production build, so the production policy
+// stays exactly as strict as before.
 const CONTENT_SECURITY_POLICY = [
   "default-src 'self'",
-  "script-src 'self' 'unsafe-inline' https://js.stripe.com",
+  `script-src 'self' 'unsafe-inline' ${process.env.NODE_ENV === "development" ? "'unsafe-eval' " : ""}https://js.stripe.com`,
   "frame-src https://js.stripe.com https://hooks.stripe.com",
   `connect-src 'self' https://api.stripe.com ${API_URL}`,
   "style-src 'self' 'unsafe-inline'",

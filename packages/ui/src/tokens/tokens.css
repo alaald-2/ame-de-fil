@@ -73,12 +73,15 @@
   --animate-overlay-in: overlay-in 150ms ease-out forwards;
   --animate-overlay-out: overlay-out 120ms ease-in forwards;
 
-  /* Mobile nav drawer (mobile-nav-drawer.tsx) — same Radix `data-state`
-     keyframe-not-transition reasoning as the dialog animations above (no
-     "before" frame to transition from on first mount), just sliding from
-     the edge instead of scaling from center. */
-  --animate-drawer-in: drawer-in 220ms var(--ease-out-slow) forwards;
-  --animate-drawer-out: drawer-out 180ms ease-in forwards;
+  /* Mobile nav drawer (site-nav.tsx's MobileNav, via Dialog.tsx's
+     DrawerContent) — same Radix `data-state` keyframe-not-transition
+     reasoning as the dialog animations above (no "before" frame to
+     transition from on first mount), sliding in from the left edge rather
+     than scaling from center. Slower than the small dialog's 150ms: a
+     full-viewport panel reads as smooth/elegant at this size, not sluggish,
+     where the same duration on a small card would feel sluggish. */
+  --animate-drawer-in: drawer-in 320ms var(--ease-out-slow) forwards;
+  --animate-drawer-out: drawer-out 260ms ease-in forwards;
 
   /* Shared "settle into place" motion — Reveal.tsx, product image hover-zoom,
      gallery crossfade. One easing curve used everywhere so every piece of
@@ -149,7 +152,7 @@
 }
 @keyframes drawer-in {
   from {
-    transform: translateX(100%);
+    transform: translateX(-100%);
   }
   to {
     transform: translateX(0);
@@ -160,7 +163,7 @@
     transform: translateX(0);
   }
   to {
-    transform: translateX(100%);
+    transform: translateX(-100%);
   }
 }
 

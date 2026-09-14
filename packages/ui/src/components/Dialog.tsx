@@ -8,6 +8,7 @@ import { VisuallyHidden } from "./VisuallyHidden";
 
 export const Dialog = RadixDialog.Root;
 export const DialogTrigger = RadixDialog.Trigger;
+export const DialogClose = RadixDialog.Close;
 
 interface DialogContentProps extends ComponentPropsWithoutRef<typeof RadixDialog.Content> {
   title: string;
@@ -68,29 +69,38 @@ export function DialogContent({
   );
 }
 
-// A full-height panel sliding in from the right (animate-drawer-in/out,
-// tokens.css) instead of DialogContent's centered card — a nav list reads
-// as a drawer, not a form-sized modal. Built as its own variant here
-// (same Root/Trigger, same Radix Title/Close accessibility requirements)
-// rather than exposed as a `position` prop on DialogContent: the two share
-// no layout classes at all (fixed corner vs. centered, full-height vs.
-// max-h-[85vh]), so branching one component on a prop would just be an
-// if/else in disguise. Title is always visually hidden — a drawer's own
-// content (e.g. a nav list) is the visible heading equivalent, and every
-// caller so far only needs the accessible name Radix requires.
-export function DrawerContent({
-  title,
-  closeLabel,
-  className,
-  children,
-  ...props
-}: DialogContentProps) {
+interface DrawerContentProps extends ComponentPropsWithoutRef<typeof RadixDialog.Content> {
+  title: string;
+}
+
+// A full-viewport panel sliding in from the left (animate-drawer-in/out,
+// tokens.css) instead of DialogContent's centered card — the storefront's
+// mobile nav (site-nav.tsx's MobileNav, its only caller) wants a
+// menu-dominates-the-screen editorial feel, not a narrow form-sized modal
+// or an inset sidebar. Built as its own variant here rather than exposed as
+// a `position` prop on DialogContent: the two share no layout classes at
+// all (fixed corner vs. centered, full-viewport vs. max-h-[85vh]), so
+// branching one component on a prop would just be an if/else in disguise.
+//
+// No built-in close button (unlike DialogContent) — the mobile nav's own
+// header row interleaves the close icon with its logo and search/cart
+// icons in a specific order DrawerContent has no reason to know about, so
+// the caller composes its own header using `DialogClose` and puts it in
+// `children` instead. Title is always visually hidden — a drawer's own
+// content (e.g. a nav list) is the visible heading equivalent, and the
+// caller only needs the accessible name Radix requires.
+//
+// bg-neutral-50/95 + backdrop-blur-sm (rather than a fully opaque panel):
+// the page behind should stay faintly perceptible through the panel itself
+// per the design brief, since the panel covers the entire viewport and
+// leaves the dimmed RadixDialog.Overlay almost nothing to show on its own.
+export function DrawerContent({ title, className, children, ...props }: DrawerContentProps) {
   return (
     <RadixDialog.Portal>
-      <RadixDialog.Overlay className="fixed inset-0 z-40 bg-neutral-900/40 data-[state=closed]:animate-overlay-out data-[state=open]:animate-overlay-in" />
+      <RadixDialog.Overlay className="fixed inset-0 z-40 bg-neutral-900/15 data-[state=closed]:animate-overlay-out data-[state=open]:animate-overlay-in" />
       <RadixDialog.Content
         className={cn(
-          "fixed top-0 right-0 z-50 flex h-full w-[min(85vw,22rem)] flex-col overflow-y-auto border-l border-neutral-200 bg-neutral-50 p-6 focus:outline-none data-[state=closed]:animate-drawer-out data-[state=open]:animate-drawer-in",
+          "fixed inset-0 z-50 flex h-dvh w-screen flex-col overflow-y-auto bg-neutral-50/95 backdrop-blur-sm focus:outline-none data-[state=closed]:animate-drawer-out data-[state=open]:animate-drawer-in",
           className,
         )}
         {...props}
@@ -98,10 +108,6 @@ export function DrawerContent({
         <VisuallyHidden asChild>
           <RadixDialog.Title>{title}</RadixDialog.Title>
         </VisuallyHidden>
-        <RadixDialog.Close className="mb-6 ml-auto rounded-sm p-1 text-neutral-500 transition-colors hover:text-neutral-900 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent-500">
-          <Cross2Icon aria-hidden="true" className="h-5 w-5" />
-          <VisuallyHidden>{closeLabel}</VisuallyHidden>
-        </RadixDialog.Close>
         {children}
       </RadixDialog.Content>
     </RadixDialog.Portal>

@@ -28,7 +28,7 @@ export async function Header() {
     <header className="sticky top-0 z-20 border-b border-neutral-200 bg-neutral-50">
       <AnnouncementBar />
       <Container>
-        <div className="grid grid-cols-[1fr_auto_1fr] items-center gap-4 py-5">
+        <div className="grid grid-cols-[1fr_auto_1fr] items-center gap-6 py-6 lg:py-7">
           <div className="flex items-center">
             <div className="hidden lg:block">
               <HeaderSearch />
@@ -38,19 +38,19 @@ export async function Header() {
             </div>
           </div>
           <Link href="/" className="justify-self-center hover:no-underline">
-            <Logo height={30} />
+            <Logo height={38} />
           </Link>
-          <div className="flex items-center justify-end gap-3 sm:gap-4">
+          <div className="flex items-center justify-end gap-4 sm:gap-6">
             <div className="lg:hidden">
               <HeaderSearch align="right" />
             </div>
-            <span className="hidden font-sans text-xs tracking-wide text-neutral-500 lg:inline">
+            <span className="hidden font-sans text-xs tracking-[0.08em] text-neutral-500 uppercase lg:inline">
               {t("market")}
             </span>
             <LocaleSwitcher />
             <Link
               href="/account"
-              className="rounded-sm p-1 text-neutral-700 transition-colors hover:text-neutral-900 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent-500"
+              className="rounded-sm p-1.5 text-neutral-700 transition-colors duration-200 ease-out-slow hover:text-neutral-900 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent-500"
             >
               <PersonIcon aria-hidden="true" className="h-5 w-5" />
               <VisuallyHidden>{tNav("account")}</VisuallyHidden>
@@ -61,7 +61,7 @@ export async function Header() {
       </Container>
       <div className="hidden border-t border-neutral-200 lg:block">
         <Container>
-          <div className="py-3">
+          <div className="py-4">
             <DesktopNav />
           </div>
         </Container>
