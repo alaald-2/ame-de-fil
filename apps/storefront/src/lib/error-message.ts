@@ -14,3 +14,14 @@ export function getErrorMessage(error: unknown, fallback: string): string {
   }
   return fallback;
 }
+
+// The machine-readable `error` code (e.g. "EmailNotVerified") alongside the
+// human message above — for the one caller (checkout-form.tsx) that needs
+// to branch UI on which specific error occurred, not just display text.
+export function getErrorCode(error: unknown): string | undefined {
+  if (error && typeof error === "object" && "error" in error) {
+    const { error: code } = error as { error: unknown };
+    if (typeof code === "string") return code;
+  }
+  return undefined;
+}

@@ -5,12 +5,13 @@ import { useTranslations } from "next-intl";
 import { Heading, Text, Button, Input, FormField, Alert, Spinner } from "@ame-de-fil/ui";
 import type { ShippingMethod, CheckoutResponse, InitiateCheckoutRequest } from "@ame-de-fil/types";
 import { api } from "../lib/api-client";
-import { getErrorMessage } from "../lib/error-message";
+import { getErrorMessage, getErrorCode } from "../lib/error-message";
 import { readCsrfCookie } from "../lib/csrf";
 import { formatMoney } from "../lib/format-money";
 import { saveCheckoutOrder } from "../lib/checkout-order-storage";
 import type { AppLocale } from "../lib/locale";
 import { useCart } from "./cart-provider";
+import { ResendVerificationButton } from "./resend-verification-button";
 
 interface CheckoutFormProps {
   locale: AppLocale;
@@ -42,18 +43,18 @@ function initialFormState(shippingMethods: ShippingMethod[]): FormState {
   };
 }
 
-// No login/registration flow reaches the storefront yet (identity's own
-// checkpoint notes: "no login/password-reset HTTP endpoints yet") — every
-// checkout exercised through this form is necessarily a guest checkout.
-// The API's authenticated-checkout path exists and is covered by
-// checkout.service.spec.ts/checkout.controller.spec.ts; this form simply
-// has no session to drive it with yet.
+// Both guest and authenticated checkout are supported (apps/api's
+// @OptionalAuth() checkout endpoint). An authenticated-but-unverified
+// customer gets a distinct 403 EmailNotVerified (apps/api's
+// EmailVerifiedGuard) — surfaced below via isEmailNotVerified, alongside a
+// resend-verification action, rather than the generic error message.
 export function CheckoutForm({ locale, shippingMethods, onSuccess }: CheckoutFormProps) {
   const t = useTranslations("Checkout");
   const { cart } = useCart();
   const [form, setForm] = useState<FormState>(() => initialFormState(shippingMethods));
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const [isEmailNotVerified, setIsEmailNotVerified] = useState(false);
   // One idempotency key per checkout attempt on this page — reused across
   // retries of the *same* submission (e.g. a network hiccup), not
   // regenerated per click, so a retry is recognized as the same request.
@@ -73,6 +74,7 @@ export function CheckoutForm({ locale, shippingMethods, onSuccess }: CheckoutFor
   async function handleSubmit(event: FormEvent) {
     event.preventDefault();
     setErrorMessage(null);
+    setIsEmailNotVerified(false);
     setIsSubmitting(true);
 
     const body: InitiateCheckoutRequest = {
@@ -101,7 +103,11 @@ export function CheckoutForm({ locale, shippingMethods, onSuccess }: CheckoutFor
     setIsSubmitting(false);
 
     if (error) {
-      setErrorMessage(getErrorMessage(error, "Checkout failed"));
+      if (getErrorCode(error) === "EmailNotVerified") {
+        setIsEmailNotVerified(true);
+      } else {
+        setErrorMessage(getErrorMessage(error, "Checkout failed"));
+      }
       return;
     }
 
@@ -237,6 +243,14 @@ export function CheckoutForm({ locale, shippingMethods, onSuccess }: CheckoutFor
         </div>
 
         {errorMessage ? <Alert tone="danger">{errorMessage}</Alert> : null}
+        {isEmailNotVerified ? (
+          <Alert tone="danger">
+            <Text size="sm">{t("emailNotVerified")}</Text>
+            <div className="mt-3">
+              <ResendVerificationButton />
+            </div>
+          </Alert>
+        ) : null}
 
         <Button type="submit" disabled={isSubmitting || shippingMethods.length === 0}>
           {isSubmitting ? (

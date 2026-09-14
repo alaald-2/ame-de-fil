@@ -24,4 +24,14 @@ describe("PasswordService", () => {
     const [a, b] = await Promise.all([service.hash("same input"), service.hash("same input")]);
     expect(a).not.toBe(b);
   });
+
+  // Pinned explicitly in password.service.ts rather than left to the
+  // `argon2` package's library defaults — this proves the parameters are
+  // actually embedded in every hash, not just declared in a constant no one
+  // reads. Argon2's encoded hash format is
+  // `$argon2id$v=19$m=<memoryCostKiB>,t=<timeCost>,p=<parallelism>$...`.
+  it("embeds the pinned argon2id parameters (m=65536, t=3, p=4) in every hash", async () => {
+    const hash = await service.hash("correct horse battery staple");
+    expect(hash).toMatch(/^\$argon2id\$v=\d+\$m=65536,p=4,t=3\$/);
+  });
 });

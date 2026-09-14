@@ -88,7 +88,7 @@ describe("AdminOrdersService — real Postgres", () => {
     // affect any assertion below about order/shipment state.
     service = new AdminOrdersService(
       db.prisma,
-      new NotificationsService(db.prisma, new PendingEmailProvider()),
+      new NotificationsService(db.prisma, new PendingEmailProvider(), makeTestConfig()),
       new AuditService(db.prisma),
       paymentProvider,
       makeTestConfig(),

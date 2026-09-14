@@ -9,6 +9,7 @@ import { CheckoutController } from "./checkout.controller.ts";
 import { CheckoutService } from "./checkout.service.ts";
 import { SessionAuthGuard } from "../common/guards/session-auth.guard.ts";
 import { PermissionsGuard } from "../common/guards/permissions.guard.ts";
+import { EmailVerifiedGuard } from "../common/guards/email-verified.guard.ts";
 import { CsrfGuard } from "../common/csrf/csrf.guard.ts";
 import { RateLimitGuard } from "../common/rate-limit/rate-limit.guard.ts";
 import { RATE_LIMIT_STORE } from "../common/rate-limit/rate-limit-store.ts";
@@ -46,6 +47,7 @@ async function bootApp(validateSession: (token: string) => Promise<AuthContext |
       { provide: ConfigService, useValue: { get: (key: string) => CONFIG_VALUES[key] } },
       { provide: APP_GUARD, useClass: SessionAuthGuard },
       { provide: APP_GUARD, useClass: PermissionsGuard },
+      { provide: APP_GUARD, useClass: EmailVerifiedGuard },
       { provide: APP_GUARD, useClass: CsrfGuard },
       { provide: APP_GUARD, useClass: RateLimitGuard },
       { provide: RATE_LIMIT_STORE, useClass: InMemoryRateLimitStore },
@@ -59,7 +61,14 @@ async function bootApp(validateSession: (token: string) => Promise<AuthContext |
   return { app, initiate };
 }
 
-const AUTH: AuthContext = { userId: "user-1", sessionId: "s1", csrfToken: "csrf", permissions: [] };
+const AUTH: AuthContext = {
+  userId: "user-1",
+  sessionId: "s1",
+  csrfToken: "csrf",
+  permissions: [],
+  emailVerifiedAt: new Date("2026-01-01T00:00:00Z"),
+};
+const UNVERIFIED_AUTH: AuthContext = { ...AUTH, emailVerifiedAt: null };
 
 describe("POST /checkout", () => {
   let app: INestApplication | undefined;
@@ -147,6 +156,22 @@ describe("POST /checkout", () => {
       "key-1",
       expect.anything(),
     );
+  });
+
+  it("returns 403 EmailNotVerified for an authenticated caller who hasn't verified their email", async () => {
+    const booted = await bootApp(async () => UNVERIFIED_AUTH);
+    app = booted.app;
+
+    const response = await supertest(app.getHttpServer())
+      .post("/checkout")
+      .set("Cookie", "ame_session=token")
+      .set("Idempotency-Key", "key-1")
+      .set("x-csrf-token", "csrf")
+      .send(VALID_BODY);
+
+    expect(response.status).toBe(403);
+    expect(response.body.error).toBe("EmailNotVerified");
+    expect(booted.initiate).not.toHaveBeenCalled();
   });
 
   it("still returns 401 when the session cookie is present but invalid", async () => {

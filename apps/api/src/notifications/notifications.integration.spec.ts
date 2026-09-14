@@ -9,11 +9,17 @@
 // "a real mail server received the message" leg is out of reach here.
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { randomUUID } from "node:crypto";
+import type { ConfigService } from "@nestjs/config";
+import type { Env } from "@ame-de-fil/config";
 import { Currency, Locale, NotificationStatus, OrderStatus, ShipmentStatus } from "@ame-de-fil/database";
 import { NotificationsService } from "./notifications.service.ts";
 import { PendingEmailProvider } from "./email-provider.ts";
 import { startTestDatabase, stopTestDatabase, type TestDatabase } from "../test/testcontainers-postgres.ts";
 import { seedShopFixture, type ShopFixture } from "../test/fixtures.ts";
+
+function fakeConfig(): ConfigService<Env, true> {
+  return { get: () => "https://shop.example.com" } as unknown as ConfigService<Env, true>;
+}
 
 describe("NotificationsService — real Postgres", () => {
   let db: TestDatabase;
@@ -23,7 +29,7 @@ describe("NotificationsService — real Postgres", () => {
   beforeAll(async () => {
     db = await startTestDatabase();
     shop = await seedShopFixture(db.prisma);
-    service = new NotificationsService(db.prisma, new PendingEmailProvider());
+    service = new NotificationsService(db.prisma, new PendingEmailProvider(), fakeConfig());
   }, 120_000);
 
   afterAll(async () => {

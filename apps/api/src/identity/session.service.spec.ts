@@ -119,7 +119,37 @@ describe("SessionService", () => {
       sessionId: "tok",
       csrfToken: "csrf-value",
       permissions: ["orders.view", "orders.refund"],
+      emailVerifiedAt: undefined,
     });
+  });
+
+  it("carries the real user.emailVerifiedAt through onto the returned AuthContext", async () => {
+    const verifiedAt = new Date("2026-01-01T00:00:00.000Z");
+    vi.mocked(prisma.session.findUnique).mockResolvedValue({
+      id: "tok",
+      userId: "user-1",
+      csrfToken: "csrf",
+      revokedAt: null,
+      expiresAt: new Date(Date.now() + 10_000),
+      user: { status: UserStatus.ACTIVE, roles: [], emailVerifiedAt: verifiedAt },
+    } as never);
+
+    const auth = await service.validateSession("tok");
+    expect(auth?.emailVerifiedAt).toEqual(verifiedAt);
+  });
+
+  it("carries a null user.emailVerifiedAt through as null (not yet verified)", async () => {
+    vi.mocked(prisma.session.findUnique).mockResolvedValue({
+      id: "tok",
+      userId: "user-1",
+      csrfToken: "csrf",
+      revokedAt: null,
+      expiresAt: new Date(Date.now() + 10_000),
+      user: { status: UserStatus.ACTIVE, roles: [], emailVerifiedAt: null },
+    } as never);
+
+    const auth = await service.validateSession("tok");
+    expect(auth?.emailVerifiedAt).toBeNull();
   });
 
   it("revokes a session by setting revokedAt via updateMany, scoped to not-already-revoked", async () => {

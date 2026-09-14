@@ -11,8 +11,16 @@ export const safeUserSchema = z.object({
   lastName: z.string().nullable(),
   locale: z.enum(["sv-SE", "en"]),
   permissions: z.array(z.string()),
+  emailVerifiedAt: z.iso.datetime().nullable(),
 });
 export type SafeUser = z.infer<typeof safeUserSchema>;
+
+// Shared by register/resend-verification/forgot-password/reset-password/
+// verify-email — every one of these deliberately returns the exact same
+// generic shape regardless of outcome (SECURITY.md §1: never reveal account
+// existence via response shape).
+export const messageResponseSchema = z.object({ message: z.string() });
+export type MessageResponse = z.infer<typeof messageResponseSchema>;
 
 // csrfToken is deliberately returned here too, not only set as a cookie
 // (see auth.controller.ts) — a caller making server-side requests (SSR)
@@ -30,3 +38,11 @@ export const sessionResponseSchema = z.discriminatedUnion("authenticated", [
   z.object({ authenticated: z.literal(false) }),
 ]);
 export type SessionResponse = z.infer<typeof sessionResponseSchema>;
+
+// Pure UI-branching hint for the storefront's email-first login screen — no
+// side effects, nothing sent. "otp" covers both Google-only and unknown
+// emails alike (DECISIONS.md ADR-036): the two are never distinguished here,
+// only "has a password" vs. "does not" is ever revealed, the one accepted,
+// bounded enumeration signal this flow trades for a progressive-disclosure UX.
+export const loginMethodResponseSchema = z.object({ method: z.enum(["password", "otp"]) });
+export type LoginMethodResponse = z.infer<typeof loginMethodResponseSchema>;

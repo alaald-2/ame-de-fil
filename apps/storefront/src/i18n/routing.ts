@@ -17,6 +17,10 @@ export const routing = defineRouting({
     "/checkout": { "sv-SE": "/kassa", en: "/checkout" },
     "/login": { "sv-SE": "/logga-in", en: "/login" },
     "/account": { "sv-SE": "/mitt-konto", en: "/account" },
+    "/create-account": { "sv-SE": "/skapa-konto", en: "/create-account" },
+    "/verify-email": { "sv-SE": "/verifiera-e-post", en: "/verify-email" },
+    "/forgot-password": { "sv-SE": "/glomt-losenord", en: "/forgot-password" },
+    "/reset-password": { "sv-SE": "/aterstall-losenord", en: "/reset-password" },
     // Placeholder footer/nav links — no page exists behind these yet
     // (content module is a later phase); declared here only so next-intl's
     // typed Link doesn't reject them, identical path in both locales for now.

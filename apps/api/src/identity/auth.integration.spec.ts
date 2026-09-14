@@ -11,11 +11,17 @@ import type { Env } from "@ame-de-fil/config";
 import { AuthService } from "./auth.service.ts";
 import { SessionService } from "./session.service.ts";
 import { PasswordService } from "./password.service.ts";
+import { NotificationsService } from "../notifications/notifications.service.ts";
+import { PendingEmailProvider } from "../notifications/email-provider.ts";
 import { startTestDatabase, stopTestDatabase, type TestDatabase } from "../test/testcontainers-postgres.ts";
 import { seedUserWithPermissions } from "../test/fixtures.ts";
 
 function fakeConfig(ttlHours = 168): ConfigService<Env, true> {
   return { get: () => ttlHours } as unknown as ConfigService<Env, true>;
+}
+
+function fakeNotifications(db: TestDatabase): NotificationsService {
+  return new NotificationsService(db.prisma, new PendingEmailProvider(), fakeConfig());
 }
 
 describe("AuthService — real Postgres", () => {
@@ -26,7 +32,7 @@ describe("AuthService — real Postgres", () => {
   beforeAll(async () => {
     db = await startTestDatabase();
     sessions = new SessionService(db.prisma, fakeConfig());
-    auth = new AuthService(db.prisma, new PasswordService(), sessions);
+    auth = new AuthService(db.prisma, new PasswordService(), sessions, fakeNotifications(db), fakeConfig());
   }, 120_000);
 
   afterAll(async () => {
@@ -105,11 +111,13 @@ describe("AuthService — real Postgres", () => {
 // can prove actually exists as migrated.
 describe("AuthService.loginWithGoogle — real Postgres", () => {
   let db: TestDatabase;
+  let sessions: SessionService;
   let auth: AuthService;
 
   beforeAll(async () => {
     db = await startTestDatabase();
-    auth = new AuthService(db.prisma, new PasswordService(), new SessionService(db.prisma, fakeConfig()));
+    sessions = new SessionService(db.prisma, fakeConfig());
+    auth = new AuthService(db.prisma, new PasswordService(), sessions, fakeNotifications(db), fakeConfig());
   }, 120_000);
 
   afterAll(async () => {
@@ -156,8 +164,10 @@ describe("AuthService.loginWithGoogle — real Postgres", () => {
     expect(accountCount).toBe(1);
   });
 
-  it("links to a real pre-existing password-based User matched by email, not a new row", async () => {
-    const fixture = await seedUserWithPermissions(db.prisma, ["orders.fulfill"]);
+  it("links to a real pre-existing, already-verified password-based User matched by email, keeping the password", async () => {
+    const fixture = await seedUserWithPermissions(db.prisma, ["orders.fulfill"], {
+      emailVerifiedAt: new Date(),
+    });
     const profile = googleProfile({ email: fixture.email });
 
     const result = await auth.loginWithGoogle(profile, {});
@@ -165,7 +175,36 @@ describe("AuthService.loginWithGoogle — real Postgres", () => {
     expect(result.user.id).toBe(fixture.userId);
     expect(result.user.permissions).toEqual(["orders.fulfill"]);
     const user = await db.prisma.user.findUniqueOrThrow({ where: { id: fixture.userId } });
-    expect(user.passwordHash).not.toBeNull(); // the original password login path still works too
+    // Ownership of this email was already proven (verified) before Google
+    // ever entered the picture — linking a second login method must not
+    // touch the first one.
+    expect(user.passwordHash).not.toBeNull();
+
+    const userCount = await db.prisma.user.count({ where: { email: fixture.email } });
+    expect(userCount).toBe(1); // linked, not duplicated
+  });
+
+  // The account-takeover fix this PR introduces: self-service password
+  // registration means anyone can register someone else's email address
+  // with a password they control. If Google later proves the real owner's
+  // ownership of that same, still-unverified address, Google's claim must
+  // win outright — the squatter's password stops working immediately.
+  it("nulls the password and revokes sessions of a real pre-existing UNVERIFIED User matched by email", async () => {
+    const fixture = await seedUserWithPermissions(db.prisma, ["orders.fulfill"]);
+    const squatterSession = await sessions.createSession({ userId: fixture.userId });
+    const profile = googleProfile({ email: fixture.email });
+
+    const result = await auth.loginWithGoogle(profile, {});
+
+    expect(result.user.id).toBe(fixture.userId);
+    const user = await db.prisma.user.findUniqueOrThrow({ where: { id: fixture.userId } });
+    expect(user.passwordHash).toBeNull();
+    expect(user.emailVerifiedAt).not.toBeNull();
+
+    const revokedSession = await db.prisma.session.findUniqueOrThrow({
+      where: { id: squatterSession.token },
+    });
+    expect(revokedSession.revokedAt).not.toBeNull();
 
     const userCount = await db.prisma.user.count({ where: { email: fixture.email } });
     expect(userCount).toBe(1); // linked, not duplicated

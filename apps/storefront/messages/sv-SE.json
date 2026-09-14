@@ -149,7 +149,8 @@
     "stockLostBody": "Din betalning gick igenom, men en eller flera varor blev slutsålda innan vi hann reservera dem. Vårt team kontaktar dig inom kort för återbetalning eller ersättning.",
     "orderCanceledTitle": "Betalningen gick inte igenom",
     "orderCanceledBody": "Din beställning avbröts och dina varor släpptes. Du kan försöka gå till kassan igen.",
-    "retryCheckout": "Försök igen"
+    "retryCheckout": "Försök igen",
+    "emailNotVerified": "Verifiera din e-postadress innan du går till kassan."
   },
   "Login": {
     "title": "Logga in",
@@ -161,9 +162,74 @@
     "submit": "Logga in",
     "signingIn": "Loggar in…",
     "invalidCredentials": "Fel e-postadress eller lösenord.",
+    "genericError": "Något gick fel. Försök igen.",
+    "createAccountPrompt": "Ny här?",
+    "createAccountLink": "Skapa ett konto",
+    "forgotPasswordLink": "Har du glömt ditt lösenord?",
+    "continueButton": "Fortsätt",
+    "continuing": "Fortsätter…",
+    "changeEmail": "Ändra",
+    "useOtpInstead": "Skicka en kod istället",
+    "otpSentTo": "Skickad till {email}",
+    "otpVerifying": "Verifierar…",
+    "otpResend": "Skicka koden igen",
+    "otpResendIn": "Skicka koden igen om {seconds}s",
+    "otpSending": "Skickar…",
+    "invalidCode": "Koden är felaktig eller har gått ut.",
+    "rateLimited": "För många försök. Försök igen om en minut."
+  },
+  "CreateAccount": {
+    "title": "Skapa ditt konto",
+    "emailLabel": "E-post",
+    "passwordLabel": "Lösenord",
+    "passwordHint": "Minst 10 tecken.",
+    "firstNameLabel": "Förnamn",
+    "lastNameLabel": "Efternamn",
+    "submit": "Skapa konto",
+    "submitting": "Skapar konto…",
+    "successTitle": "Kolla din e-post",
+    "successMessage": "Om den här e-postadressen inte redan är registrerad har vi skickat en länk för att verifiera ditt konto.",
+    "rateLimited": "För många försök. Försök igen om en minut.",
+    "genericError": "Något gick fel. Försök igen.",
+    "backToLogin": "Tillbaka till inloggning"
+  },
+  "VerifyEmail": {
+    "verifying": "Verifierar din e-post…",
+    "successTitle": "E-post verifierad",
+    "successMessage": "Din e-postadress har verifierats.",
+    "goToLogin": "Logga in",
+    "invalidTitle": "Länken är ogiltig eller har gått ut",
+    "invalidMessage": "Den här verifieringslänken är ogiltig eller har gått ut.",
+    "resendPrompt": "Begär en ny från ditt konto efter att du loggat in."
+  },
+  "ForgotPassword": {
+    "title": "Har du glömt ditt lösenord?",
+    "intro": "Ange din e-postadress så skickar vi en länk för att återställa ditt lösenord.",
+    "emailLabel": "E-post",
+    "submit": "Skicka återställningslänk",
+    "submitting": "Skickar…",
+    "successMessage": "Om det finns ett konto för den e-postadressen har vi skickat en länk för att återställa lösenordet.",
+    "rateLimited": "För många försök. Försök igen om en minut.",
+    "backToLogin": "Tillbaka till inloggning"
+  },
+  "ResetPassword": {
+    "title": "Välj ett nytt lösenord",
+    "passwordLabel": "Nytt lösenord",
+    "passwordHint": "Minst 10 tecken.",
+    "submit": "Återställ lösenord",
+    "submitting": "Uppdaterar…",
+    "successMessage": "Ditt lösenord har uppdaterats. Du kan nu logga in.",
+    "goToLogin": "Logga in",
+    "invalidTitle": "Länken är ogiltig eller har gått ut",
+    "invalidMessage": "Den här återställningslänken är ogiltig eller har gått ut.",
+    "requestNewLink": "Begär en ny länk",
     "genericError": "Något gick fel. Försök igen."
   },
   "Account": {
-    "title": "Mitt konto"
+    "title": "Mitt konto",
+    "unverifiedBanner": "Verifiera din e-postadress för att kunna lägga beställningar.",
+    "resendVerification": "Skicka verifieringsmejl igen",
+    "resendSent": "Verifieringsmejl skickat — kolla din inkorg.",
+    "resendError": "Något gick fel. Försök igen."
   }
 }

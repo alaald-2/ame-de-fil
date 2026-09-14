@@ -27,7 +27,23 @@ import type { AuthContext } from "../common/types/auth-context.ts";
 import { AuthService, type LoginResult } from "./auth.service.ts";
 import { GOOGLE_OAUTH_PROVIDER, type GoogleOAuthProvider } from "./google-oauth.provider.ts";
 import { loginSchema, type LoginInput } from "./dto/login.dto.ts";
-import { loginResponseSchema, sessionResponseSchema, type SessionResponse } from "./dto/responses.ts";
+import { loginMethodSchema, type LoginMethodInput } from "./dto/login-method.dto.ts";
+import { requestOtpSchema, type RequestOtpInput } from "./dto/request-otp.dto.ts";
+import { verifyOtpSchema, type VerifyOtpInput } from "./dto/verify-otp.dto.ts";
+import { registerSchema, type RegisterInput } from "./dto/register.dto.ts";
+import { verifyEmailSchema, type VerifyEmailInput } from "./dto/verify-email.dto.ts";
+import { resendVerificationSchema, type ResendVerificationInput } from "./dto/resend-verification.dto.ts";
+import { forgotPasswordSchema, type ForgotPasswordInput } from "./dto/forgot-password.dto.ts";
+import { resetPasswordSchema, type ResetPasswordInput } from "./dto/reset-password.dto.ts";
+import {
+  loginResponseSchema,
+  loginMethodResponseSchema,
+  messageResponseSchema,
+  sessionResponseSchema,
+  type LoginMethodResponse,
+  type MessageResponse,
+  type SessionResponse,
+} from "./dto/responses.ts";
 
 // Ephemeral, single-use cookies scoped to one Google round-trip only — not
 // product-facing, not env-configurable (unlike SESSION_COOKIE_NAME/
@@ -44,12 +60,11 @@ function timingSafeEqualStrings(a: string, b: string): boolean {
 
 // The real auth entry point (ROADMAP.md Phase 4, DECISIONS.md ADR-032) —
 // login/logout/session issuance on top of the pre-existing SessionService/
-// PasswordService (ADR-015). Still no self-service *password* registration
-// endpoint (out of scope, tracked separately) — email/password login only
-// ever authenticates a User row that already exists. Google sign-in
-// (ADR-033) is the one exception: a first-time Google sign-in creates a
-// User with no password at all, since that's what "Sign in with Google"
-// means for a real customer.
+// PasswordService (ADR-015), self-service password registration +
+// email-verification + password-reset (a later ADR), and Google sign-in
+// (ADR-033) — a first-time Google sign-in creates a User with no password
+// at all, since that's what "Sign in with Google" means for a real
+// customer.
 @ApiTags("auth")
 @ApiCookieAuth("ame_session")
 @Controller("auth")
@@ -85,6 +100,153 @@ export class AuthController {
     });
     this.setSessionCookies(response, result);
     return { user: result.user, csrfToken: result.csrfToken };
+  }
+
+  // @Public() — no side effects, nothing sent; pure UI-branching hint for
+  // the storefront's email-first login screen (DECISIONS.md ADR-036). Rate-
+  // limited a bit more loosely than the send/verify endpoints below since
+  // it's a read-only lookup a customer might legitimately retry after a
+  // typo, but still capped — it's a real (bounded) account-state oracle,
+  // never left uncapped.
+  @Public()
+  @Post("login-method")
+  @HttpCode(HttpStatus.OK)
+  @RateLimit({ windowMs: 60_000, max: 20 })
+  @ApiOperation({ summary: "Which credential this email uses next — password or a one-time code" })
+  @ApiBody({ schema: toOpenApiSchema(loginMethodSchema) })
+  @ApiOkResponse({ schema: toOpenApiSchema(loginMethodResponseSchema) })
+  @ApiErrorResponses(400, 429)
+  async loginMethod(
+    @Body(new ZodValidationPipe(loginMethodSchema)) body: LoginMethodInput,
+  ): Promise<LoginMethodResponse> {
+    return this.auth.getLoginMethod(body);
+  }
+
+  // @Public() — enumeration-safe, same generic response regardless of
+  // account existence/state (mirrors forgot-password exactly). A Google-
+  // only account IS eligible (unlike password reset) — AuthService's own
+  // comment explains why.
+  @Public()
+  @Post("otp/request")
+  @HttpCode(HttpStatus.OK)
+  @RateLimit({ windowMs: 60_000, max: 5 })
+  @ApiOperation({ summary: "Email a one-time sign-in code — always returns the same generic response" })
+  @ApiBody({ schema: toOpenApiSchema(requestOtpSchema) })
+  @ApiOkResponse({ schema: toOpenApiSchema(messageResponseSchema) })
+  @ApiErrorResponses(400, 429)
+  async requestOtp(
+    @Body(new ZodValidationPipe(requestOtpSchema)) body: RequestOtpInput,
+  ): Promise<MessageResponse> {
+    return this.auth.requestLoginOtp(body);
+  }
+
+  // @Public() — no session exists yet (the whole point of logging in).
+  // Looser rate limit than the other /auth/* write endpoints — the code's
+  // own attempts counter (AuthService.LOGIN_OTP_MAX_ATTEMPTS) is the primary
+  // defense against guessing, this is the secondary layer.
+  @Public()
+  @Post("otp/verify")
+  @HttpCode(HttpStatus.OK)
+  @RateLimit({ windowMs: 60_000, max: 10 })
+  @ApiOperation({ summary: "Consume a one-time sign-in code, issuing a session cookie" })
+  @ApiBody({ schema: toOpenApiSchema(verifyOtpSchema) })
+  @ApiOkResponse({ schema: toOpenApiSchema(loginResponseSchema) })
+  @ApiErrorResponses(400, 429)
+  async verifyOtp(
+    @Req() request: Request,
+    @Res({ passthrough: true }) response: Response,
+    @Body(new ZodValidationPipe(verifyOtpSchema)) body: VerifyOtpInput,
+  ) {
+    const result = await this.auth.loginWithOtp(body, {
+      userAgent: request.get("user-agent"),
+      ipAddress: request.ip,
+    });
+    this.setSessionCookies(response, result);
+    return { user: result.user, csrfToken: result.csrfToken };
+  }
+
+  // @Public() — no session exists yet. Enumeration-safe and never
+  // auto-logs-in (AuthService.register's own comment explains why) — always
+  // the same 201 body, whether or not the email already had an account.
+  @Public()
+  @Post("register")
+  @HttpCode(HttpStatus.CREATED)
+  @RateLimit({ windowMs: 60_000, max: 5 })
+  @ApiOperation({ summary: "Create a password account — always returns the same generic response" })
+  @ApiBody({ schema: toOpenApiSchema(registerSchema) })
+  @ApiOkResponse({ schema: toOpenApiSchema(messageResponseSchema) })
+  @ApiErrorResponses(400, 429)
+  async register(@Body(new ZodValidationPipe(registerSchema)) body: RegisterInput): Promise<MessageResponse> {
+    return this.auth.register(body);
+  }
+
+  // POST, not GET — this is reached via client-side JS on a storefront page
+  // the email links to (never a direct browser navigation), specifically to
+  // avoid the classic failure mode where an email security scanner GETs the
+  // link first and burns the single-use token before the real user clicks
+  // it. @Public() — no session exists yet.
+  @Public()
+  @Post("verify-email")
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({ summary: "Consume an email-verification token" })
+  @ApiBody({ schema: toOpenApiSchema(verifyEmailSchema) })
+  @ApiOkResponse({ schema: toOpenApiSchema(messageResponseSchema) })
+  @ApiErrorResponses(400)
+  async verifyEmail(
+    @Body(new ZodValidationPipe(verifyEmailSchema)) body: VerifyEmailInput,
+  ): Promise<MessageResponse> {
+    return this.auth.verifyEmail(body);
+  }
+
+  // @Public() — enumeration-safe, same generic response regardless of
+  // whether the email exists, is already verified, or is Google-only.
+  @Public()
+  @Post("resend-verification")
+  @HttpCode(HttpStatus.OK)
+  @RateLimit({ windowMs: 60_000, max: 5 })
+  @ApiOperation({ summary: "Resend the email-verification link — always returns the same generic response" })
+  @ApiBody({ schema: toOpenApiSchema(resendVerificationSchema) })
+  @ApiOkResponse({ schema: toOpenApiSchema(messageResponseSchema) })
+  @ApiErrorResponses(400, 429)
+  async resendVerification(
+    @Body(new ZodValidationPipe(resendVerificationSchema)) body: ResendVerificationInput,
+  ): Promise<MessageResponse> {
+    return this.auth.resendVerification(body);
+  }
+
+  // @Public() — enumeration-safe, same generic response regardless of
+  // account existence/state (SECURITY.md §1, extended to this endpoint).
+  @Public()
+  @Post("forgot-password")
+  @HttpCode(HttpStatus.OK)
+  @RateLimit({ windowMs: 60_000, max: 5 })
+  @ApiOperation({ summary: "Request a password-reset email — always returns the same generic response" })
+  @ApiBody({ schema: toOpenApiSchema(forgotPasswordSchema) })
+  @ApiOkResponse({ schema: toOpenApiSchema(messageResponseSchema) })
+  @ApiErrorResponses(400, 429)
+  async forgotPassword(
+    @Body(new ZodValidationPipe(forgotPasswordSchema)) body: ForgotPasswordInput,
+  ): Promise<MessageResponse> {
+    return this.auth.requestPasswordReset(body);
+  }
+
+  // POST, not GET — same reasoning as verify-email above. @Public(): the
+  // caller has no session yet (the whole point of a password reset).
+  // InvalidOrExpiredToken (400) is a deliberately honest, specific error
+  // here — unlike login/register, the sensitive axis is a possessed bearer
+  // token, not a guessable email address (AuthService's own comment).
+  @Public()
+  @Post("reset-password")
+  @HttpCode(HttpStatus.OK)
+  @RateLimit({ windowMs: 60_000, max: 5 })
+  @ApiOperation({ summary: "Consume a password-reset token and set a new password" })
+  @ApiBody({ schema: toOpenApiSchema(resetPasswordSchema) })
+  @ApiOkResponse({ schema: toOpenApiSchema(messageResponseSchema) })
+  @ApiErrorResponses(400, 429)
+  async resetPassword(
+    @Body(new ZodValidationPipe(resetPasswordSchema)) body: ResetPasswordInput,
+  ): Promise<MessageResponse> {
+    return this.auth.resetPassword(body);
   }
 
   // No @Public()/@OptionalAuth() — logging out requires an actual session

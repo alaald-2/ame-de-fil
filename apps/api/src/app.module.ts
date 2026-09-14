@@ -10,6 +10,7 @@ import { AllExceptionsFilter } from "./common/filters/all-exceptions.filter.js";
 import { PINO_REDACT_PATHS, pinoRedactCensor } from "./common/pino-redact.ts";
 import { SessionAuthGuard } from "./common/guards/session-auth.guard.js";
 import { PermissionsGuard } from "./common/guards/permissions.guard.js";
+import { EmailVerifiedGuard } from "./common/guards/email-verified.guard.js";
 import { CsrfGuard } from "./common/csrf/csrf.guard.js";
 import { RateLimitGuard } from "./common/rate-limit/rate-limit.guard.js";
 import { RATE_LIMIT_STORE } from "./common/rate-limit/rate-limit-store.js";
@@ -93,10 +94,14 @@ const CORRELATION_ID_HEADER = "x-correlation-id";
   ],
   providers: [
     { provide: APP_FILTER, useClass: AllExceptionsFilter },
-    // Order matters: authenticate, then authorize, then check CSRF (which
-    // needs request.auth from the first guard) — see each guard's own notes.
+    // Order matters: authenticate, then authorize (permissions, then email-
+    // verification — both are "authenticated but not authorized for this
+    // specific route" checks reading request.auth), then check CSRF (which
+    // also needs request.auth from the first guard) — see each guard's own
+    // notes.
     { provide: APP_GUARD, useClass: SessionAuthGuard },
     { provide: APP_GUARD, useClass: PermissionsGuard },
+    { provide: APP_GUARD, useClass: EmailVerifiedGuard },
     { provide: APP_GUARD, useClass: CsrfGuard },
     { provide: APP_GUARD, useClass: RateLimitGuard },
     { provide: RATE_LIMIT_STORE, useClass: InMemoryRateLimitStore },

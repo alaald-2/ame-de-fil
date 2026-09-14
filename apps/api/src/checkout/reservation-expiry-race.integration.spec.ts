@@ -52,7 +52,10 @@ describe("reservation expiry vs. payment-success — real Postgres", () => {
     // notifications.integration.spec.ts. NotificationsService never throws,
     // so this can't affect any assertion in this file about order/
     // reservation state.
-    webhook = new PaymentsWebhookService(db.prisma, new NotificationsService(db.prisma, new PendingEmailProvider()));
+    webhook = new PaymentsWebhookService(
+      db.prisma,
+      new NotificationsService(db.prisma, new PendingEmailProvider(), makeConfig()),
+    );
   }, 120_000);
 
   afterAll(async () => {

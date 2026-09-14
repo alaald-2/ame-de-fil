@@ -63,6 +63,19 @@ export const envSchema = z.object({
   // meaningfully limit exposure of a bearer token versus "forever".
   ORDER_STATUS_TOKEN_TTL_HOURS: z.coerce.number().int().positive().default(2),
 
+  // AccountActionToken lifetimes (email verification / password reset).
+  // Verification is loose since it's a low-severity, resendable action; a
+  // password-reset token is deliberately much shorter-lived — it directly
+  // authorizes taking over authentication for the account, so a smaller
+  // exposure window matters far more than user convenience here.
+  EMAIL_VERIFICATION_TOKEN_TTL_HOURS: z.coerce.number().int().positive().default(24),
+  PASSWORD_RESET_TOKEN_TTL_HOURS: z.coerce.number().int().positive().default(1),
+
+  // Email one-time-code login (DECISIONS.md ADR-036) — deliberately much
+  // shorter than either token above: a code is meant to be typed within a
+  // minute or two of arriving, not saved for later.
+  LOGIN_OTP_TTL_MINUTES: z.coerce.number().int().positive().default(10),
+
   // How often ReservationExpirySchedulerService sweeps for expired
   // StockReservations (DATABASE.md §4). Default (1 minute) is well under
   // the 15-minute reservation TTL, bounding how long an already-expired

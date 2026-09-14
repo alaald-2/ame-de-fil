@@ -1,8 +1,18 @@
 import { randomUUID } from "node:crypto";
-import { Locale, ProductStatus, OrderStatus, Currency, PaymentStatus, StockReservationStatus } from "@ame-de-fil/database";
+import {
+  Locale,
+  ProductStatus,
+  OrderStatus,
+  Currency,
+  PaymentStatus,
+  StockReservationStatus,
+  type AccountActionTokenPurpose,
+} from "@ame-de-fil/database";
 import type { PrismaService } from "../database/prisma.service.ts";
 import { SHIPPING_TAX_CLASS_CODE } from "../checkout/tax-rates.ts";
 import { PasswordService } from "../identity/password.service.ts";
+import { generateAccountActionToken, hashAccountActionToken } from "../common/account-action-token.ts";
+import { generateLoginOtpCode, hashLoginOtpCode } from "../common/login-otp.ts";
 
 export interface UserFixture {
   userId: string;
@@ -19,7 +29,15 @@ export interface UserFixture {
 export async function seedUserWithPermissions(
   prisma: PrismaService,
   permissionKeys: string[],
-  options: { password?: string; status?: "ACTIVE" | "DISABLED" } = {},
+  options: {
+    password?: string;
+    status?: "ACTIVE" | "DISABLED";
+    // Defaults to null (unverified) — matches a real fresh password
+    // registration. Existing callers that need an authenticated checkout to
+    // succeed (rather than hit EmailVerifiedGuard) must now pass a Date
+    // explicitly, same as a Google-created account would have from creation.
+    emailVerifiedAt?: Date | null;
+  } = {},
 ): Promise<UserFixture> {
   const id = randomUUID();
   const password = options.password ?? `Test-Password-${id}`;
@@ -40,11 +58,73 @@ export async function seedUserWithPermissions(
       email: `test-${id}@example.com`,
       passwordHash,
       status: options.status ?? "ACTIVE",
+      emailVerifiedAt: options.emailVerifiedAt ?? null,
       roles: { create: { roleId: role.id } },
     },
   });
 
   return { userId: user.id, email: user.email, password };
+}
+
+export interface AccountActionTokenFixture {
+  tokenId: string;
+  plaintextToken: string;
+}
+
+// Returns the plaintext alongside the row — exactly what a real
+// register()/requestPasswordReset() caller gets once, since the DB only
+// ever stores the hash. `options.expiresAt`/`consumedAt` let a test build
+// an already-expired or already-consumed token directly, without needing to
+// fast-forward time or call verifyEmail/resetPassword twice.
+export async function seedAccountActionToken(
+  prisma: PrismaService,
+  userId: string,
+  purpose: AccountActionTokenPurpose,
+  options: { expiresAt?: Date; consumedAt?: Date | null } = {},
+): Promise<AccountActionTokenFixture> {
+  const plaintextToken = generateAccountActionToken();
+  const token = await prisma.accountActionToken.create({
+    data: {
+      userId,
+      purpose,
+      tokenHash: hashAccountActionToken(plaintextToken),
+      expiresAt: options.expiresAt ?? new Date(Date.now() + 60 * 60 * 1000),
+      consumedAt: options.consumedAt ?? null,
+    },
+  });
+  return { tokenId: token.id, plaintextToken };
+}
+
+export interface LoginOtpFixture {
+  otpId: string;
+  plaintextCode: string;
+}
+
+// Same "returns the plaintext alongside the row" idiom as
+// seedAccountActionToken — `options.expiresAt`/`consumedAt`/`attempts` let a
+// test build an already-expired, already-consumed, or near-max-attempts
+// code directly.
+export async function seedLoginOtp(
+  prisma: PrismaService,
+  userId: string,
+  options: { expiresAt?: Date; consumedAt?: Date | null; attempts?: number; createdAt?: Date } = {},
+): Promise<LoginOtpFixture> {
+  const plaintextCode = generateLoginOtpCode();
+  const otp = await prisma.loginOtp.create({
+    data: {
+      userId,
+      codeHash: hashLoginOtpCode(plaintextCode),
+      expiresAt: options.expiresAt ?? new Date(Date.now() + 10 * 60 * 1000),
+      consumedAt: options.consumedAt ?? null,
+      attempts: options.attempts ?? 0,
+      // Defaults to Prisma's own @default(now()) when omitted; a test
+      // exercising the resend-cooldown boundary (AuthService.
+      // LOGIN_OTP_RESEND_COOLDOWN_MS) needs to backdate this past the
+      // cooldown window, which a freshly-seeded row can never do on its own.
+      ...(options.createdAt ? { createdAt: options.createdAt } : {}),
+    },
+  });
+  return { otpId: otp.id, plaintextCode };
 }
 
 export interface ShopFixture {

@@ -1,6 +1,7 @@
 import { Module } from "@nestjs/common";
 import { ConfigService } from "@nestjs/config";
 import type { Env } from "@ame-de-fil/config";
+import { NotificationsModule } from "../notifications/notifications.module.ts";
 import { SessionService } from "./session.service.js";
 import { PasswordService } from "./password.service.js";
 import { AuthService } from "./auth.service.ts";
@@ -13,18 +14,20 @@ import {
 } from "./google-oauth.provider.ts";
 
 // Users/roles/sessions (ARCHITECTURE.md §3). The real auth entry point —
-// login/logout/session issuance (DECISIONS.md ADR-032), plus Google
-// sign-in (ADR-033) — is AuthController/AuthService, built directly on the
+// login/logout/session issuance (DECISIONS.md ADR-032), Google sign-in
+// (ADR-033), and self-service registration/email-verification/password-reset
+// (a later ADR) — is AuthController/AuthService, built directly on the
 // pre-existing SessionService/PasswordService without changing either.
-// Registration/password-reset HTTP endpoints remain a later, real product
-// surface, tracked separately. GOOGLE_OAUTH_PROVIDER resolves to
-// GoogleOAuthClient when all three GOOGLE_*/STOREFRONT_BASE_URL vars are
-// configured, PendingOAuthProvider otherwise — the same factory idiom as
-// PaymentsModule's PAYMENT_PROVIDER/NotificationsModule's EMAIL_PROVIDER:
-// GoogleOAuthClient is deliberately not registered as its own standalone
-// provider, so Nest never eagerly constructs it (or requires the env vars)
-// when Google sign-in isn't configured at all.
+// NotificationsModule is imported for AuthService's verification/reset email
+// dispatch. GOOGLE_OAUTH_PROVIDER resolves to GoogleOAuthClient when all
+// three GOOGLE_*/STOREFRONT_BASE_URL vars are configured, PendingOAuthProvider
+// otherwise — the same factory idiom as PaymentsModule's PAYMENT_PROVIDER/
+// NotificationsModule's EMAIL_PROVIDER: GoogleOAuthClient is deliberately not
+// registered as its own standalone provider, so Nest never eagerly
+// constructs it (or requires the env vars) when Google sign-in isn't
+// configured at all.
 @Module({
+  imports: [NotificationsModule],
   controllers: [AuthController],
   providers: [
     SessionService,

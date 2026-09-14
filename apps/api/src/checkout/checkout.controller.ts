@@ -20,6 +20,7 @@ import type { Request } from "express";
 import { ConfigService } from "@nestjs/config";
 import type { Env } from "@ame-de-fil/config";
 import { OptionalAuth } from "../common/decorators/optional-auth.decorator.ts";
+import { RequireVerifiedEmail } from "../common/decorators/require-verified-email.decorator.ts";
 import { CurrentUser } from "../common/decorators/current-user.decorator.ts";
 import { RateLimit } from "../common/rate-limit/rate-limit.decorator.ts";
 import { ZodValidationPipe } from "../common/pipes/zod-validation.pipe.ts";
@@ -56,6 +57,10 @@ export class CheckoutController {
   @Post()
   @HttpCode(HttpStatus.CREATED)
   @RateLimit({ windowMs: 60_000, max: 10 })
+  // A logged-in customer who hasn't verified their (password-set) email
+  // gets a distinct 403 EmailNotVerified here — never applies to a guest
+  // caller (EmailVerifiedGuard no-ops when request.auth is undefined).
+  @RequireVerifiedEmail()
   @ApiOperation({ summary: "Initiate checkout from the caller's own current cart" })
   @ApiHeader({ name: IDEMPOTENCY_KEY_HEADER, required: true })
   @ApiBody({ schema: toOpenApiSchema(initiateCheckoutSchema) })

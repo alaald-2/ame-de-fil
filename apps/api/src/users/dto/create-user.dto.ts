@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { normalizedEmailSchema } from "../../common/dto/normalized-email.schema.ts";
 
 // No `password` field — passwords are always server-generated for a new
 // admin/staff account (approved design, admin-users.service.ts) and
@@ -6,7 +7,7 @@ import { z } from "zod";
 // non-empty name fields, matching this project's existing DTO conventions
 // (e.g. checkout's address fields) rather than inventing new bounds.
 export const createUserSchema = z.object({
-  email: z.email(),
+  email: normalizedEmailSchema,
   firstName: z.string().min(1).max(100).optional(),
   lastName: z.string().min(1).max(100).optional(),
   // Subject to the same "must be a subset of the actor's own current

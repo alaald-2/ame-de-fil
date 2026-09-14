@@ -11,6 +11,7 @@ export interface CurrentUser {
   firstName: string | null;
   lastName: string | null;
   locale: "sv-SE" | "en";
+  emailVerifiedAt: string | null;
 }
 
 export interface AuthenticatedSession {

@@ -90,6 +90,7 @@ export class SessionService {
       sessionId: session.id,
       csrfToken: session.csrfToken,
       permissions: Array.from(permissions),
+      emailVerifiedAt: session.user.emailVerifiedAt,
     };
   }
 

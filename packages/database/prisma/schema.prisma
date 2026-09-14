@@ -173,8 +173,73 @@ model User {
   notifications            Notification[]
   notesAboutMe             CustomerNote[]            @relation("CustomerNoteSubject")
   notesAuthored            CustomerNote[]            @relation("CustomerNoteAuthor")
+  accountActionTokens      AccountActionToken[]
+  loginOtps                LoginOtp[]
 
   @@index([status])
+}
+
+// Email-verification and password-reset bearer credentials — one table for
+// both, distinguished only by `purpose` (mirrors Notification.type being a
+// single free-form axis rather than two near-identical models). Hashed at
+// rest (SHA-256, same posture/rationale as OrderStatusToken.tokenHash): a
+// plaintext token is returned exactly once (in the verification/reset
+// email), never persisted. Issuing a new token for a given (userId, purpose)
+// invalidates any prior unconsumed one for that same purpose (AuthService),
+// and consumption is a single conditional UPDATE
+// (`consumedAt IS NULL AND expiresAt > now()`), making concurrent
+// double-consumption of the same token race-safe by construction.
+enum AccountActionTokenPurpose {
+  EMAIL_VERIFICATION
+  PASSWORD_RESET
+}
+
+model AccountActionToken {
+  id         String                    @id @default(cuid())
+  userId     String
+  purpose    AccountActionTokenPurpose
+  tokenHash  String                    @unique
+  expiresAt  DateTime
+  consumedAt DateTime?
+  createdAt  DateTime                  @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, purpose])
+  @@index([expiresAt])
+}
+
+// Email one-time-code login credential — deliberately a SEPARATE model from
+// AccountActionToken, not a third `purpose` value, for two concrete reasons:
+// (1) AccountActionToken.tokenHash is globally @unique, which is only safe
+// because a 256-bit token's collision odds are ~zero — a 6-digit code has
+// only 1,000,000 possible values, so a global unique constraint would throw
+// a real P2002 the first time two different users happen to hold the same
+// code at once. `codeHash` here is therefore deliberately NOT unique;
+// every lookup is scoped by `userId` too. (2) a low-entropy, human-typed
+// code needs a per-code `attempts` counter as its primary defense (5 wrong
+// tries kills it) — a 256-bit token is never brute-forced digit-by-digit, so
+// AccountActionToken has no concept of this at all. Hashed at rest is still
+// worth doing (defense-in-depth against a DB-leak during the code's live
+// window), but unlike the 256-bit tokens, entropy is NOT the primary control
+// here — short TTL + attempt-limiting + the resend cooldown are
+// (AuthService.requestLoginOtp/loginWithOtp, DECISIONS.md ADR-036).
+// Requesting a new code invalidates any prior unconsumed one for that user
+// (same updateMany-then-create idiom AccountActionToken already uses), and
+// consumption is the same race-safe conditional UPDATE.
+model LoginOtp {
+  id         String    @id @default(cuid())
+  userId     String
+  codeHash   String
+  attempts   Int       @default(0)
+  expiresAt  DateTime
+  consumedAt DateTime?
+  createdAt  DateTime  @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([expiresAt])
 }
 
 model Role {

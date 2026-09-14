@@ -82,7 +82,13 @@ const VALID_INPUT: InitiateCheckoutInput = {
   shippingAddress: ADDRESS,
 };
 
-const AUTH: AuthContext = { userId: "user-1", sessionId: "s1", csrfToken: "csrf", permissions: [] };
+const AUTH: AuthContext = {
+  userId: "user-1",
+  sessionId: "s1",
+  csrfToken: "csrf",
+  permissions: [],
+  emailVerifiedAt: new Date("2026-01-01T00:00:00Z"),
+};
 
 function stockCartItem() {
   return {

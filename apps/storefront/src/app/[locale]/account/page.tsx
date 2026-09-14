@@ -1,8 +1,9 @@
 import type { Metadata } from "next";
 import { getTranslations } from "next-intl/server";
-import { Container, Heading, Text } from "@ame-de-fil/ui";
+import { Container, Heading, Text, Alert } from "@ame-de-fil/ui";
 import { requireSession } from "../../../lib/dal";
 import { SignOutButton } from "../../../components/sign-out-button";
+import { ResendVerificationButton } from "../../../components/resend-verification-button";
 
 export async function generateMetadata(): Promise<Metadata> {
   const t = await getTranslations("Account");
@@ -33,6 +34,16 @@ export default async function AccountPage() {
         <Text tone="muted" className="mt-1">
           {user.email}
         </Text>
+
+        {!user.emailVerifiedAt ? (
+          <Alert tone="info" className="mt-6">
+            <Text size="sm">{t("unverifiedBanner")}</Text>
+            <div className="mt-3">
+              <ResendVerificationButton />
+            </div>
+          </Alert>
+        ) : null}
+
         <div className="mt-6">
           <SignOutButton />
         </div>

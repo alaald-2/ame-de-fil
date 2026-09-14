@@ -3,7 +3,7 @@ import { Test } from "@nestjs/testing";
 import type { INestApplication } from "@nestjs/common";
 import { APP_GUARD } from "@nestjs/core";
 import { ConfigService } from "@nestjs/config";
-import { ServiceUnavailableException, UnauthorizedException } from "@nestjs/common";
+import { BadRequestException, ServiceUnavailableException, UnauthorizedException } from "@nestjs/common";
 import cookieParser from "cookie-parser";
 import supertest from "supertest";
 import { AuthController } from "./auth.controller.ts";
@@ -50,6 +50,9 @@ interface BootOptions {
   logout?: ReturnType<typeof vi.fn>;
   getSafeUser?: ReturnType<typeof vi.fn>;
   loginWithGoogle?: ReturnType<typeof vi.fn>;
+  getLoginMethod?: ReturnType<typeof vi.fn>;
+  requestLoginOtp?: ReturnType<typeof vi.fn>;
+  loginWithOtp?: ReturnType<typeof vi.fn>;
   list?: ReturnType<typeof vi.fn>;
   configOverrides?: Record<string, unknown>;
   googleOAuthProvider?: { createAuthorizationRequest: ReturnType<typeof vi.fn>; exchangeCodeForProfile: ReturnType<typeof vi.fn> };
@@ -74,6 +77,9 @@ async function bootApp(options: BootOptions = {}) {
   const logout = options.logout ?? vi.fn().mockResolvedValue(undefined);
   const getSafeUser = options.getSafeUser ?? vi.fn().mockResolvedValue(SAFE_USER);
   const loginWithGoogle = options.loginWithGoogle ?? vi.fn();
+  const getLoginMethod = options.getLoginMethod ?? vi.fn().mockResolvedValue({ method: "password" });
+  const requestLoginOtp = options.requestLoginOtp ?? vi.fn().mockResolvedValue({ message: "ok" });
+  const loginWithOtp = options.loginWithOtp ?? vi.fn();
   const list = options.list ?? vi.fn().mockResolvedValue({ items: [], total: 0 });
   const validateSession = options.validateSession ?? (async () => null);
   const googleOAuthProvider = options.googleOAuthProvider ?? makePendingGoogleProviderMock();
@@ -82,7 +88,10 @@ async function bootApp(options: BootOptions = {}) {
   const moduleRef = await Test.createTestingModule({
     controllers: [AuthController, InventoryController],
     providers: [
-      { provide: AuthService, useValue: { login, logout, getSafeUser, loginWithGoogle } },
+      {
+        provide: AuthService,
+        useValue: { login, logout, getSafeUser, loginWithGoogle, getLoginMethod, requestLoginOtp, loginWithOtp },
+      },
       { provide: InventoryService, useValue: { list } },
       { provide: SessionService, useValue: { validateSession } },
       { provide: ConfigService, useValue: { get: (key: string) => configValues[key] } },
@@ -99,7 +108,18 @@ async function bootApp(options: BootOptions = {}) {
   app.use(cookieParser());
   app.useGlobalFilters(new AllExceptionsFilter());
   await app.init();
-  return { app, login, logout, getSafeUser, loginWithGoogle, list, googleOAuthProvider };
+  return {
+    app,
+    login,
+    logout,
+    getSafeUser,
+    loginWithGoogle,
+    getLoginMethod,
+    requestLoginOtp,
+    loginWithOtp,
+    list,
+    googleOAuthProvider,
+  };
 }
 
 describe("POST /auth/login", () => {
@@ -199,6 +219,176 @@ describe("POST /auth/login", () => {
     const limited = await supertest(app.getHttpServer())
       .post("/auth/login")
       .send({ email: "admin@example.com", password: "wrong" });
+
+    expect(limited.status).toBe(429);
+  });
+});
+
+describe("POST /auth/login-method", () => {
+  let app: INestApplication | undefined;
+  afterEach(async () => {
+    await app?.close();
+    app = undefined;
+  });
+
+  it("returns whatever AuthService.getLoginMethod resolves, with no cookies set", async () => {
+    const getLoginMethod = vi.fn().mockResolvedValue({ method: "otp" });
+    const booted = await bootApp({ getLoginMethod });
+    app = booted.app;
+
+    const response = await supertest(app.getHttpServer())
+      .post("/auth/login-method")
+      .send({ email: "customer@example.com" });
+
+    expect(response.status).toBe(200);
+    expect(response.body).toEqual({ method: "otp" });
+    expect(response.headers["set-cookie"]).toBeUndefined();
+    expect(getLoginMethod).toHaveBeenCalledWith({ email: "customer@example.com" });
+  });
+
+  it("rejects a malformed body with 400 before ever calling AuthService", async () => {
+    const booted = await bootApp();
+    app = booted.app;
+
+    const response = await supertest(app.getHttpServer()).post("/auth/login-method").send({ email: "not-an-email" });
+
+    expect(response.status).toBe(400);
+    expect(booted.getLoginMethod).not.toHaveBeenCalled();
+  });
+
+  it("returns 429 once the per-IP rate limit (20/min) is exceeded", async () => {
+    const booted = await bootApp();
+    app = booted.app;
+
+    for (let i = 0; i < 20; i++) {
+      const attempt = await supertest(app.getHttpServer())
+        .post("/auth/login-method")
+        .send({ email: "customer@example.com" });
+      expect(attempt.status).toBe(200);
+    }
+
+    const limited = await supertest(app.getHttpServer())
+      .post("/auth/login-method")
+      .send({ email: "customer@example.com" });
+
+    expect(limited.status).toBe(429);
+  });
+});
+
+describe("POST /auth/otp/request", () => {
+  let app: INestApplication | undefined;
+  afterEach(async () => {
+    await app?.close();
+    app = undefined;
+  });
+
+  it("returns whatever AuthService.requestLoginOtp resolves, with no cookies set", async () => {
+    const requestLoginOtp = vi.fn().mockResolvedValue({ message: "generic" });
+    const booted = await bootApp({ requestLoginOtp });
+    app = booted.app;
+
+    const response = await supertest(app.getHttpServer())
+      .post("/auth/otp/request")
+      .send({ email: "customer@example.com" });
+
+    expect(response.status).toBe(200);
+    expect(response.body).toEqual({ message: "generic" });
+    expect(response.headers["set-cookie"]).toBeUndefined();
+  });
+
+  it("returns 429 once the per-IP rate limit (5/min) is exceeded", async () => {
+    const booted = await bootApp();
+    app = booted.app;
+
+    for (let i = 0; i < 5; i++) {
+      const attempt = await supertest(app.getHttpServer())
+        .post("/auth/otp/request")
+        .send({ email: "customer@example.com" });
+      expect(attempt.status).toBe(200);
+    }
+
+    const limited = await supertest(app.getHttpServer())
+      .post("/auth/otp/request")
+      .send({ email: "customer@example.com" });
+
+    expect(limited.status).toBe(429);
+  });
+});
+
+describe("POST /auth/otp/verify", () => {
+  let app: INestApplication | undefined;
+  afterEach(async () => {
+    await app?.close();
+    app = undefined;
+  });
+
+  it("sets the same session/CSRF cookies as /auth/login on a correct code, with no CSRF header required", async () => {
+    const loginWithOtp = vi.fn().mockResolvedValue({
+      token: "otp-session-token",
+      csrfToken: "otp-csrf-token",
+      expiresAt: new Date(Date.now() + 60 * 60 * 1000),
+      user: SAFE_USER,
+    });
+    const booted = await bootApp({ loginWithOtp });
+    app = booted.app;
+
+    const response = await supertest(app.getHttpServer())
+      .post("/auth/otp/verify")
+      .send({ email: "customer@example.com", code: "042017" });
+
+    expect(response.status).toBe(200);
+    expect(response.body).toEqual({ user: SAFE_USER, csrfToken: "otp-csrf-token" });
+
+    const setCookie = response.headers["set-cookie"] as unknown as string[];
+    const sessionCookie = setCookie.find((c) => c.startsWith("ame_session="));
+    expect(sessionCookie).toContain("HttpOnly");
+    expect(sessionCookie).toContain("otp-session-token");
+  });
+
+  it("rejects a malformed (non-6-digit) code with 400 before ever calling AuthService", async () => {
+    const booted = await bootApp();
+    app = booted.app;
+
+    const response = await supertest(app.getHttpServer())
+      .post("/auth/otp/verify")
+      .send({ email: "customer@example.com", code: "12" });
+
+    expect(response.status).toBe(400);
+    expect(booted.loginWithOtp).not.toHaveBeenCalled();
+  });
+
+  it("returns 400 with no Set-Cookie header on an invalid/expired code", async () => {
+    const loginWithOtp = vi
+      .fn()
+      .mockRejectedValue(new BadRequestException({ error: "InvalidOrExpiredCode" }));
+    const booted = await bootApp({ loginWithOtp });
+    app = booted.app;
+
+    const response = await supertest(app.getHttpServer())
+      .post("/auth/otp/verify")
+      .send({ email: "customer@example.com", code: "000000" });
+
+    expect(response.status).toBe(400);
+    expect(response.headers["set-cookie"]).toBeUndefined();
+  });
+
+  it("returns 429 once the per-IP rate limit (10/min) is exceeded", async () => {
+    const loginWithOtp = vi
+      .fn()
+      .mockRejectedValue(new BadRequestException({ error: "InvalidOrExpiredCode" }));
+    const booted = await bootApp({ loginWithOtp });
+    app = booted.app;
+
+    for (let i = 0; i < 10; i++) {
+      const attempt = await supertest(app.getHttpServer())
+        .post("/auth/otp/verify")
+        .send({ email: "customer@example.com", code: "000000" });
+      expect(attempt.status).toBe(400);
+    }
+
+    const limited = await supertest(app.getHttpServer())
+      .post("/auth/otp/verify")
+      .send({ email: "customer@example.com", code: "000000" });
 
     expect(limited.status).toBe(429);
   });

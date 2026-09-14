@@ -1,6 +1,14 @@
 import { Inject, Injectable, Logger } from "@nestjs/common";
+import { ConfigService } from "@nestjs/config";
+import type { Env } from "@ame-de-fil/config";
 import { NotificationStatus, type Notification, type Prisma } from "@ame-de-fil/database";
-import { renderOrderConfirmationEmail, renderShippingNotificationEmail } from "@ame-de-fil/email";
+import {
+  renderOrderConfirmationEmail,
+  renderShippingNotificationEmail,
+  renderEmailVerificationEmail,
+  renderPasswordResetEmail,
+  renderLoginOtpEmail,
+} from "@ame-de-fil/email";
 import { PrismaService } from "../database/prisma.service.ts";
 import { fromPrismaLocale } from "../common/locale.ts";
 import { EMAIL_PROVIDER, type EmailProvider } from "./email-provider.ts";
@@ -11,6 +19,9 @@ import { EMAIL_PROVIDER, type EmailProvider } from "./email-provider.ts";
 const NotificationType = {
   ORDER_CONFIRMATION: "order-confirmation",
   SHIPPING_NOTIFICATION: "shipping-notification",
+  EMAIL_VERIFICATION: "email-verification",
+  PASSWORD_RESET: "password-reset",
+  LOGIN_OTP: "login-otp",
 } as const;
 
 // Sends transactional email and records the outcome as a Notification row.
@@ -29,6 +40,7 @@ export class NotificationsService {
   constructor(
     private readonly prisma: PrismaService,
     @Inject(EMAIL_PROVIDER) private readonly emailProvider: EmailProvider,
+    private readonly config: ConfigService<Env, true>,
   ) {}
 
   async sendOrderConfirmation(orderId: string): Promise<void> {
@@ -129,6 +141,97 @@ export class NotificationsService {
       });
 
       await this.emailProvider.send({ to: email, ...rendered });
+      await this.markSent(notification.id);
+    } catch (error) {
+      await this.markFailed(notification.id, error);
+    }
+  }
+
+  // Unlike the two methods above, deliberately skips wasAlreadySent(): an
+  // order-confirmation email is one immutable event that must never
+  // double-send on a replayed webhook, but every verification/reset send
+  // here is a distinct, deliberate action (register, or a fresh resend
+  // request) — already rate-limited and (for reset) token-invalidated
+  // upstream in AuthService, so reusing that idempotency query would wrongly
+  // block a legitimate second resend.
+  async sendVerificationEmail(userId: string, plaintextToken: string): Promise<void> {
+    const user = await this.prisma.user.findUnique({
+      where: { id: userId },
+      select: { email: true, locale: true },
+    });
+    if (!user) {
+      this.logger.warn(`sendVerificationEmail: User "${userId}" not found`);
+      return;
+    }
+
+    const notification = await this.createPending(userId, NotificationType.EMAIL_VERIFICATION, { userId });
+    const storefrontBaseUrl = this.config.get("STOREFRONT_BASE_URL", { infer: true });
+    if (!storefrontBaseUrl) {
+      // Disclosed, not faked (DECISIONS.md ADR-033's Google-flow posture) —
+      // never falls back to a hardcoded dev URL in a real email link.
+      await this.markFailed(notification.id, new Error("STOREFRONT_BASE_URL is not configured"));
+      return;
+    }
+
+    try {
+      const rendered = await renderEmailVerificationEmail({
+        locale: fromPrismaLocale(user.locale),
+        verificationUrl: `${storefrontBaseUrl}/verify-email?token=${plaintextToken}`,
+      });
+      await this.emailProvider.send({ to: user.email, ...rendered });
+      await this.markSent(notification.id);
+    } catch (error) {
+      await this.markFailed(notification.id, error);
+    }
+  }
+
+  async sendPasswordResetEmail(userId: string, plaintextToken: string): Promise<void> {
+    const user = await this.prisma.user.findUnique({
+      where: { id: userId },
+      select: { email: true, locale: true },
+    });
+    if (!user) {
+      this.logger.warn(`sendPasswordResetEmail: User "${userId}" not found`);
+      return;
+    }
+
+    const notification = await this.createPending(userId, NotificationType.PASSWORD_RESET, { userId });
+    const storefrontBaseUrl = this.config.get("STOREFRONT_BASE_URL", { infer: true });
+    if (!storefrontBaseUrl) {
+      await this.markFailed(notification.id, new Error("STOREFRONT_BASE_URL is not configured"));
+      return;
+    }
+
+    try {
+      const rendered = await renderPasswordResetEmail({
+        locale: fromPrismaLocale(user.locale),
+        resetUrl: `${storefrontBaseUrl}/reset-password?token=${plaintextToken}`,
+      });
+      await this.emailProvider.send({ to: user.email, ...rendered });
+      await this.markSent(notification.id);
+    } catch (error) {
+      await this.markFailed(notification.id, error);
+    }
+  }
+
+  // Deliberately skips wasAlreadySent() and, unlike the two link-based
+  // methods above, needs no STOREFRONT_BASE_URL at all — there's no link,
+  // just a code to display, one less local-dev configuration dependency.
+  async sendLoginOtpEmail(userId: string, code: string): Promise<void> {
+    const user = await this.prisma.user.findUnique({
+      where: { id: userId },
+      select: { email: true, locale: true },
+    });
+    if (!user) {
+      this.logger.warn(`sendLoginOtpEmail: User "${userId}" not found`);
+      return;
+    }
+
+    const notification = await this.createPending(userId, NotificationType.LOGIN_OTP, { userId });
+
+    try {
+      const rendered = await renderLoginOtpEmail({ locale: fromPrismaLocale(user.locale), code });
+      await this.emailProvider.send({ to: user.email, ...rendered });
       await this.markSent(notification.id);
     } catch (error) {
       await this.markFailed(notification.id, error);
