@@ -7,6 +7,7 @@ import {
   HttpCode,
   HttpStatus,
   Param,
+  Patch,
   Post,
   Req,
   UploadedFile,
@@ -35,7 +36,14 @@ import {
   homepageSectionKeyParamSchema,
   type HomepageSectionKeyParam,
 } from "./dto/homepage-section-key.param.ts";
-import { listHomepageSectionsResponseSchema, homepageSectionResponseSchema } from "./dto/responses.ts";
+import {
+  homepageSectionContentSchema,
+  type HomepageSectionContentInput,
+} from "./dto/homepage-section-content.dto.ts";
+import {
+  listAdminHomepageSectionsResponseSchema,
+  adminHomepageSectionResponseSchema,
+} from "./dto/responses.ts";
 
 // Same marketing.view/marketing.manage split as admin-hero-slides.controller.ts
 // — these are the homepage's other admin-manageable images, same domain.
@@ -47,8 +55,8 @@ export class AdminHomepageSectionsController {
 
   @Get()
   @RequirePermissions("marketing.view")
-  @ApiOperation({ summary: "Get the homepage's two named image slots (story, made-to-order)" })
-  @ApiOkResponse({ schema: toOpenApiSchema(listHomepageSectionsResponseSchema) })
+  @ApiOperation({ summary: "Get the site's four named content sections (hero, story, made-to-order, announcement)" })
+  @ApiOkResponse({ schema: toOpenApiSchema(listAdminHomepageSectionsResponseSchema) })
   @ApiErrorResponses(401, 403)
   async list() {
     return this.adminHomepageSections.list();
@@ -64,7 +72,7 @@ export class AdminHomepageSectionsController {
   @ApiBody({
     schema: { type: "object", required: ["file"], properties: { file: { type: "string", format: "binary" } } },
   })
-  @ApiCreatedResponse({ schema: toOpenApiSchema(homepageSectionResponseSchema) })
+  @ApiCreatedResponse({ schema: toOpenApiSchema(adminHomepageSectionResponseSchema) })
   @ApiErrorResponses(400, 401, 403)
   async uploadImage(
     @Param(new ZodValidationPipe(homepageSectionKeyParamSchema)) params: HomepageSectionKeyParam,
@@ -87,7 +95,7 @@ export class AdminHomepageSectionsController {
   @RequirePermissions("marketing.manage")
   @ApiOperation({ summary: "Remove a homepage section's image (reverts to the storefront's placeholder)" })
   @ApiZodParam(homepageSectionKeyParamSchema)
-  @ApiOkResponse({ schema: toOpenApiSchema(homepageSectionResponseSchema) })
+  @ApiOkResponse({ schema: toOpenApiSchema(adminHomepageSectionResponseSchema) })
   @ApiErrorResponses(401, 403)
   async deleteImage(
     @Param(new ZodValidationPipe(homepageSectionKeyParamSchema)) params: HomepageSectionKeyParam,
@@ -95,5 +103,21 @@ export class AdminHomepageSectionsController {
     @Req() request: Request,
   ) {
     return this.adminHomepageSections.deleteImage(params.key, auth.userId, request.ip);
+  }
+
+  @Patch(":key")
+  @RequirePermissions("marketing.manage")
+  @ApiOperation({ summary: "Update a homepage section's text content (eyebrow/title/description/CTA)" })
+  @ApiZodParam(homepageSectionKeyParamSchema)
+  @ApiBody({ schema: toOpenApiSchema(homepageSectionContentSchema) })
+  @ApiOkResponse({ schema: toOpenApiSchema(adminHomepageSectionResponseSchema) })
+  @ApiErrorResponses(400, 401, 403)
+  async updateContent(
+    @Param(new ZodValidationPipe(homepageSectionKeyParamSchema)) params: HomepageSectionKeyParam,
+    @Body(new ZodValidationPipe(homepageSectionContentSchema)) body: HomepageSectionContentInput,
+    @CurrentUser() auth: AuthContext,
+    @Req() request: Request,
+  ) {
+    return this.adminHomepageSections.updateContent(params.key, body, auth.userId, request.ip);
   }
 }

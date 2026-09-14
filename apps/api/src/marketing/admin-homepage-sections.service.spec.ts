@@ -37,8 +37,21 @@ function makePrismaMock(tx: ReturnType<typeof makeTxMock>, findUniqueResult: unk
   } as unknown as PrismaService;
 }
 
+const EMPTY_SECTION = {
+  imageUrl: null,
+  eyebrowSv: null,
+  eyebrowEn: null,
+  titleSv: null,
+  titleEn: null,
+  descriptionSv: null,
+  descriptionEn: null,
+  ctaLabelSv: null,
+  ctaLabelEn: null,
+  ctaHref: null,
+};
+
 describe("AdminHomepageSectionsService.list", () => {
-  it("returns both known slots even when no rows exist yet", async () => {
+  it("returns all three known slots even when no rows exist yet", async () => {
     const tx = makeTxMock();
     const prisma = makePrismaMock(tx);
     const service = new AdminHomepageSectionsService(prisma, new AuditService(prisma), makeImageStorageMock());
@@ -46,8 +59,10 @@ describe("AdminHomepageSectionsService.list", () => {
     const result = await service.list();
 
     expect(result).toEqual([
-      { key: "story", imageUrl: null },
-      { key: "made-to-order", imageUrl: null },
+      { key: "hero", ...EMPTY_SECTION },
+      { key: "story", ...EMPTY_SECTION },
+      { key: "made-to-order", ...EMPTY_SECTION },
+      { key: "announcement", ...EMPTY_SECTION },
     ]);
   });
 });
@@ -77,7 +92,11 @@ describe("AdminHomepageSectionsService.uploadImage", () => {
     expect(tx.homepageSection.upsert).toHaveBeenCalledWith(
       expect.objectContaining({ where: { key: HomepageSectionKey.MADE_TO_ORDER } }),
     );
-    expect(result).toEqual({ key: "made-to-order", imageUrl: "https://res.cloudinary.com/x/section.jpg" });
+    expect(result).toEqual({
+      key: "made-to-order",
+      ...EMPTY_SECTION,
+      imageUrl: "https://res.cloudinary.com/x/section.jpg",
+    });
   });
 
   it("deletes the previous Cloudinary asset only after the new one uploads successfully", async () => {
@@ -108,7 +127,7 @@ describe("AdminHomepageSectionsService.deleteImage", () => {
     expect(tx.homepageSection.upsert).toHaveBeenCalledWith(
       expect.objectContaining({ update: { imageUrl: null, cloudinaryPublicId: null } }),
     );
-    expect(result).toEqual({ key: "story", imageUrl: null });
+    expect(result).toEqual({ key: "story", ...EMPTY_SECTION });
   });
 
   it("does nothing to imageStorage when the slot has no image yet", async () => {
@@ -120,5 +139,49 @@ describe("AdminHomepageSectionsService.deleteImage", () => {
     await service.deleteImage("made-to-order", ACTOR_USER_ID);
 
     expect(imageStorage.delete).not.toHaveBeenCalled();
+  });
+});
+
+describe("AdminHomepageSectionsService.updateContent", () => {
+  it("creates a row (upsert) when the section has never been edited before", async () => {
+    const tx = makeTxMock();
+    const prisma = makePrismaMock(tx, null);
+    const service = new AdminHomepageSectionsService(prisma, new AuditService(prisma), makeImageStorageMock());
+
+    const result = await service.updateContent(
+      "hero",
+      { titleSv: "Ny rubrik", titleEn: "New heading" },
+      ACTOR_USER_ID,
+    );
+
+    expect(tx.homepageSection.upsert).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: { key: HomepageSectionKey.HERO },
+        update: expect.objectContaining({ titleSv: "Ny rubrik", titleEn: "New heading" }),
+      }),
+    );
+    // toMatchObject, not toEqual — the tx mock's create-branch echo doesn't
+    // simulate Postgres defaulting an unset nullable column to NULL the way
+    // a real upsert's returned row would, only the fields updateContent
+    // itself set are worth asserting here.
+    expect(result).toMatchObject({ key: "hero", titleSv: "Ny rubrik", titleEn: "New heading" });
+  });
+
+  it("treats an empty string as clearing a field back to the default (null), and an omitted key as unchanged", async () => {
+    const tx = makeTxMock();
+    const prisma = makePrismaMock(tx, {
+      key: HomepageSectionKey.STORY,
+      titleSv: "Gammal rubrik",
+      titleEn: "Old heading",
+    });
+    const service = new AdminHomepageSectionsService(prisma, new AuditService(prisma), makeImageStorageMock());
+
+    await service.updateContent("story", { titleSv: "" }, ACTOR_USER_ID);
+
+    expect(tx.homepageSection.upsert).toHaveBeenCalledWith(
+      expect.objectContaining({
+        update: expect.objectContaining({ titleSv: null, titleEn: undefined }),
+      }),
+    );
   });
 });

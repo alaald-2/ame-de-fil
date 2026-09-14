@@ -982,6 +982,30 @@
       "chooseDifferentFile": "Choose a different file",
       "removeConfirmTitle": "Remove this image?",
       "removeConfirmDescription": "The homepage will show its placeholder image again until you upload a new one. This can't be undone."
+    },
+    "homepageContent": {
+      "heading": "Section content",
+      "description": "Titles, descriptions, and button text for the homepage's hero heading, “Our craft,” and “Made to order” sections, plus the site-wide announcement bar. Leave a field blank to use the site's built-in default copy instead.",
+      "heroLabel": "Hero heading",
+      "storyLabel": "Our craft",
+      "madeToOrderLabel": "Made to order",
+      "announcementLabel": "Announcement bar",
+      "messageSvLabel": "Message (Swedish)",
+      "messageEnLabel": "Message (English)",
+      "eyebrowSvLabel": "Eyebrow (Swedish)",
+      "eyebrowEnLabel": "Eyebrow (English)",
+      "titleSvLabel": "Title (Swedish)",
+      "titleEnLabel": "Title (English)",
+      "descriptionSvLabel": "Description (Swedish)",
+      "descriptionEnLabel": "Description (English)",
+      "ctaLabelSvLabel": "Button text (Swedish)",
+      "ctaLabelEnLabel": "Button text (English)",
+      "ctaHrefLabel": "Button link",
+      "ctaHrefHint": "Where the button goes, exactly as it should open — e.g. /en/shop or /produkter. Leave blank for no button.",
+      "saveButton": "Save",
+      "saving": "Saving…",
+      "savedNotice": "Saved.",
+      "genericError": "Something went wrong. Please try again."
     }
   }
 }

@@ -982,6 +982,30 @@
       "chooseDifferentFile": "Välj en annan fil",
       "removeConfirmTitle": "Ta bort den här bilden?",
       "removeConfirmDescription": "Startsidan visar sin platshållarbild igen tills du laddar upp en ny. Det går inte att ångra."
+    },
+    "homepageContent": {
+      "heading": "Sektionsinnehåll",
+      "description": "Rubriker, beskrivningar och knapptext för startsidans rubriksektion, “Vårt hantverk” och “Tillverkas på beställning”, samt det sidövergripande meddelandefältet. Lämna ett fält tomt för att använda sidans inbyggda standardtext.",
+      "heroLabel": "Rubriksektion",
+      "storyLabel": "Vårt hantverk",
+      "madeToOrderLabel": "Tillverkas på beställning",
+      "announcementLabel": "Meddelandefält",
+      "messageSvLabel": "Meddelande (svenska)",
+      "messageEnLabel": "Meddelande (engelska)",
+      "eyebrowSvLabel": "Överrubrik (svenska)",
+      "eyebrowEnLabel": "Överrubrik (engelska)",
+      "titleSvLabel": "Rubrik (svenska)",
+      "titleEnLabel": "Rubrik (engelska)",
+      "descriptionSvLabel": "Beskrivning (svenska)",
+      "descriptionEnLabel": "Beskrivning (engelska)",
+      "ctaLabelSvLabel": "Knapptext (svenska)",
+      "ctaLabelEnLabel": "Knapptext (engelska)",
+      "ctaHrefLabel": "Knapplänk",
+      "ctaHrefHint": "Vart knappen leder, precis som den ska öppnas — t.ex. /en/shop eller /produkter. Lämna tomt för ingen knapp.",
+      "saveButton": "Spara",
+      "saving": "Sparar…",
+      "savedNotice": "Sparat.",
+      "genericError": "Något gick fel. Försök igen."
     }
   }
 }

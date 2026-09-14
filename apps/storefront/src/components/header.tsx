@@ -55,7 +55,12 @@ export async function Header() {
               <PersonIcon aria-hidden="true" className="h-5 w-5" />
               <VisuallyHidden>{tNav("account")}</VisuallyHidden>
             </Link>
-            <CartLink label={tNav("cart")} />
+            <div className="lg:hidden">
+              <CartLink label={tNav("cart")} variant="icon" />
+            </div>
+            <div className="hidden lg:block">
+              <CartLink label={tNav("cart")} />
+            </div>
           </div>
         </div>
       </Container>

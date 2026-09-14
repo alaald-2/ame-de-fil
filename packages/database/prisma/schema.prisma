@@ -1284,27 +1284,50 @@ model HeroSlide {
   @@index([isActive])
 }
 
-// A small, fixed set of named image slots for the homepage's own
-// alternating-section content (the "Our craft" / "Made to order" sections,
-// page.tsx on the storefront) — not a list an admin adds to or reorders
-// like HeroSlide, exactly two rows that already exist by name in the
-// storefront's own layout. Copy/CTA for these sections stays UI content
-// (next-intl, Home.storyTitle etc.) since only the *images* were asked to
-// be admin-manageable here; adding a third section means adding a third
-// enum value and a third place in page.tsx, not a schema change to make
-// this a list.
+// A small, fixed set of named content slots — the top hero heading, "Our
+// craft", "Made to order" (all page.tsx on the storefront), and the
+// site-wide announcement strip (announcement-bar.tsx, rendered in the
+// header on every page, not just the homepage) — not a list an admin adds
+// to or reorders like HeroSlide, exactly four rows that already exist by
+// name in the storefront's own layout. Adding a fifth section means adding
+// a fifth enum value and a fifth place in the relevant component, not a
+// schema change to make this a list.
 enum HomepageSectionKey {
+  HERO
   STORY
   MADE_TO_ORDER
+  ANNOUNCEMENT
 }
 
-// Rows are created lazily (upserted) on first image upload, not pre-seeded
-// — admin-homepage-sections.service.ts's list always returns both known
-// keys regardless of whether a row exists yet, the same
-// "upsert-on-first-read, never a 404" posture as StoreSettings' own comment.
+// Rows are created lazily (upserted) on first edit, not pre-seeded —
+// admin-homepage-sections.service.ts's list always returns all known keys
+// regardless of whether a row exists yet, the same "upsert-on-first-read,
+// never a 404" posture as StoreSettings' own comment. Every text field is
+// nullable and, on the storefront, null falls back to the built-in
+// next-intl copy (Home.storyTitle etc.) rather than rendering blank — so an
+// admin who never touches this still gets the original launch copy, and an
+// admin can revert a field to that default by clearing it back to empty.
+// Flat bilingual columns, not a translation table, matching HeroSlide's own
+// ctaLabelSv/En precedent — the same small-row-count, no-relational-need
+// shape. HERO has no image/eyebrow/CTA of its own (the storefront renders
+// it as a plain heading above the separate HeroSlide carousel — no
+// description underneath; that field stays here only for the admin form's
+// "revert to default" semantics if a subtitle is ever reintroduced), and
+// ANNOUNCEMENT uses only titleSv/titleEn (its one line of text) — those
+// rows just leave the columns they don't use null; one shared table for
+// all four sections is simpler than a separate model per shape.
 model HomepageSection {
   key                HomepageSectionKey @id
   imageUrl           String?
   cloudinaryPublicId String?
+  eyebrowSv          String?
+  eyebrowEn          String?
+  titleSv            String?
+  titleEn            String?
+  descriptionSv      String?
+  descriptionEn      String?
+  ctaLabelSv         String?
+  ctaLabelEn         String?
+  ctaHref            String?
   updatedAt          DateTime           @updatedAt
 }

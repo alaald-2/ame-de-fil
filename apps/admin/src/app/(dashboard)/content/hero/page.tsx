@@ -5,18 +5,20 @@ import { getServerApiClient } from "../../../../lib/server-api";
 import { ContentTabs } from "../../../../components/content-tabs";
 import { HeroSlidesForm } from "../../../../components/hero-slides-form";
 import { HomepageSectionImageForm } from "../../../../components/homepage-section-image-form";
+import { HomepageSectionContentForm } from "../../../../components/homepage-section-content-form";
 
 // Real GET /admin/hero-slides + GET /admin/homepage-sections data
 // (marketing.view-gated server-side) — the third tab of the Content
 // section, sibling to Categories/Collections. Hero slides are a flat,
 // unpaginated list (a homepage hero realistically never holds more than a
 // handful of slides) rather than the Search/Pagination shape Categories/
-// Collections use; homepage sections are always exactly the two known
+// Collections use; homepage sections are always exactly the three known
 // slots (HomepageSection's own schema comment), not a list at all.
 export default async function HeroSlidesPage() {
   const session = await requireSession();
   const t = await getTranslations("Content.hero");
   const tSections = await getTranslations("Content.homepageImages");
+  const tContent = await getTranslations("Content.homepageContent");
   const tNav = await getTranslations("Navigation");
   const client = await getServerApiClient();
   const permissions = session.user.permissions;
@@ -46,8 +48,22 @@ export default async function HeroSlidesPage() {
 
   const canManage = permissions.includes("marketing.manage");
   const sections = homepageSectionsResult.data;
+  const heroSection = sections.find((section) => section.key === "hero");
   const storySection = sections.find((section) => section.key === "story");
   const madeToOrderSection = sections.find((section) => section.key === "made-to-order");
+  const announcementSection = sections.find((section) => section.key === "announcement");
+
+  const emptyContent = {
+    eyebrowSv: null,
+    eyebrowEn: null,
+    titleSv: null,
+    titleEn: null,
+    descriptionSv: null,
+    descriptionEn: null,
+    ctaLabelSv: null,
+    ctaLabelEn: null,
+    ctaHref: null,
+  };
 
   return (
     <div>
@@ -69,24 +85,59 @@ export default async function HeroSlidesPage() {
       </div>
 
       <Heading level={2} className="mt-12">
-        {tSections("heading")}
+        {tContent("heading")}
       </Heading>
       <Text tone="muted" className="mt-2 max-w-2xl">
-        {tSections("description")}
+        {tContent("description")}
       </Text>
-      <div className="mt-6 grid grid-cols-1 gap-6 sm:grid-cols-2">
-        <HomepageSectionImageForm
-          slug="story"
-          label={tSections("storyLabel")}
-          imageUrl={storySection?.imageUrl ?? null}
+      <div className="mt-6 flex flex-col gap-6">
+        <HomepageSectionContentForm
+          slug="announcement"
+          label={tContent("announcementLabel")}
+          content={announcementSection ?? emptyContent}
           canManage={canManage}
+          variant="message"
         />
-        <HomepageSectionImageForm
-          slug="made-to-order"
-          label={tSections("madeToOrderLabel")}
-          imageUrl={madeToOrderSection?.imageUrl ?? null}
+        <HomepageSectionContentForm
+          slug="hero"
+          label={tContent("heroLabel")}
+          content={heroSection ?? emptyContent}
           canManage={canManage}
+          variant="heading"
         />
+      </div>
+
+      <div className="mt-6 grid grid-cols-1 gap-6 lg:grid-cols-2">
+        <div className="flex flex-col gap-4">
+          <HomepageSectionImageForm
+            slug="story"
+            label={tSections("storyLabel")}
+            imageUrl={storySection?.imageUrl ?? null}
+            canManage={canManage}
+          />
+          <HomepageSectionContentForm
+            slug="story"
+            label={tContent("storyLabel")}
+            content={storySection ?? emptyContent}
+            canManage={canManage}
+            variant="full"
+          />
+        </div>
+        <div className="flex flex-col gap-4">
+          <HomepageSectionImageForm
+            slug="made-to-order"
+            label={tSections("madeToOrderLabel")}
+            imageUrl={madeToOrderSection?.imageUrl ?? null}
+            canManage={canManage}
+          />
+          <HomepageSectionContentForm
+            slug="made-to-order"
+            label={tContent("madeToOrderLabel")}
+            content={madeToOrderSection ?? emptyContent}
+            canManage={canManage}
+            variant="full"
+          />
+        </div>
       </div>
     </div>
   );

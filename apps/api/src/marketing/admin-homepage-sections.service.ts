@@ -3,11 +3,25 @@ import { HomepageSectionKey } from "@ame-de-fil/database";
 import { PrismaService } from "../database/prisma.service.ts";
 import { AuditService } from "../audit/audit.service.ts";
 import { IMAGE_STORAGE_PROVIDER, type ImageStorageProvider } from "../images/image-storage.provider.ts";
-import { mapHomepageSection } from "./mappers/homepage-section.mapper.ts";
-import type { HomepageSectionResponse } from "./dto/responses.ts";
+import { mapAdminHomepageSection } from "./mappers/homepage-section.mapper.ts";
+import type { AdminHomepageSectionResponse } from "./dto/responses.ts";
 import { toPrismaHomepageSectionKey, type HomepageSectionSlug } from "./dto/homepage-section-key.param.ts";
+import type { HomepageSectionContentInput } from "./dto/homepage-section-content.dto.ts";
 
-const ALL_KEYS = [HomepageSectionKey.STORY, HomepageSectionKey.MADE_TO_ORDER] as const;
+const ALL_KEYS = [
+  HomepageSectionKey.HERO,
+  HomepageSectionKey.STORY,
+  HomepageSectionKey.MADE_TO_ORDER,
+  HomepageSectionKey.ANNOUNCEMENT,
+] as const;
+
+// `undefined` (key omitted from the request body) means "leave unchanged";
+// an explicit empty string means "clear back to the built-in default copy"
+// (stored as `null`, same as a field that was never set) — see
+// homepage-section-content.dto.ts's own comment on this distinction.
+function toNullableUpdate(value: string | undefined): string | null | undefined {
+  return value === undefined ? undefined : value === "" ? null : value;
+}
 
 // Mirrors admin-hero-slides.service.ts's own upload validation exactly
 // (same provider, same limits — just a different Cloudinary folder).
@@ -22,10 +36,10 @@ export class AdminHomepageSectionsService {
     @Inject(IMAGE_STORAGE_PROVIDER) private readonly imageStorage: ImageStorageProvider,
   ) {}
 
-  async list(): Promise<HomepageSectionResponse[]> {
+  async list(): Promise<AdminHomepageSectionResponse[]> {
     const rows = await this.prisma.homepageSection.findMany();
     const byKey = new Map(rows.map((row) => [row.key, row]));
-    return ALL_KEYS.map((key) => mapHomepageSection(byKey.get(key) ?? { key, imageUrl: null }));
+    return ALL_KEYS.map((key) => mapAdminHomepageSection(byKey.get(key) ?? { key, imageUrl: null }));
   }
 
   async uploadImage(
@@ -33,7 +47,7 @@ export class AdminHomepageSectionsService {
     file: { buffer: Buffer; mimetype: string },
     actorUserId: string,
     ipAddress?: string,
-  ): Promise<HomepageSectionResponse> {
+  ): Promise<AdminHomepageSectionResponse> {
     if (!ALLOWED_IMAGE_MIME_TYPES.has(file.mimetype)) {
       throw new BadRequestException({
         error: "UnsupportedImageType",
@@ -83,10 +97,10 @@ export class AdminHomepageSectionsService {
       await this.imageStorage.delete(existing.cloudinaryPublicId);
     }
 
-    return mapHomepageSection(section);
+    return mapAdminHomepageSection(section);
   }
 
-  async deleteImage(slug: HomepageSectionSlug, actorUserId: string, ipAddress?: string): Promise<HomepageSectionResponse> {
+  async deleteImage(slug: HomepageSectionSlug, actorUserId: string, ipAddress?: string): Promise<AdminHomepageSectionResponse> {
     const key = toPrismaHomepageSectionKey(slug);
     const existing = await this.prisma.homepageSection.findUnique({ where: { key } });
 
@@ -117,6 +131,53 @@ export class AdminHomepageSectionsService {
       return updated;
     });
 
-    return mapHomepageSection(section);
+    return mapAdminHomepageSection(section);
+  }
+
+  async updateContent(
+    slug: HomepageSectionSlug,
+    input: HomepageSectionContentInput,
+    actorUserId: string,
+    ipAddress?: string,
+  ): Promise<AdminHomepageSectionResponse> {
+    const key = toPrismaHomepageSectionKey(slug);
+    const existing = await this.prisma.homepageSection.findUnique({ where: { key } });
+
+    const data = {
+      eyebrowSv: toNullableUpdate(input.eyebrowSv),
+      eyebrowEn: toNullableUpdate(input.eyebrowEn),
+      titleSv: toNullableUpdate(input.titleSv),
+      titleEn: toNullableUpdate(input.titleEn),
+      descriptionSv: toNullableUpdate(input.descriptionSv),
+      descriptionEn: toNullableUpdate(input.descriptionEn),
+      ctaLabelSv: toNullableUpdate(input.ctaLabelSv),
+      ctaLabelEn: toNullableUpdate(input.ctaLabelEn),
+      ctaHref: toNullableUpdate(input.ctaHref),
+    };
+
+    const section = await this.prisma.$transaction(async (tx) => {
+      const updated = await tx.homepageSection.upsert({
+        where: { key },
+        update: data,
+        create: { key, ...data },
+      });
+
+      await this.audit.record(
+        {
+          actorUserId,
+          action: "homepage_section.content_updated",
+          entityType: "HomepageSection",
+          entityId: key,
+          before: existing ? mapAdminHomepageSection(existing) : undefined,
+          after: mapAdminHomepageSection(updated),
+          ipAddress,
+        },
+        tx,
+      );
+
+      return updated;
+    });
+
+    return mapAdminHomepageSection(section);
   }
 }

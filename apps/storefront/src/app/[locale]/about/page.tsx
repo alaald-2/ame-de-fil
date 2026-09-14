@@ -27,10 +27,13 @@ export async function generateMetadata({
 // facts (Swedish atelier, made-to-order, no factories) rather than
 // inventing new biographical/company specifics (founding year, headcount,
 // address) that don't exist anywhere in this project.
-export default async function AboutPage() {
+export default async function AboutPage({ params }: { params: Promise<LocaleParams> }) {
+  const { locale } = await params;
   const t = await getTranslations("About");
 
-  const { data: homepageSections } = await api.GET("/api/v1/homepage-sections", {});
+  const { data: homepageSections } = await api.GET("/api/v1/homepage-sections", {
+    params: { query: { locale } },
+  });
   const storyImageUrl = homepageSections?.find((section) => section.key === "story")?.imageUrl ?? null;
 
   return (

@@ -35,17 +35,48 @@ export type HeroSlideResponse = z.infer<typeof heroSlideResponseSchema>;
 
 export const listHeroSlidesResponseSchema = z.array(heroSlideResponseSchema);
 
-// Same shape for both public and admin — unlike hero slides there's no
-// isActive/CTA/position to hide or resolve per-locale, just "does this slot
-// have an image yet." `key` is the kebab-case slug (see
-// homepage-section-key.param.ts), not the raw Prisma enum value.
-export const homepageSectionResponseSchema = z.object({
-  key: z.enum(["story", "made-to-order"]),
+const homepageSectionKeySchema = z.enum(["hero", "story", "made-to-order", "announcement"]);
+
+// Admin shape — every field, both locales' text columns, regardless of
+// whether an admin has ever touched them (null means "still the built-in
+// default copy" — the storefront resolves that fallback, not this schema).
+export const adminHomepageSectionResponseSchema = z.object({
+  key: homepageSectionKeySchema,
   imageUrl: z.string().nullable(),
+  eyebrowSv: z.string().nullable(),
+  eyebrowEn: z.string().nullable(),
+  titleSv: z.string().nullable(),
+  titleEn: z.string().nullable(),
+  descriptionSv: z.string().nullable(),
+  descriptionEn: z.string().nullable(),
+  ctaLabelSv: z.string().nullable(),
+  ctaLabelEn: z.string().nullable(),
+  ctaHref: z.string().nullable(),
+});
+export type AdminHomepageSectionResponse = z.infer<typeof adminHomepageSectionResponseSchema>;
+
+// Always exactly the three known slots, in a fixed order — this is a small,
+// closed set (HomepageSection's own schema comment), not a paginated or
+// admin-orderable list.
+export const listAdminHomepageSectionsResponseSchema = z.array(adminHomepageSectionResponseSchema);
+
+// Public shape — each bilingual field already resolved to one string for
+// the requested locale (mirrors heroSlideResponseSchema's own ctaLabel
+// resolution), null wherever an admin hasn't set that field (the storefront
+// falls back to its own built-in copy for a null value, same as a null
+// imageUrl already falls back to a placeholder).
+export const homepageSectionResponseSchema = z.object({
+  key: homepageSectionKeySchema,
+  imageUrl: z.string().nullable(),
+  eyebrow: z.string().nullable(),
+  title: z.string().nullable(),
+  description: z.string().nullable(),
+  ctaLabel: z.string().nullable(),
+  ctaHref: z.string().nullable(),
 });
 export type HomepageSectionResponse = z.infer<typeof homepageSectionResponseSchema>;
 
-// Always exactly the two known slots, in a fixed order — this is a small,
+// Always exactly the three known slots, in a fixed order — this is a small,
 // closed set (HomepageSection's own schema comment), not a paginated or
 // admin-orderable list.
 export const listHomepageSectionsResponseSchema = z.array(homepageSectionResponseSchema);

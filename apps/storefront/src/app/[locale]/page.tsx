@@ -21,27 +21,43 @@ export default async function HomePage({ params }: { params: Promise<{ locale: A
   const [{ data }, { data: heroSlides }, { data: homepageSections }] = await Promise.all([
     api.GET("/api/v1/products", { params: { query: { locale, page: 1, pageSize: 4 } } }),
     api.GET("/api/v1/hero-slides", { params: { query: { locale } } }),
-    api.GET("/api/v1/homepage-sections", {}),
+    api.GET("/api/v1/homepage-sections", { params: { query: { locale } } }),
   ]);
   const newArrivals = data?.items ?? [];
   const activeHeroSlides = heroSlides ?? [];
-  const storyImageUrl = homepageSections?.find((section) => section.key === "story")?.imageUrl ?? null;
-  const madeToOrderImageUrl =
-    homepageSections?.find((section) => section.key === "made-to-order")?.imageUrl ?? null;
+
+  // Every field below falls back to this file's own next-intl copy
+  // (Home.storyTitle etc.) whenever the admin hasn't set that field —
+  // apps/admin's "Homepage content" form (Content ▸ Homepage) can override
+  // any of them per-locale; a blank field there means "keep the default."
+  const heroSection = homepageSections?.find((section) => section.key === "hero");
+  const storySection = homepageSections?.find((section) => section.key === "story");
+  const madeToOrderSection = homepageSections?.find((section) => section.key === "made-to-order");
+
+  const heroTitle = heroSection?.title ?? t("heroTitle");
+
+  const storyImageUrl = storySection?.imageUrl ?? null;
+  const storyEyebrow = storySection?.eyebrow ?? t("storyEyebrow");
+  const storyTitle = storySection?.title ?? t("storyTitle");
+  const storyBody = storySection?.description ?? t("storyBody");
+  const storyCtaLabel = storySection?.ctaLabel;
+  const storyCtaHref = storySection?.ctaHref;
+
+  const madeToOrderImageUrl = madeToOrderSection?.imageUrl ?? null;
+  const madeToOrderEyebrow = madeToOrderSection?.eyebrow ?? t("madeToOrderEyebrow");
+  const madeToOrderTitle = madeToOrderSection?.title ?? t("madeToOrderTitle");
+  const madeToOrderBody = madeToOrderSection?.description ?? t("madeToOrderBody");
+  const madeToOrderCtaLabel = madeToOrderSection?.ctaLabel;
+  const madeToOrderCtaHref = madeToOrderSection?.ctaHref;
 
   return (
     <>
-      <div className="border-b border-neutral-200 py-14 text-center sm:py-20">
+      <div className="border-b border-neutral-200 py-8 text-center sm:py-10">
         <Container>
           <Reveal>
             <Heading level={1} className="mx-auto max-w-2xl">
-              {t("heroTitle")}
+              {heroTitle}
             </Heading>
-          </Reveal>
-          <Reveal delay={80}>
-            <Text size="lg" tone="muted" className="mx-auto mt-4 max-w-md">
-              {t("heroSubtitle")}
-            </Text>
           </Reveal>
         </Container>
       </div>
@@ -90,16 +106,20 @@ export default async function HomePage({ params }: { params: Promise<{ locale: A
           )}
           <div>
             <Text size="sm" tone="muted" className="tracking-wide uppercase">
-              {t("storyEyebrow")}
+              {storyEyebrow}
             </Text>
             <Heading level={2} className="mt-2">
-              {t("storyTitle")}
+              {storyTitle}
             </Heading>
             <Text tone="muted" className="mt-4 max-w-md">
-              {t("storyBody")}
+              {storyBody}
             </Text>
             <Button asChild variant="secondary" className="mt-6">
-              <Link href="/about">{t("storyCta")}</Link>
+              {storyCtaLabel && storyCtaHref ? (
+                <a href={storyCtaHref}>{storyCtaLabel}</a>
+              ) : (
+                <Link href="/about">{t("storyCta")}</Link>
+              )}
             </Button>
           </div>
         </Reveal>
@@ -114,16 +134,20 @@ export default async function HomePage({ params }: { params: Promise<{ locale: A
           </div>
           <div className="lg:order-1">
             <Text size="sm" tone="muted" className="tracking-wide uppercase">
-              {t("madeToOrderEyebrow")}
+              {madeToOrderEyebrow}
             </Text>
             <Heading level={2} className="mt-2">
-              {t("madeToOrderTitle")}
+              {madeToOrderTitle}
             </Heading>
             <Text tone="muted" className="mt-4 max-w-md">
-              {t("madeToOrderBody")}
+              {madeToOrderBody}
             </Text>
             <Button asChild variant="secondary" className="mt-6">
-              <Link href="/shop">{t("madeToOrderCta")}</Link>
+              {madeToOrderCtaLabel && madeToOrderCtaHref ? (
+                <a href={madeToOrderCtaHref}>{madeToOrderCtaLabel}</a>
+              ) : (
+                <Link href="/shop">{t("madeToOrderCta")}</Link>
+              )}
             </Button>
           </div>
         </Reveal>
