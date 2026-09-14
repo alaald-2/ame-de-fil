@@ -22,17 +22,24 @@ export function ResendVerificationButton() {
   async function handleClick() {
     setState("sending");
 
-    const { data: session } = await api.GET("/api/v1/auth/session");
-    if (!session?.authenticated) {
+    try {
+      const { data: session } = await api.GET("/api/v1/auth/session");
+      if (!session?.authenticated) {
+        setState("error");
+        return;
+      }
+
+      const { error } = await api.POST("/api/v1/auth/resend-verification", {
+        body: { email: session.user.email },
+      });
+
+      setState(error ? "error" : "sent");
+    } catch {
+      // A rejected fetch (offline, unreachable API) isn't the typed
+      // {data,error}/session shape above — without this, the button stayed
+      // stuck on "sending" forever with no error and no way to retry.
       setState("error");
-      return;
     }
-
-    const { error } = await api.POST("/api/v1/auth/resend-verification", {
-      body: { email: session.user.email },
-    });
-
-    setState(error ? "error" : "sent");
   }
 
   if (state === "sent") {

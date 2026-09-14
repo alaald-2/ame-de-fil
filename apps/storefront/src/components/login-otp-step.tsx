@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { Text, Alert, Button, Spinner } from "@ame-de-fil/ui";
 import { api } from "../lib/api-client";
+import { useCart } from "./cart-provider";
 import { OtpCodeInput } from "./otp-code-input";
 
 type OtpErrorKind = "invalidCode" | "rateLimited" | "genericError";
@@ -25,6 +26,7 @@ interface LoginOtpStepProps {
 export function LoginOtpStep({ email, destination, onChangeEmail }: LoginOtpStepProps) {
   const t = useTranslations("Login");
   const router = useRouter();
+  const { refresh: refreshCart } = useCart();
   const [code, setCode] = useState("");
   const [isVerifying, setIsVerifying] = useState(false);
   const [isResending, setIsResending] = useState(false);
@@ -41,33 +43,49 @@ export function LoginOtpStep({ email, destination, onChangeEmail }: LoginOtpStep
     setErrorKind(null);
     setIsVerifying(true);
 
-    const { error, response } = await api.POST("/api/v1/auth/otp/verify", {
-      body: { email, code: fullCode },
-    });
+    try {
+      const { error, response } = await api.POST("/api/v1/auth/otp/verify", {
+        body: { email, code: fullCode },
+      });
 
-    if (error) {
+      if (error) {
+        setCode(""); // reset the boxes, same low-drama treatment as Shopify's own code screen
+        setErrorKind(response.status === 429 ? "rateLimited" : "invalidCode");
+        return;
+      }
+
+      // See login-password-step.tsx's own resync — same reasoning applies to
+      // this login path.
+      void refreshCart();
+      router.push(destination);
+      router.refresh();
+    } catch {
+      // A rejected fetch isn't the typed {data,error} shape above — without
+      // this, isVerifying never reset and the screen stayed stuck spinning.
+      setCode("");
+      setErrorKind("genericError");
+    } finally {
       setIsVerifying(false);
-      setCode(""); // reset the boxes, same low-drama treatment as Shopify's own code screen
-      setErrorKind(response.status === 429 ? "rateLimited" : "invalidCode");
-      return;
     }
-
-    router.push(destination);
-    router.refresh();
   }
 
   async function handleResend() {
     setIsResending(true);
     setErrorKind(null);
 
-    const { error, response } = await api.POST("/api/v1/auth/otp/request", { body: { email } });
+    try {
+      const { error, response } = await api.POST("/api/v1/auth/otp/request", { body: { email } });
 
-    setIsResending(false);
-    if (error) {
-      setErrorKind(response.status === 429 ? "rateLimited" : "genericError");
-      return;
+      if (error) {
+        setErrorKind(response.status === 429 ? "rateLimited" : "genericError");
+        return;
+      }
+      setCooldownSeconds(RESEND_COOLDOWN_SECONDS);
+    } catch {
+      setErrorKind("genericError");
+    } finally {
+      setIsResending(false);
     }
-    setCooldownSeconds(RESEND_COOLDOWN_SECONDS);
   }
 
   return (

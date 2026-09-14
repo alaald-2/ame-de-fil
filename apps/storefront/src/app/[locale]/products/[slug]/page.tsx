@@ -40,7 +40,6 @@ export default async function ProductPage({ params }: { params: Promise<PagePara
   const product = await loadProduct(slug, locale);
   const t = await getTranslations("Product");
   const tNav = await getTranslations("Navigation");
-  const tFooter = await getTranslations("Footer");
 
   if (!product) notFound();
 
@@ -108,12 +107,6 @@ export default async function ProductPage({ params }: { params: Promise<PagePara
             <Text size="sm" tone="muted">
               {t("handmadeNotice")}
             </Text>
-            <Link
-              href="/shipping"
-              className="w-fit text-sm text-neutral-600 transition-colors duration-300 ease-out-slow hover:text-neutral-900"
-            >
-              {tFooter("shipping")}
-            </Link>
           </div>
 
           {product.materials ? (

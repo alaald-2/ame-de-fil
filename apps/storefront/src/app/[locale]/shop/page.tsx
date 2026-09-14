@@ -1,9 +1,20 @@
 import type { Metadata } from "next";
 import { getTranslations } from "next-intl/server";
-import { Container, Heading, Text, Reveal } from "@ame-de-fil/ui";
+import { Container, Heading, Text, Reveal, Pagination } from "@ame-de-fil/ui";
 import { api } from "../../../lib/api-client";
 import { ProductCard } from "../../../components/product-card";
+import { getPathname } from "../../../i18n/navigation";
 import type { AppLocale } from "../../../lib/locale";
+
+// Shared by Pagination below — the query string a page link needs, given
+// what it must preserve (q) vs. what resetting it implicitly drops (page,
+// whenever `q` itself changes — a fresh search always starts at page 1).
+function buildShopHref(locale: AppLocale, query: string | undefined, page: number): string {
+  return getPathname({
+    href: { pathname: "/shop", query: { ...(query ? { q: query } : {}), ...(page > 1 ? { page } : {}) } },
+    locale,
+  });
+}
 
 type LocaleParams = { locale: AppLocale };
 
@@ -27,6 +38,7 @@ export default async function ShopPage({
   const { locale } = await params;
   const { page: pageParam, q } = await searchParams;
   const t = await getTranslations("Shop");
+  const tPagination = await getTranslations("Pagination");
   const page = Number(pageParam ?? "1") || 1;
   const query = q?.trim() || undefined;
 
@@ -38,6 +50,8 @@ export default async function ShopPage({
     throw new Error("Failed to load products");
   }
 
+  const totalPages = Math.max(1, Math.ceil(data.total / data.pageSize));
+
   return (
     <Container className="py-16">
       <Heading level={1}>{query ? t("searchResultsFor", { query }) : t("title")}</Heading>
@@ -46,13 +60,26 @@ export default async function ShopPage({
           {query ? t("emptySearch", { query }) : t("empty")}
         </Text>
       ) : (
-        <div className="mt-10 grid grid-cols-2 gap-x-6 gap-y-10 sm:grid-cols-3 lg:grid-cols-4">
-          {data.items.map((product, index) => (
-            <Reveal key={product.id} delay={Math.min(index, 8) * 60}>
-              <ProductCard product={product} locale={locale} />
-            </Reveal>
-          ))}
-        </div>
+        <>
+          <div className="mt-10 grid grid-cols-2 gap-x-6 gap-y-10 sm:grid-cols-3 lg:grid-cols-4">
+            {data.items.map((product, index) => (
+              <Reveal key={product.id} delay={Math.min(index, 8) * 60}>
+                <ProductCard product={product} locale={locale} />
+              </Reveal>
+            ))}
+          </div>
+          {totalPages > 1 ? (
+            <Pagination
+              className="mt-12"
+              page={data.page}
+              totalPages={totalPages}
+              makeHref={(targetPage) => buildShopHref(locale, query, targetPage)}
+              previousLabel={tPagination("previousPage")}
+              nextLabel={tPagination("nextPage")}
+              pageLabel={(current, total) => tPagination("pageLabel", { page: current, totalPages: total })}
+            />
+          ) : null}
+        </>
       )}
     </Container>
   );

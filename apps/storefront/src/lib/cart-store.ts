@@ -36,6 +36,12 @@ const INITIAL_STATE: CartState = { cart: EMPTY_CART, isLoading: true, errorMessa
 export class CartStore {
   private state: CartState = INITIAL_STATE;
   private readonly listeners = new Set<() => void>();
+  // Bumped before every mutating request; a response only gets applied if
+  // no newer request has been issued since. Without this, two overlapping
+  // requests (e.g. editing one line item's quantity while removing another)
+  // can resolve out of order — a slow update's response landing after a
+  // fast remove's would silently revert the removal on screen.
+  private requestVersion = 0;
 
   constructor(private readonly locale: AppLocale) {
     void this.refresh();
@@ -54,11 +60,14 @@ export class CartStore {
   }
 
   async refresh(): Promise<void> {
+    const version = ++this.requestVersion;
     const { data } = await api.GET("/api/v1/cart", { params: { query: { locale: this.locale } } });
+    if (version !== this.requestVersion) return;
     this.setState({ cart: data ?? EMPTY_CART, isLoading: false });
   }
 
   async addItem(variantId: string, quantity: number): Promise<boolean> {
+    const version = ++this.requestVersion;
     this.setState({ errorMessage: null });
     const { data, error } = await api.POST("/api/v1/cart/items", {
       params: { query: { locale: this.locale } },
@@ -66,14 +75,17 @@ export class CartStore {
       body: { variantId, quantity },
     });
     if (error) {
-      this.setState({ errorMessage: getErrorMessage(error, "Failed to add to cart") });
+      if (version === this.requestVersion) {
+        this.setState({ errorMessage: getErrorMessage(error, "Failed to add to cart") });
+      }
       return false;
     }
-    this.setState({ cart: data });
+    if (version === this.requestVersion) this.setState({ cart: data });
     return true;
   }
 
   async updateQuantity(itemId: string, quantity: number): Promise<boolean> {
+    const version = ++this.requestVersion;
     this.setState({ errorMessage: null });
     const { data, error } = await api.PATCH("/api/v1/cart/items/{itemId}", {
       params: { path: { itemId }, query: { locale: this.locale } },
@@ -81,24 +93,29 @@ export class CartStore {
       body: { quantity },
     });
     if (error) {
-      this.setState({ errorMessage: getErrorMessage(error, "Failed to update quantity") });
+      if (version === this.requestVersion) {
+        this.setState({ errorMessage: getErrorMessage(error, "Failed to update quantity") });
+      }
       return false;
     }
-    this.setState({ cart: data });
+    if (version === this.requestVersion) this.setState({ cart: data });
     return true;
   }
 
   async removeItem(itemId: string): Promise<boolean> {
+    const version = ++this.requestVersion;
     this.setState({ errorMessage: null });
     const { data, error } = await api.DELETE("/api/v1/cart/items/{itemId}", {
       params: { path: { itemId }, query: { locale: this.locale } },
       headers: { "x-csrf-token": readCsrfCookie() },
     });
     if (error) {
-      this.setState({ errorMessage: getErrorMessage(error, "Failed to remove item") });
+      if (version === this.requestVersion) {
+        this.setState({ errorMessage: getErrorMessage(error, "Failed to remove item") });
+      }
       return false;
     }
-    this.setState({ cart: data });
+    if (version === this.requestVersion) this.setState({ cart: data });
     return true;
   }
 

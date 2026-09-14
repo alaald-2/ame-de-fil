@@ -30,19 +30,25 @@ export function ResetPasswordForm() {
     setIsGenericError(false);
     setIsSubmitting(true);
 
-    const { error, response } = await api.POST("/api/v1/auth/reset-password", {
-      body: { token, password },
-    });
+    try {
+      const { error, response } = await api.POST("/api/v1/auth/reset-password", {
+        body: { token, password },
+      });
 
-    setIsSubmitting(false);
+      if (error) {
+        if (response.status === 400) setIsInvalidToken(true);
+        else setIsGenericError(true);
+        return;
+      }
 
-    if (error) {
-      if (response.status === 400) setIsInvalidToken(true);
-      else setIsGenericError(true);
-      return;
+      setSucceeded(true);
+    } catch {
+      // A rejected fetch (offline, unreachable API) isn't the typed
+      // {data,error} shape above — without this, isSubmitting never reset.
+      setIsGenericError(true);
+    } finally {
+      setIsSubmitting(false);
     }
-
-    setSucceeded(true);
   }
 
   if (succeeded) {

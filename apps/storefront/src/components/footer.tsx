@@ -38,19 +38,16 @@ export async function Footer() {
               <Link href="/collections" className={LINK_STYLES}>
                 {tNav("collections")}
               </Link>
-            </div>
-          </div>
-          <div>
-            <Heading level={4}>{t("customerService")}</Heading>
-            <div className="mt-3 flex flex-col gap-2">
-              <Link href="/shipping" className={LINK_STYLES}>
-                {t("shipping")}
-              </Link>
-              <Link href="/contact" className={LINK_STYLES}>
-                {t("contact")}
+              <Link href="/about" className={LINK_STYLES}>
+                {tNav("about")}
               </Link>
             </div>
           </div>
+          {/* "Customer service" column (shipping/returns, contact) removed
+              for now — those pages don't exist yet and no real policy/
+              contact channel exists anywhere in this project to build them
+              from; a live link to either would just be another 404. Re-add
+              once real content/contact details are confirmed. */}
         </div>
       </Container>
     </footer>

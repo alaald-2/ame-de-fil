@@ -34,17 +34,29 @@ export function LoginForm() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [errorKind, setErrorKind] = useState<EmailStepErrorKind | null>(null);
 
+  // Wrapped in try/catch (here and in handleEmailSubmit below) since a
+  // rejected fetch — offline, DNS failure, the API unreachable — isn't the
+  // typed `{data,error}` shape openapi-fetch gives an HTTP-level failure;
+  // it throws instead. Previously nothing caught that, so `isSubmitting`
+  // (set true right before the call) was never reset — the button stayed
+  // disabled/spinning forever with no error shown, and a page reload,
+  // discarding whatever the user had typed, was the only way out.
   async function requestOtpAndAdvance(targetEmail: string) {
-    // Enumeration-safe on the API side regardless of outcome — this call's
-    // own error handling only ever needs to catch the rate-limit case, the
-    // success/no-op cases are indistinguishable by design (AuthService.
-    // requestLoginOtp) and both correctly land on the same code screen.
-    const { error, response } = await api.POST("/api/v1/auth/otp/request", { body: { email: targetEmail } });
-    if (error && response.status === 429) {
-      setErrorKind("rateLimited");
-      return;
+    try {
+      // Enumeration-safe on the API side regardless of outcome — this
+      // call's own error handling only ever needs to catch the rate-limit
+      // case, the success/no-op cases are indistinguishable by design
+      // (AuthService.requestLoginOtp) and both correctly land on the same
+      // code screen.
+      const { error, response } = await api.POST("/api/v1/auth/otp/request", { body: { email: targetEmail } });
+      if (error && response.status === 429) {
+        setErrorKind("rateLimited");
+        return;
+      }
+      setStep("otp");
+    } catch {
+      setErrorKind("genericError");
     }
-    setStep("otp");
   }
 
   async function handleEmailSubmit(event: FormEvent) {
@@ -52,22 +64,25 @@ export function LoginForm() {
     setErrorKind(null);
     setIsSubmitting(true);
 
-    const { data, error, response } = await api.POST("/api/v1/auth/login-method", { body: { email } });
+    try {
+      const { data, error, response } = await api.POST("/api/v1/auth/login-method", { body: { email } });
 
-    if (error) {
+      if (error) {
+        setErrorKind(response.status === 429 ? "rateLimited" : "genericError");
+        return;
+      }
+
+      if (data.method === "password") {
+        setStep("password");
+        return;
+      }
+
+      await requestOtpAndAdvance(email);
+    } catch {
+      setErrorKind("genericError");
+    } finally {
       setIsSubmitting(false);
-      setErrorKind(response.status === 429 ? "rateLimited" : "genericError");
-      return;
     }
-
-    if (data.method === "password") {
-      setIsSubmitting(false);
-      setStep("password");
-      return;
-    }
-
-    await requestOtpAndAdvance(email);
-    setIsSubmitting(false);
   }
 
   function handleChangeEmail() {

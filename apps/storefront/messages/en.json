@@ -32,6 +32,13 @@
     "madeToOrderBody": "Some pieces are made only once you order them. It takes a little longer, but it means nothing is made until it's truly wanted.",
     "madeToOrderCta": "Shop the collection"
   },
+  "About": {
+    "title": "About Âme de Fil",
+    "eyebrow": "Our craft",
+    "intro": "Âme de Fil is a small crochet atelier in Sweden. Every piece is made by hand, to order — no factories, no mass production, just time, care, and a single thread.",
+    "body": "Most of what we make is limited by nature: a small batch of yarn, a pattern that only makes sense in certain sizes, a maker who can only crochet so many hours in a day. When something sells out, it's usually gone for good — and when a piece is made to order, it's made only once someone actually wants it.",
+    "cta": "Shop the collection"
+  },
   "Announcement": {
     "message": "Handmade in Sweden — small batches, made with care."
   },
@@ -61,6 +68,11 @@
     "invalidEmail": "Enter a valid email address.",
     "tooShort": "Must be at least {min} characters.",
     "tooLong": "Must be at most {max} characters."
+  },
+  "Pagination": {
+    "previousPage": "Previous",
+    "nextPage": "Next",
+    "pageLabel": "Page {page} of {totalPages}"
   },
   "Shop": {
     "title": "Shop",
@@ -129,6 +141,7 @@
     "shipping": "Shipping",
     "tax": "of which VAT",
     "total": "Total",
+    "pricesIncludeVat": "Prices include VAT — the exact amount is shown on your receipt.",
     "placeOrder": "Place order",
     "placingOrder": "Placing order…",
     "orderConfirmedTitle": "Order confirmed",
@@ -200,7 +213,10 @@
     "goToLogin": "Sign in",
     "invalidTitle": "Link invalid or expired",
     "invalidMessage": "This verification link is invalid or has expired.",
-    "resendPrompt": "Request a new one from your account page after signing in."
+    "resendPrompt": "Request a new one from your account page after signing in.",
+    "networkErrorTitle": "Couldn't verify your email",
+    "networkErrorMessage": "Something went wrong while verifying your email. This may be a connection problem — your link hasn't been used yet.",
+    "retry": "Try again"
   },
   "ForgotPassword": {
     "title": "Forgot your password?",
@@ -210,6 +226,7 @@
     "submitting": "Sending…",
     "successMessage": "If an account exists for that email, we've sent a link to reset your password.",
     "rateLimited": "Too many attempts. Please try again in a minute.",
+    "genericError": "Something went wrong. Please try again.",
     "backToLogin": "Back to sign in"
   },
   "ResetPassword": {

@@ -301,6 +301,18 @@ export function CheckoutForm({ locale, shippingMethods, onSuccess }: CheckoutFor
               )}
             </Text>
           </div>
+          {/* This total already IS the final total — checkout/pricing.ts's own
+              comment confirms totalMinor = subtotalMinor + shippingMinor,
+              tax is VAT embedded within those prices, not added on top, so
+              there's no larger number waiting on the confirmation page. This
+              note only exists so that page's own "of which VAT" breakdown
+              line doesn't read as a late addition to what's shown here — the
+              exact VAT split isn't computable client-side pre-order (cart
+              items/shipping methods carry no tax-rate field, only the
+              order snapshot does once checkout has run). */}
+          <Text size="sm" tone="muted" className="mt-1">
+            {t("pricesIncludeVat")}
+          </Text>
         </div>
       </aside>
     </div>

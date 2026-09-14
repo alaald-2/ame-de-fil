@@ -3,11 +3,11 @@
 import { useEffect, useRef, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import { useTranslations } from "next-intl";
-import { Heading, Text, Card, Spinner } from "@ame-de-fil/ui";
+import { Heading, Text, Card, Spinner, Button } from "@ame-de-fil/ui";
 import { Link } from "../i18n/navigation";
 import { api } from "../lib/api-client";
 
-type VerifyState = "verifying" | "success" | "invalid";
+type VerifyState = "verifying" | "success" | "invalid" | "error";
 
 function VerifyEmailInvalidCard() {
   const t = useTranslations("VerifyEmail");
@@ -39,13 +39,25 @@ export function VerifyEmailPanel() {
   const [state, setState] = useState<VerifyState>("verifying");
   const hasRun = useRef(false);
 
+  async function runVerification(currentToken: string) {
+    setState("verifying");
+    try {
+      const { error } = await api.POST("/api/v1/auth/verify-email", { body: { token: currentToken } });
+      setState(error ? "invalid" : "success");
+    } catch {
+      // Distinct from "invalid": the request never reached the API at all
+      // (offline, unreachable) — the token itself may still be perfectly
+      // valid and unused (a POST, not a GET, so an unreached request can't
+      // have burned it), so this must not claim the link is invalid/expired.
+      // Previously uncaught, this left the page stuck on its spinner forever.
+      setState("error");
+    }
+  }
+
   useEffect(() => {
     if (hasRun.current || !token) return;
     hasRun.current = true;
-
-    api.POST("/api/v1/auth/verify-email", { body: { token } }).then(({ error }) => {
-      setState(error ? "invalid" : "success");
-    });
+    void runVerification(token);
   }, [token]);
 
   // No token at all in the URL — nothing to verify, no request to make;
@@ -58,6 +70,22 @@ export function VerifyEmailPanel() {
 
   if (state === "invalid") {
     return <VerifyEmailInvalidCard />;
+  }
+
+  if (state === "error") {
+    return (
+      <div className="w-full max-w-sm">
+        <Card className="p-8 text-center">
+          <Heading level={2} className="mb-3">
+            {t("networkErrorTitle")}
+          </Heading>
+          <Text tone="muted">{t("networkErrorMessage")}</Text>
+          <Button variant="secondary" className="mt-6" onClick={() => void runVerification(token)}>
+            {t("retry")}
+          </Button>
+        </Card>
+      </div>
+    );
   }
 
   return (

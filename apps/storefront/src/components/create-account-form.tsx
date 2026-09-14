@@ -31,23 +31,29 @@ export function CreateAccountForm() {
     setErrorKind(null);
     setIsSubmitting(true);
 
-    const { error, response } = await api.POST("/api/v1/auth/register", {
-      body: {
-        email,
-        password,
-        firstName: firstName || undefined,
-        lastName: lastName || undefined,
-      },
-    });
+    try {
+      const { error, response } = await api.POST("/api/v1/auth/register", {
+        body: {
+          email,
+          password,
+          firstName: firstName || undefined,
+          lastName: lastName || undefined,
+        },
+      });
 
-    setIsSubmitting(false);
+      if (error) {
+        setErrorKind(response.status === 429 ? "rateLimited" : "genericError");
+        return;
+      }
 
-    if (error) {
-      setErrorKind(response.status === 429 ? "rateLimited" : "genericError");
-      return;
+      setSucceeded(true);
+    } catch {
+      // A rejected fetch (offline, unreachable API) isn't the typed
+      // {data,error} shape above — without this, isSubmitting never reset.
+      setErrorKind("genericError");
+    } finally {
+      setIsSubmitting(false);
     }
-
-    setSucceeded(true);
   }
 
   if (succeeded) {

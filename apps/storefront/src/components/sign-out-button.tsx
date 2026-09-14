@@ -6,6 +6,7 @@ import { Button, Alert } from "@ame-de-fil/ui";
 import { useRouter } from "../i18n/navigation";
 import { api } from "../lib/api-client";
 import { readCsrfCookie } from "../lib/csrf";
+import { useCart } from "./cart-provider";
 
 // Mirrors apps/admin/src/components/sign-out-button.tsx exactly (same
 // backend endpoint, same CSRF header) — router.push/refresh here goes
@@ -14,6 +15,7 @@ import { readCsrfCookie } from "../lib/csrf";
 export function SignOutButton() {
   const t = useTranslations("Common");
   const router = useRouter();
+  const { refresh: refreshCart } = useCart();
   const [isSigningOut, setIsSigningOut] = useState(false);
   const [hasError, setHasError] = useState(false);
 
@@ -21,19 +23,32 @@ export function SignOutButton() {
     setHasError(false);
     setIsSigningOut(true);
 
-    const { error } = await api.POST("/api/v1/auth/logout", {
-      headers: { "x-csrf-token": readCsrfCookie() },
-    });
+    try {
+      const { error } = await api.POST("/api/v1/auth/logout", {
+        headers: { "x-csrf-token": readCsrfCookie() },
+      });
 
-    setIsSigningOut(false);
+      if (error) {
+        setHasError(true);
+        return;
+      }
 
-    if (error) {
+      // The cart's own CartStore lives for the whole session (mounted once in
+      // the root layout) — router.refresh() only re-fetches the current
+      // route's Server Component payload, it never touches that client-side
+      // store. Without this, the outgoing customer's cart stayed on screen
+      // (header badge, /cart page) after sign-out, now representing a
+      // different session, until an unrelated add/remove forced a refetch.
+      void refreshCart();
+      router.push("/");
+      router.refresh();
+    } catch {
+      // A rejected fetch (offline, unreachable API) isn't the typed
+      // {error} shape above — without this, isSigningOut never reset.
       setHasError(true);
-      return;
+    } finally {
+      setIsSigningOut(false);
     }
-
-    router.push("/");
-    router.refresh();
   }
 
   return (

@@ -32,6 +32,13 @@
     "madeToOrderBody": "Vissa plagg tillverkas först när du beställer dem. Det tar lite längre tid, men det betyder att inget görs förrän någon verkligen vill ha det.",
     "madeToOrderCta": "Se kollektionen"
   },
+  "About": {
+    "title": "Om Âme de Fil",
+    "eyebrow": "Vårt hantverk",
+    "intro": "Âme de Fil är ett litet virkateljé i Sverige. Varje plagg görs för hand, på beställning — inga fabriker, ingen massproduktion, bara tid, omsorg och en enda tråd.",
+    "body": "Det mesta vi gör är naturligt begränsat: ett litet parti garn, ett mönster som bara fungerar i vissa storlekar, en hantverkare som bara hinner virka så många timmar om dagen. När något är slutsålt är det oftast borta för gott — och när ett plagg tillverkas på beställning görs det bara när någon faktiskt vill ha det.",
+    "cta": "Se kollektionen"
+  },
   "Announcement": {
     "message": "Handgjort i Sverige — små serier, tillverkade med omsorg."
   },
@@ -61,6 +68,11 @@
     "invalidEmail": "Ange en giltig e-postadress.",
     "tooShort": "Måste vara minst {min} tecken.",
     "tooLong": "Får vara högst {max} tecken."
+  },
+  "Pagination": {
+    "previousPage": "Föregående",
+    "nextPage": "Nästa",
+    "pageLabel": "Sida {page} av {totalPages}"
   },
   "Shop": {
     "title": "Butik",
@@ -129,6 +141,7 @@
     "shipping": "Frakt",
     "tax": "varav moms",
     "total": "Totalt",
+    "pricesIncludeVat": "Priserna är inklusive moms — den exakta summan visas på ditt kvitto.",
     "placeOrder": "Slutför beställning",
     "placingOrder": "Skickar beställning…",
     "orderConfirmedTitle": "Beställning bekräftad",
@@ -200,7 +213,10 @@
     "goToLogin": "Logga in",
     "invalidTitle": "Länken är ogiltig eller har gått ut",
     "invalidMessage": "Den här verifieringslänken är ogiltig eller har gått ut.",
-    "resendPrompt": "Begär en ny från ditt konto efter att du loggat in."
+    "resendPrompt": "Begär en ny från ditt konto efter att du loggat in.",
+    "networkErrorTitle": "Kunde inte verifiera din e-post",
+    "networkErrorMessage": "Något gick fel vid verifieringen av din e-post. Det kan bero på ett anslutningsproblem — din länk har inte använts än.",
+    "retry": "Försök igen"
   },
   "ForgotPassword": {
     "title": "Har du glömt ditt lösenord?",
@@ -210,6 +226,7 @@
     "submitting": "Skickar…",
     "successMessage": "Om det finns ett konto för den e-postadressen har vi skickat en länk för att återställa lösenordet.",
     "rateLimited": "För många försök. Försök igen om en minut.",
+    "genericError": "Något gick fel. Försök igen.",
     "backToLogin": "Tillbaka till inloggning"
   },
   "ResetPassword": {

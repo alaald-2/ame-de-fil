@@ -18,7 +18,13 @@ export function ProductCard({ product, locale }: ProductCardProps) {
   const t = useTranslations("Shop");
   const image = product.images[0];
   const hoverImage = product.images[1];
-  const firstVariant = product.variants[0];
+  // Same precedence as product-variant-selector.tsx's own `firstAvailable`
+  // (the product detail page's default selection) — variants have no
+  // guaranteed order from the API (no `orderBy` on the relation), so a bare
+  // `variants[0]` here could show a sold-out variant's price while the PDP
+  // defaults to a different, available variant's price for the same
+  // product, a listing-to-detail mismatch on the core browse→buy path.
+  const displayVariant = product.variants.find((v) => v.available) ?? product.variants[0];
   const anyAvailable = product.variants.some((v) => v.available);
   const allMadeToOrder = product.variants.every((v) => v.productionTimeDays !== null);
 
@@ -63,11 +69,11 @@ export function ProductCard({ product, locale }: ProductCardProps) {
         <Text size="sm" className="text-neutral-900">
           {product.name}
         </Text>
-        {firstVariant ? (
+        {displayVariant ? (
           <SalePrice
-            price={firstVariant.price}
-            originalPrice={firstVariant.originalPrice}
-            promotion={firstVariant.promotion}
+            price={displayVariant.price}
+            originalPrice={displayVariant.originalPrice}
+            promotion={displayVariant.promotion}
             locale={locale}
           />
         ) : null}

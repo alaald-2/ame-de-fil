@@ -30,6 +30,7 @@ export function HeaderSearch({
   const [value, setValue] = useState("");
   const inputRef = useRef<HTMLInputElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
+  const toggleButtonRef = useRef<HTMLButtonElement>(null);
 
   const updateOpen = useCallback(
     (next: boolean) => {
@@ -38,6 +39,20 @@ export function HeaderSearch({
     },
     [onOpenChange],
   );
+
+  // Escape and the panel's own close button both leave focus with nowhere
+  // to go — the focused element (the input, or the close button itself)
+  // becomes `aria-hidden`/`tabIndex={-1}` a moment later without this,
+  // stranding keyboard/screen-reader focus inside a subtree that's no
+  // longer meant to be reachable (browsers log an aria-hidden-focus
+  // warning for exactly this). Outside-click and submit are deliberately
+  // NOT routed through this — the former should let the browser's own
+  // focus follow wherever the user actually clicked, and the latter
+  // navigates away regardless.
+  const closeAndReturnFocus = useCallback(() => {
+    updateOpen(false);
+    toggleButtonRef.current?.focus();
+  }, [updateOpen]);
 
   useEffect(() => {
     if (isOpen) inputRef.current?.focus();
@@ -51,7 +66,7 @@ export function HeaderSearch({
       }
     }
     function onKeyDown(event: KeyboardEvent) {
-      if (event.key === "Escape") updateOpen(false);
+      if (event.key === "Escape") closeAndReturnFocus();
     }
     document.addEventListener("pointerdown", onPointerDown);
     document.addEventListener("keydown", onKeyDown);
@@ -59,7 +74,7 @@ export function HeaderSearch({
       document.removeEventListener("pointerdown", onPointerDown);
       document.removeEventListener("keydown", onKeyDown);
     };
-  }, [isOpen, updateOpen]);
+  }, [isOpen, updateOpen, closeAndReturnFocus]);
 
   function handleSubmit(event: FormEvent) {
     event.preventDefault();
@@ -71,6 +86,7 @@ export function HeaderSearch({
   return (
     <div ref={containerRef} className="relative">
       <button
+        ref={toggleButtonRef}
         type="button"
         onClick={() => updateOpen(!isOpen)}
         aria-expanded={isOpen}
@@ -110,7 +126,7 @@ export function HeaderSearch({
           />
           <button
             type="button"
-            onClick={() => updateOpen(false)}
+            onClick={closeAndReturnFocus}
             tabIndex={isOpen ? 0 : -1}
             className="shrink-0 rounded-sm p-1 text-neutral-400 transition-colors duration-200 ease-out-slow hover:text-neutral-900 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent-500"
           >

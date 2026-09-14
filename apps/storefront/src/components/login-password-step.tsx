@@ -6,6 +6,7 @@ import { useTranslations } from "next-intl";
 import { Text, Alert, FormField, Input, Button, Stack, Spinner } from "@ame-de-fil/ui";
 import { Link } from "../i18n/navigation";
 import { api } from "../lib/api-client";
+import { useCart } from "./cart-provider";
 
 type PasswordErrorKind = "invalidCredentials" | "genericError";
 
@@ -25,6 +26,7 @@ interface LoginPasswordStepProps {
 export function LoginPasswordStep({ email, destination, onChangeEmail, onUseOtpInstead }: LoginPasswordStepProps) {
   const t = useTranslations("Login");
   const router = useRouter();
+  const { refresh: refreshCart } = useCart();
   const [password, setPassword] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [errorKind, setErrorKind] = useState<PasswordErrorKind | null>(null);
@@ -34,16 +36,29 @@ export function LoginPasswordStep({ email, destination, onChangeEmail, onUseOtpI
     setErrorKind(null);
     setIsSubmitting(true);
 
-    const { error, response } = await api.POST("/api/v1/auth/login", { body: { email, password } });
+    try {
+      const { error, response } = await api.POST("/api/v1/auth/login", { body: { email, password } });
 
-    if (error) {
+      if (error) {
+        setErrorKind(response.status === 401 ? "invalidCredentials" : "genericError");
+        return;
+      }
+
+      // Resync the guest-session cart the moment the account cart takes over
+      // (e.g. a server-side guest-cart merge on login) — see the sign-out
+      // button's own resync for the symmetric case and why router.refresh()
+      // alone can't do this.
+      void refreshCart();
+      router.push(destination);
+      router.refresh();
+    } catch {
+      // A rejected fetch (offline, unreachable API) isn't the typed
+      // {data,error} shape above — without this, isSubmitting never reset
+      // and the button stayed disabled/spinning forever with no error.
+      setErrorKind("genericError");
+    } finally {
       setIsSubmitting(false);
-      setErrorKind(response.status === 401 ? "invalidCredentials" : "genericError");
-      return;
     }
-
-    router.push(destination);
-    router.refresh();
   }
 
   return (

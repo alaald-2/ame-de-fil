@@ -14,28 +14,39 @@ export function ForgotPasswordForm() {
   const [email, setEmail] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isRateLimited, setIsRateLimited] = useState(false);
+  const [isGenericError, setIsGenericError] = useState(false);
   const [succeeded, setSucceeded] = useState(false);
 
   async function handleSubmit(event: FormEvent) {
     event.preventDefault();
     setIsRateLimited(false);
+    setIsGenericError(false);
     setIsSubmitting(true);
 
-    const { error, response } = await api.POST("/api/v1/auth/forgot-password", { body: { email } });
+    try {
+      const { error, response } = await api.POST("/api/v1/auth/forgot-password", { body: { email } });
 
-    setIsSubmitting(false);
+      if (error) {
+        if (response.status === 429) setIsRateLimited(true);
+        // Any other error (e.g. a malformed email) still resolves to the
+        // same generic success state below — this endpoint is enumeration-
+        // safe by design, and a validation failure carries no signal worth
+        // surfacing differently.
+        else setSucceeded(true);
+        return;
+      }
 
-    if (error) {
-      if (response.status === 429) setIsRateLimited(true);
-      // Any other error (e.g. a malformed email) still resolves to the
-      // same generic success state below — this endpoint is enumeration-
-      // safe by design, and a validation failure carries no signal worth
-      // surfacing differently.
-      else setSucceeded(true);
-      return;
+      setSucceeded(true);
+    } catch {
+      // Unlike the branch above, this means the request never reached the
+      // API at all (offline, unreachable) — a real failure, not one of the
+      // deliberately-indistinguishable enumeration-safe outcomes, so it
+      // must NOT resolve to the same "check your email" success screen
+      // (no email will ever be sent).
+      setIsGenericError(true);
+    } finally {
+      setIsSubmitting(false);
     }
-
-    setSucceeded(true);
   }
 
   if (succeeded) {
@@ -70,6 +81,11 @@ export function ForgotPasswordForm() {
         {isRateLimited ? (
           <Alert tone="danger" className="mb-6">
             {t("rateLimited")}
+          </Alert>
+        ) : null}
+        {isGenericError ? (
+          <Alert tone="danger" className="mb-6">
+            {t("genericError")}
           </Alert>
         ) : null}
 
