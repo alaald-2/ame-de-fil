@@ -126,7 +126,17 @@ export function HeroSlidesForm({ slides, canManage }: HeroSlidesFormProps) {
           {t("emptyState")}
         </Text>
       ) : canManage ? (
-        <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
+        // Explicit id — without one, dnd-kit seeds its announcer/
+        // aria-describedby ids from a module-level counter that increments
+        // per DndContext mounted, which differs between the server render
+        // and the client's own mount order/count and produces a hydration
+        // mismatch. A fixed id makes those ids deterministic instead.
+        <DndContext
+          id="hero-slides-dnd"
+          sensors={sensors}
+          collisionDetection={closestCenter}
+          onDragEnd={handleDragEnd}
+        >
           <SortableContext items={orderedSlides.map((slide) => slide.id)} strategy={rectSortingStrategy}>
             <div className="grid grid-cols-1 gap-4 sm:grid-cols-2" aria-busy={isSavingOrder}>
               {orderedSlides.map((slide) => (
