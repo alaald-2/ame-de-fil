@@ -108,8 +108,8 @@ describe("AdminHomepageSectionsService.uploadImage", () => {
     await service.uploadImage("story", { buffer: Buffer.from("x"), mimetype: "image/jpeg" }, ACTOR_USER_ID);
 
     expect(imageStorage.delete).toHaveBeenCalledWith("old-1");
-    const uploadOrder = imageStorage.upload.mock.invocationCallOrder[0]!;
-    const deleteOrder = imageStorage.delete.mock.invocationCallOrder[0]!;
+    const uploadOrder = (imageStorage.upload as ReturnType<typeof vi.fn>).mock.invocationCallOrder[0]!;
+    const deleteOrder = (imageStorage.delete as ReturnType<typeof vi.fn>).mock.invocationCallOrder[0]!;
     expect(uploadOrder).toBeLessThan(deleteOrder);
   });
 });
