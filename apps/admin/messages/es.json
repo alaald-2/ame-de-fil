@@ -10,7 +10,8 @@
     "inventory": "Inventario",
     "customers": "Clientes",
     "content": "Contenido",
-    "administration": "Administración"
+    "administration": "Administración",
+    "tasks": "Tareas"
   },
   "Login": {
     "title": "Iniciar sesión",
@@ -714,7 +715,12 @@
         "active": "Activa",
         "startsAt": "Fecha de inicio",
         "endsAt": "Fecha de fin",
-        "variantIds": "Variantes"
+        "variantIds": "Variantes",
+        "type": "Tipo",
+        "title": "Título",
+        "notes": "Notas",
+        "dueAt": "Fecha límite",
+        "assignedToUserId": "Asignado a"
       }
     },
     "storeSettings": {
@@ -926,6 +932,83 @@
         "detailErrorDescription": "Algo salió mal al cargar los detalles de esta colección.",
         "close": "Cerrar"
       }
+    }
+  },
+  "Tasks": {
+    "resultsCount": "{count} tareas",
+    "forbiddenTitle": "No tienes acceso a esta página",
+    "forbiddenDescription": "Ver tareas requiere el permiso de Tareas. Pide acceso a un administrador.",
+    "errorTitle": "No se pudieron cargar las tareas",
+    "errorDescription": "Algo salió mal al cargar la lista de tareas.",
+    "emptyTitle": "Sin tareas",
+    "emptyDescription": "Nada pendiente ahora mismo — las tareas automáticas aparecerán aquí a medida que los pedidos avancen por producción y envío.",
+    "showCompleted": "Mostrar completadas y canceladas",
+    "showOpenOnly": "Mostrar solo abiertas",
+    "paginationPrevious": "Anterior",
+    "paginationNext": "Siguiente",
+    "paginationPage": "Página {page} de {totalPages}",
+    "createTask": "Nueva tarea",
+    "createDialogTitle": "Crear una tarea",
+    "createDialogDescription": "Añade una tarea manual — para cualquier cosa que no se genere ya automáticamente desde un pedido o un artículo de inventario.",
+    "close": "Cerrar",
+    "typeLabel": "Tipo",
+    "titleLabel": "Título",
+    "notesLabel": "Notas",
+    "dueDateLabel": "Fecha límite",
+    "assigneeLabel": "Asignado a",
+    "unassigned": "Sin asignar",
+    "createGenericError": "Algo salió mal al crear esta tarea. Inténtalo de nuevo.",
+    "complete": "Completar",
+    "cancel": "Cancelar",
+    "reopen": "Reabrir",
+    "actionConflictError": "El estado de esta tarea acaba de cambiar en otro lugar — recarga la página.",
+    "actionGenericError": "Algo salió mal. Inténtalo de nuevo.",
+    "viewAll": "Todas las tareas",
+    "viewMine": "Mis tareas",
+    "viewUnassigned": "Sin asignar",
+    "viewsLabel": "Vistas de tareas",
+    "bucketCount": "{count} tareas",
+    "dueOn": "Vence {date}",
+    "orderLink": "Pedido {orderNumber}",
+    "variantLabel": "{productName} (Art. {articleNumber})",
+    "_status": {
+      "OPEN": "Abierta",
+      "DONE": "Completada",
+      "CANCELED": "Cancelada"
+    },
+    "_bucket": {
+      "overdue": "Atrasada",
+      "dueToday": "Vence hoy",
+      "dueTomorrow": "Vence mañana",
+      "upcoming": "Próximas",
+      "noDueDate": "Sin fecha límite"
+    },
+    "type": {
+      "START_PRODUCTION": "Iniciar producción",
+      "FINISH_PRODUCTION": "Finalizar producción",
+      "QUALITY_CHECK": "Control de calidad",
+      "PACK_ORDER": "Embalar pedido",
+      "SHIP_ORDER": "Enviar pedido",
+      "FOLLOW_UP_DELAYED_ORDER": "Seguimiento — pedido retrasado",
+      "RESTOCK": "Reponer stock",
+      "CUSTOMER_FOLLOW_UP": "Seguimiento al cliente",
+      "FOLLOW_UP_PENDING_REFUND": "Reembolso atascado",
+      "FOLLOW_UP_FAILED_REFUND": "Reembolso fallido",
+      "REVIEW_DISPUTE": "Revisar disputa",
+      "INSPECT_RETURN": "Inspeccionar devolución",
+      "GENERAL": "General"
+    },
+    "status": {
+      "OPEN": "Abierta",
+      "DONE": "Completada",
+      "CANCELED": "Cancelada"
+    },
+    "bucket": {
+      "overdue": "Atrasada",
+      "dueToday": "Vence hoy",
+      "dueTomorrow": "Vence mañana",
+      "upcoming": "Próximas",
+      "noDueDate": "Sin fecha límite"
     }
   }
 }

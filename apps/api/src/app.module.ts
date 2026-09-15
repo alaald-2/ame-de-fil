@@ -36,6 +36,7 @@ import { NotificationsModule } from "./notifications/notifications.module.js";
 import { AuditModule } from "./audit/audit.module.js";
 import { SettingsModule } from "./settings/settings.module.js";
 import { MarketingModule } from "./marketing/marketing.module.js";
+import { TasksModule } from "./tasks/tasks.module.js";
 
 const CORRELATION_ID_HEADER = "x-correlation-id";
 
@@ -91,6 +92,7 @@ const CORRELATION_ID_HEADER = "x-correlation-id";
     AuditModule,
     SettingsModule,
     MarketingModule,
+    TasksModule,
   ],
   providers: [
     { provide: APP_FILTER, useClass: AllExceptionsFilter },

@@ -131,6 +131,45 @@ enum DataSubjectRequestStatus {
   REJECTED
 }
 
+// Task.type — ROADMAP.md's admin Tasks feature. START_PRODUCTION through
+// PACK_ORDER are the four pre-ship checklist items generated together for a
+// made-to-order order and auto-closed together on READY_TO_SHIP (there is no
+// per-step order status to distinguish them individually — see TasksModule's
+// automation sweep). FOLLOW_UP_PENDING_REFUND/FOLLOW_UP_FAILED_REFUND/
+// REVIEW_DISPUTE are read-only-detected from Refund/Payment state.
+// INSPECT_RETURN is deliberately manual-only — no Return/RMA model exists in
+// this schema to trigger it from.
+enum TaskType {
+  START_PRODUCTION
+  FINISH_PRODUCTION
+  QUALITY_CHECK
+  PACK_ORDER
+  SHIP_ORDER
+  FOLLOW_UP_DELAYED_ORDER
+  RESTOCK
+  CUSTOMER_FOLLOW_UP
+  FOLLOW_UP_PENDING_REFUND
+  FOLLOW_UP_FAILED_REFUND
+  REVIEW_DISPUTE
+  INSPECT_RETURN
+  GENERAL
+}
+
+enum TaskStatus {
+  OPEN
+  DONE
+  CANCELED
+}
+
+// MANUAL: created by an admin. AUTOMATED: created by TaskAutomationService's
+// periodic sweep (a read-only reader of Order/InventoryItem/Refund/Payment,
+// never a writer of any of them — see admin-orders.service.ts/
+// inventory.service.ts/payments/*, none of which this feature touches).
+enum TaskSource {
+  MANUAL
+  AUTOMATED
+}
+
 // ─────────────────────────────────────────────────────────────────────────
 // Identity, RBAC, sessions — SECURITY.md §1-2, DECISIONS.md ADR-015
 // ─────────────────────────────────────────────────────────────────────────
@@ -175,6 +214,9 @@ model User {
   notesAuthored            CustomerNote[]            @relation("CustomerNoteAuthor")
   accountActionTokens      AccountActionToken[]
   loginOtps                LoginOtp[]
+  assignedTasks            Task[]                    @relation("TaskAssignee")
+  createdTasks             Task[]                    @relation("TaskCreatedBy")
+  tasksAboutMe             Task[]                    @relation("TaskCustomer")
 
   @@index([status])
 }
@@ -389,12 +431,12 @@ model ProductTranslation {
 }
 
 model ProductImage {
-  id        String  @id @default(cuid())
-  productId String
-  url       String
-  position  Int     @default(0)
-  altTextSv String?
-  altTextEn String?
+  id                 String  @id @default(cuid())
+  productId          String
+  url                String
+  position           Int     @default(0)
+  altTextSv          String?
+  altTextEn          String?
   // Nullable for migration safety on any pre-existing rows; every row
   // created through the admin upload endpoint always sets it — needed to
   // delete/transform the asset in Cloudinary later (deriving a public_id
@@ -476,6 +518,7 @@ model ProductVariant {
   wishlistedBy             Wishlist[]
   backInStockSubscriptions BackInStockSubscription[]
   promotionVariants        PromotionVariant[]
+  tasks                    Task[]
 
   @@index([productId])
 }
@@ -763,6 +806,7 @@ model Order {
   shipments      Shipment[]
   notes          CustomerNote[]
   statusToken    OrderStatusToken?
+  tasks          Task[]
 
   @@index([status])
   @@index([userId])
@@ -859,6 +903,7 @@ model OrderItem {
   variant            ProductVariant      @relation(fields: [productVariantId], references: [id], onDelete: Restrict)
   reservation        StockReservation?
   inventoryMovements InventoryMovement[]
+  tasks              Task[]
 
   @@index([orderId])
 }
@@ -1051,7 +1096,7 @@ model Promotion {
 // can't both race past the pre-check — this constraint is the final,
 // unbypassable layer under that, not the primary UX.
 model PromotionVariant {
-  id               String   @id @default(cuid())
+  id               String @id @default(cuid())
   promotionId      String
   productVariantId String
 
@@ -1063,9 +1108,6 @@ model PromotionVariant {
 
   promotion Promotion      @relation(fields: [promotionId], references: [id], onDelete: Cascade)
   variant   ProductVariant @relation(fields: [productVariantId], references: [id], onDelete: Cascade)
-
-  @@unique([promotionId, productVariantId])
-  @@index([productVariantId])
   // The migration's hand-written SQL adds:
   //   CREATE EXTENSION IF NOT EXISTS btree_gist;
   //   ALTER TABLE "PromotionVariant" ADD CONSTRAINT promotion_variant_no_overlap
@@ -1077,6 +1119,9 @@ model PromotionVariant {
   // without time zone.) Prisma's schema language has no way to declare
   // EXCLUDE/gist constraints, so this can't be expressed here; see the
   // migration.sql itself for the authoritative version.
+
+  @@unique([promotionId, productVariantId])
+  @@index([productVariantId])
 }
 
 // ─────────────────────────────────────────────────────────────────────────
@@ -1226,17 +1271,17 @@ model IdempotencyKey {
 // `id` is pinned to a known literal and every read/write targets it directly
 // (upsert-on-first-read, never a 404).
 model StoreSettings {
-  id           String  @id @default("singleton")
-  businessName String?
-  addressLine1 String?
-  addressLine2 String?
-  postalCode   String?
-  city         String?
-  country      String?
-  orgNumber    String?
-  vatNumber    String?
-  phone        String?
-  email        String?
+  id            String  @id @default("singleton")
+  businessName  String?
+  addressLine1  String?
+  addressLine2  String?
+  postalCode    String?
+  city          String?
+  country       String?
+  orgNumber     String?
+  vatNumber     String?
+  phone         String?
+  email         String?
   // Which of the fields above appear on a printed receipt — this is
   // letterhead metadata the admin can choose to omit; the receipt's actual
   // substance (order, items, totals) is never toggleable.
@@ -1330,4 +1375,57 @@ model HomepageSection {
   ctaLabelEn         String?
   ctaHref            String?
   updatedAt          DateTime           @updatedAt
+}
+
+// ─────────────────────────────────────────────────────────────────────────
+// Admin Tasks — operational to-do items (production/fulfillment checklist,
+// restock, refund/dispute follow-up, general work), manual or
+// system-generated. See apps/api/src/tasks/task-automation.service.ts for
+// the read-only sweep that generates AUTOMATED rows — it only reads
+// Order/OrderItem/InventoryItem/Refund/Payment and only ever writes here,
+// never the other way around.
+// ─────────────────────────────────────────────────────────────────────────
+
+model Task {
+  id          String     @id @default(cuid())
+  type        TaskType
+  source      TaskSource @default(MANUAL)
+  title       String
+  notes       String?
+  status      TaskStatus @default(OPEN)
+  dueAt       DateTime?
+  completedAt DateTime?
+
+  assignedToUserId String?
+  createdByUserId  String?
+
+  // All four links are optional and independent — a task is usually *about*
+  // something (an order, a specific line item, a variant running low, a
+  // customer) but a GENERAL task stands alone with none of them set, same
+  // "optional link, never required" posture as CustomerNote.orderId.
+  orderId          String?
+  orderItemId      String?
+  productVariantId String?
+  customerUserId   String?
+
+  // Idempotency key for TaskAutomationService's upsert, e.g.
+  // "order:{orderId}:READY_TO_SHIP_CHECKLIST" or
+  // "refund:{refundId}:PENDING_FOLLOWUP" — makes the periodic sweep safe to
+  // re-run indefinitely without ever creating a duplicate task. Null for
+  // manually created tasks, which have no dedupe concept.
+  dedupeKey String? @unique
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  assignedTo User?           @relation("TaskAssignee", fields: [assignedToUserId], references: [id], onDelete: SetNull)
+  createdBy  User?           @relation("TaskCreatedBy", fields: [createdByUserId], references: [id], onDelete: SetNull)
+  customer   User?           @relation("TaskCustomer", fields: [customerUserId], references: [id], onDelete: SetNull)
+  order      Order?          @relation(fields: [orderId], references: [id], onDelete: SetNull)
+  orderItem  OrderItem?      @relation(fields: [orderItemId], references: [id], onDelete: SetNull)
+  variant    ProductVariant? @relation(fields: [productVariantId], references: [id], onDelete: SetNull)
+
+  @@index([status, dueAt])
+  @@index([assignedToUserId])
+  @@index([orderId])
 }

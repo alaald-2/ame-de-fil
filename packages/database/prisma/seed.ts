@@ -42,6 +42,8 @@ const PERMISSION_KEYS = [
   "settings.manage",
   "marketing.view",
   "marketing.manage",
+  "tasks.view",
+  "tasks.manage",
 ] as const;
 
 const ADMIN_ROLE_NAME = "admin";

@@ -146,6 +146,25 @@ export const envSchema = z.object({
   // Phase 1: no live Valkey instance to validate against yet; rate-limit and
   // session-cache structures fall back to in-memory when unset.
   CACHE_URL: z.url().optional(),
+
+  // Admin Tasks automation sweep (TaskAutomationScheduler) — how often the
+  // read-only sweep re-derives Task rows from Order/InventoryItem/Refund/
+  // Payment state, same "configurable, not a magic number" posture as
+  // RESERVATION_EXPIRY_SWEEP_INTERVAL_MS. A slower default than that sweep
+  // (5 minutes vs. 1) is fine here: task generation has no correctness
+  // race to bound the way stock reservation does, only freshness.
+  TASK_AUTOMATION_SWEEP_INTERVAL_MS: z.coerce.number().int().positive().default(300_000),
+  // A PENDING Refund with no terminal outcome yet (PAYMENTS.md §6's
+  // disclosed "no async reconciliation" gap) becomes a
+  // FOLLOW_UP_PENDING_REFUND task once it's been stuck this long.
+  TASK_REFUND_PENDING_FOLLOWUP_HOURS: z.coerce.number().int().positive().default(24),
+  // Due date offset for the CUSTOMER_FOLLOW_UP task generated after a
+  // Refund reaches SUCCEEDED.
+  TASK_REFUND_FOLLOWUP_DELAY_DAYS: z.coerce.number().int().positive().default(3),
+  // How many days past its computed production due date an order sits in
+  // IN_PRODUCTION/READY_TO_SHIP before a FOLLOW_UP_DELAYED_ORDER task is
+  // generated.
+  TASK_DELAYED_ORDER_GRACE_DAYS: z.coerce.number().int().positive().default(2),
 });
 
 export type Env = z.infer<typeof envSchema>;

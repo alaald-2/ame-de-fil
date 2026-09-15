@@ -10,7 +10,8 @@
     "inventory": "Lager",
     "customers": "Kunder",
     "content": "Innehåll",
-    "administration": "Administration"
+    "administration": "Administration",
+    "tasks": "Uppgifter"
   },
   "Login": {
     "title": "Logga in",
@@ -714,7 +715,12 @@
         "active": "Aktiv",
         "startsAt": "Startdatum",
         "endsAt": "Slutdatum",
-        "variantIds": "Varianter"
+        "variantIds": "Varianter",
+        "type": "Typ",
+        "title": "Titel",
+        "notes": "Anteckningar",
+        "dueAt": "Förfallodatum",
+        "assignedToUserId": "Tilldelad"
       }
     },
     "storeSettings": {
@@ -1006,6 +1012,83 @@
       "saving": "Sparar…",
       "savedNotice": "Sparat.",
       "genericError": "Något gick fel. Försök igen."
+    }
+  },
+  "Tasks": {
+    "resultsCount": "{count} uppgifter",
+    "forbiddenTitle": "Du har inte åtkomst till den här sidan",
+    "forbiddenDescription": "Att visa uppgifter kräver behörigheten Uppgifter. Kontakta en administratör om du behöver åtkomst.",
+    "errorTitle": "Kunde inte läsa in uppgifter",
+    "errorDescription": "Något gick fel när uppgiftslistan skulle läsas in.",
+    "emptyTitle": "Inga uppgifter",
+    "emptyDescription": "Inget att göra just nu — automatiska uppgifter dyker upp här när ordrar går igenom tillverkning och leverans.",
+    "showCompleted": "Visa klara och avbrutna",
+    "showOpenOnly": "Visa endast öppna",
+    "paginationPrevious": "Föregående",
+    "paginationNext": "Nästa",
+    "paginationPage": "Sida {page} av {totalPages}",
+    "createTask": "Ny uppgift",
+    "createDialogTitle": "Skapa en uppgift",
+    "createDialogDescription": "Lägg till en manuell uppgift — för allt som inte redan genereras automatiskt från en order eller lagervara.",
+    "close": "Stäng",
+    "typeLabel": "Typ",
+    "titleLabel": "Titel",
+    "notesLabel": "Anteckningar",
+    "dueDateLabel": "Förfallodatum",
+    "assigneeLabel": "Tilldelad",
+    "unassigned": "Ej tilldelad",
+    "createGenericError": "Något gick fel när uppgiften skulle skapas. Försök igen.",
+    "complete": "Klarmarkera",
+    "cancel": "Avbryt",
+    "reopen": "Återöppna",
+    "actionConflictError": "Uppgiftens status ändrades precis någon annanstans — ladda om sidan.",
+    "actionGenericError": "Något gick fel. Försök igen.",
+    "viewAll": "Alla uppgifter",
+    "viewMine": "Mina uppgifter",
+    "viewUnassigned": "Ej tilldelade",
+    "viewsLabel": "Uppgiftsvyer",
+    "bucketCount": "{count} uppgifter",
+    "dueOn": "Förfaller {date}",
+    "orderLink": "Order {orderNumber}",
+    "variantLabel": "{productName} (Art. {articleNumber})",
+    "_status": {
+      "OPEN": "Öppen",
+      "DONE": "Klar",
+      "CANCELED": "Avbruten"
+    },
+    "_bucket": {
+      "overdue": "Försenad",
+      "dueToday": "Förfaller idag",
+      "dueTomorrow": "Förfaller imorgon",
+      "upcoming": "Kommande",
+      "noDueDate": "Inget förfallodatum"
+    },
+    "type": {
+      "START_PRODUCTION": "Påbörja tillverkning",
+      "FINISH_PRODUCTION": "Avsluta tillverkning",
+      "QUALITY_CHECK": "Kvalitetskontroll",
+      "PACK_ORDER": "Packa order",
+      "SHIP_ORDER": "Skicka order",
+      "FOLLOW_UP_DELAYED_ORDER": "Uppföljning — order försenad",
+      "RESTOCK": "Fyll på lager",
+      "CUSTOMER_FOLLOW_UP": "Kunduppföljning",
+      "FOLLOW_UP_PENDING_REFUND": "Återbetalning fastnat",
+      "FOLLOW_UP_FAILED_REFUND": "Återbetalning misslyckades",
+      "REVIEW_DISPUTE": "Granska tvist",
+      "INSPECT_RETURN": "Kontrollera returnerad produkt",
+      "GENERAL": "Allmänt"
+    },
+    "status": {
+      "OPEN": "Öppen",
+      "DONE": "Klar",
+      "CANCELED": "Avbruten"
+    },
+    "bucket": {
+      "overdue": "Försenad",
+      "dueToday": "Förfaller idag",
+      "dueTomorrow": "Förfaller imorgon",
+      "upcoming": "Kommande",
+      "noDueDate": "Inget förfallodatum"
     }
   }
 }

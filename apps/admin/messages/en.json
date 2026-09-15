@@ -10,7 +10,8 @@
     "inventory": "Inventory",
     "customers": "Customers",
     "content": "Content",
-    "administration": "Administration"
+    "administration": "Administration",
+    "tasks": "Tasks"
   },
   "Login": {
     "title": "Sign in",
@@ -714,7 +715,12 @@
         "active": "Active",
         "startsAt": "Start date",
         "endsAt": "End date",
-        "variantIds": "Variants"
+        "variantIds": "Variants",
+        "type": "Type",
+        "title": "Title",
+        "notes": "Notes",
+        "dueAt": "Due date",
+        "assignedToUserId": "Assignee"
       }
     },
     "storeSettings": {
@@ -1006,6 +1012,83 @@
       "saving": "Saving…",
       "savedNotice": "Saved.",
       "genericError": "Something went wrong. Please try again."
+    }
+  },
+  "Tasks": {
+    "resultsCount": "{count} tasks",
+    "forbiddenTitle": "You don't have access to this page",
+    "forbiddenDescription": "Viewing tasks requires the Tasks permission. Ask an administrator if you need access.",
+    "errorTitle": "Couldn't load tasks",
+    "errorDescription": "Something went wrong while loading the task list.",
+    "emptyTitle": "No tasks",
+    "emptyDescription": "Nothing outstanding right now — automatic tasks appear here as orders move through production and fulfillment.",
+    "showCompleted": "Show completed & canceled",
+    "showOpenOnly": "Show open only",
+    "paginationPrevious": "Previous",
+    "paginationNext": "Next",
+    "paginationPage": "Page {page} of {totalPages}",
+    "createTask": "New task",
+    "createDialogTitle": "Create a task",
+    "createDialogDescription": "Add a manual task — for anything not already generated automatically from an order or inventory item.",
+    "close": "Close",
+    "typeLabel": "Type",
+    "titleLabel": "Title",
+    "notesLabel": "Notes",
+    "dueDateLabel": "Due date",
+    "assigneeLabel": "Assignee",
+    "unassigned": "Unassigned",
+    "createGenericError": "Something went wrong creating this task. Please try again.",
+    "complete": "Complete",
+    "cancel": "Cancel",
+    "reopen": "Reopen",
+    "actionConflictError": "This task's status just changed elsewhere — reload the page.",
+    "actionGenericError": "Something went wrong. Please try again.",
+    "viewAll": "All tasks",
+    "viewMine": "My tasks",
+    "viewUnassigned": "Unassigned",
+    "viewsLabel": "Task views",
+    "bucketCount": "{count} tasks",
+    "dueOn": "Due {date}",
+    "orderLink": "Order {orderNumber}",
+    "variantLabel": "{productName} (Art. {articleNumber})",
+    "_status": {
+      "OPEN": "Open",
+      "DONE": "Done",
+      "CANCELED": "Canceled"
+    },
+    "_bucket": {
+      "overdue": "Overdue",
+      "dueToday": "Due today",
+      "dueTomorrow": "Due tomorrow",
+      "upcoming": "Upcoming",
+      "noDueDate": "No due date"
+    },
+    "type": {
+      "START_PRODUCTION": "Start production",
+      "FINISH_PRODUCTION": "Finish production",
+      "QUALITY_CHECK": "Quality check",
+      "PACK_ORDER": "Pack order",
+      "SHIP_ORDER": "Ship order",
+      "FOLLOW_UP_DELAYED_ORDER": "Follow up — order delayed",
+      "RESTOCK": "Restock",
+      "CUSTOMER_FOLLOW_UP": "Customer follow-up",
+      "FOLLOW_UP_PENDING_REFUND": "Refund stuck pending",
+      "FOLLOW_UP_FAILED_REFUND": "Refund failed",
+      "REVIEW_DISPUTE": "Review dispute",
+      "INSPECT_RETURN": "Inspect returned product",
+      "GENERAL": "General"
+    },
+    "status": {
+      "OPEN": "Open",
+      "DONE": "Done",
+      "CANCELED": "Canceled"
+    },
+    "bucket": {
+      "overdue": "Overdue",
+      "dueToday": "Due today",
+      "dueTomorrow": "Due tomorrow",
+      "upcoming": "Upcoming",
+      "noDueDate": "No due date"
     }
   }
 }
