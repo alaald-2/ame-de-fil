@@ -25,11 +25,13 @@ async function bootApp(validateSession: (token: string) => Promise<AuthContext |
   const getStatus = vi
     .fn()
     .mockResolvedValue({ status: OrderStatus.CONFIRMED, payment: { status: PaymentStatus.PAID } });
+  const listMyOrders = vi.fn().mockResolvedValue({ items: [], page: 1, pageSize: 20, total: 0 });
+  const getMyOrderDetail = vi.fn().mockResolvedValue({ orderId: "order-1" });
 
   const moduleRef = await Test.createTestingModule({
     controllers: [OrdersController],
     providers: [
-      { provide: OrdersService, useValue: { getStatus } },
+      { provide: OrdersService, useValue: { getStatus, listMyOrders, getMyOrderDetail } },
       { provide: SessionService, useValue: { validateSession } },
       { provide: ConfigService, useValue: { get: (key: string) => CONFIG_VALUES[key] } },
       { provide: APP_GUARD, useClass: SessionAuthGuard },
@@ -44,7 +46,7 @@ async function bootApp(validateSession: (token: string) => Promise<AuthContext |
   app.use(cookieParser());
   app.useGlobalFilters(new AllExceptionsFilter());
   await app.init();
-  return { app, getStatus };
+  return { app, getStatus, listMyOrders, getMyOrderDetail };
 }
 
 describe("GET /orders/:orderId/status", () => {
@@ -106,5 +108,60 @@ describe("GET /orders/:orderId/status", () => {
       .set("X-Order-Status-Token", "t");
 
     expect(limited.status).toBe(429);
+  });
+});
+
+// Neither new route carries @OptionalAuth()/@Public() — default-deny
+// (SessionAuthGuard's own posture) is the real thing under test here, not
+// just the service call.
+describe("GET /orders (list) and GET /orders/:orderId (detail) — the caller's own orders", () => {
+  let app: INestApplication | undefined;
+  afterEach(async () => {
+    await app?.close();
+    app = undefined;
+  });
+
+  it("GET /orders requires a session — 401 with no cookie at all", async () => {
+    const booted = await bootApp(async () => null);
+    app = booted.app;
+
+    const response = await supertest(app.getHttpServer()).get("/orders");
+
+    expect(response.status).toBe(401);
+    expect(booted.listMyOrders).not.toHaveBeenCalled();
+  });
+
+  it("GET /orders scopes the call to the authenticated caller's own userId", async () => {
+    const booted = await bootApp(async () => AUTH);
+    app = booted.app;
+
+    const response = await supertest(app.getHttpServer())
+      .get("/orders?page=2&pageSize=10")
+      .set("Cookie", "ame_session=token");
+
+    expect(response.status).toBe(200);
+    expect(booted.listMyOrders).toHaveBeenCalledWith("user-1", 2, 10);
+  });
+
+  it("GET /orders/:orderId requires a session — 401 with no cookie at all", async () => {
+    const booted = await bootApp(async () => null);
+    app = booted.app;
+
+    const response = await supertest(app.getHttpServer()).get("/orders/order-1");
+
+    expect(response.status).toBe(401);
+    expect(booted.getMyOrderDetail).not.toHaveBeenCalled();
+  });
+
+  it("GET /orders/:orderId scopes the call to the authenticated caller's own userId", async () => {
+    const booted = await bootApp(async () => AUTH);
+    app = booted.app;
+
+    const response = await supertest(app.getHttpServer())
+      .get("/orders/order-1")
+      .set("Cookie", "ame_session=token");
+
+    expect(response.status).toBe(200);
+    expect(booted.getMyOrderDetail).toHaveBeenCalledWith("user-1", "order-1");
   });
 });

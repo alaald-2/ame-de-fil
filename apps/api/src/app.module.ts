@@ -23,6 +23,7 @@ import { InventoryModule } from "./inventory/inventory.module.js";
 import { CartModule } from "./cart/cart.module.js";
 import { CheckoutModule } from "./checkout/checkout.module.js";
 import { OrdersModule } from "./orders/orders.module.js";
+import { AddressesModule } from "./addresses/addresses.module.js";
 import { PaymentsModule } from "./payments/payments.module.js";
 import { ShippingModule } from "./shipping/shipping.module.js";
 import { DiscountsModule } from "./discounts/discounts.module.js";
@@ -79,6 +80,7 @@ const CORRELATION_ID_HEADER = "x-correlation-id";
     CartModule,
     CheckoutModule,
     OrdersModule,
+    AddressesModule,
     PaymentsModule,
     ShippingModule,
     DiscountsModule,

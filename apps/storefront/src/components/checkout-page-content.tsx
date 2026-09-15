@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { useTranslations } from "next-intl";
 import { Heading, Text, Button } from "@ame-de-fil/ui";
-import type { ShippingMethod, CheckoutResponse } from "@ame-de-fil/types";
+import type { ShippingMethod, CheckoutResponse, AddressResponse } from "@ame-de-fil/types";
 import { Link } from "../i18n/navigation";
 import type { AppLocale } from "../lib/locale";
 import { useCart } from "./cart-provider";
@@ -19,9 +19,11 @@ type Phase =
 export function CheckoutPageContent({
   locale,
   shippingMethods,
+  savedAddresses,
 }: {
   locale: AppLocale;
   shippingMethods: ShippingMethod[];
+  savedAddresses: AddressResponse[];
 }) {
   const t = useTranslations("Checkout");
   const { cart, isLoading, refresh } = useCart();
@@ -71,6 +73,7 @@ export function CheckoutPageContent({
     <CheckoutForm
       locale={locale}
       shippingMethods={shippingMethods}
+      savedAddresses={savedAddresses}
       onSuccess={(order) => {
         void refresh();
         if (order.payment.clientSecret) {

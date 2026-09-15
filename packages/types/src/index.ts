@@ -4,4 +4,5 @@ export * from "./catalog.ts";
 export * from "./cart.ts";
 export * from "./checkout.ts";
 export * from "./orders.ts";
+export * from "./addresses.ts";
 export * from "./shipping.ts";

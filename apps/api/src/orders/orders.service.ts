@@ -4,6 +4,13 @@ import { PrismaService } from "../database/prisma.service.ts";
 import { hashOrderStatusToken } from "../common/order-status-token.ts";
 import type { AuthContext } from "../common/types/auth-context.ts";
 import type { OrderStatusResponse } from "./dto/order-status-response.ts";
+import {
+  MY_ORDER_DETAIL_SELECT,
+  MY_ORDER_LIST_SELECT,
+  mapMyOrderDetail,
+  mapMyOrderListItem,
+} from "./mappers/my-order.mapper.ts";
+import type { ListMyOrdersResponse, MyOrderDetailResponse } from "./dto/my-order-responses.ts";
 
 const NOT_FOUND = () =>
   new NotFoundException({ error: "OrderNotFound", message: "Order not found" });
@@ -11,6 +18,41 @@ const NOT_FOUND = () =>
 @Injectable()
 export class OrdersService {
   constructor(private readonly prisma: PrismaService) {}
+
+  // Scoped entirely by userId at the query level, never a permission check
+  // — "my own orders" is not an admin privilege (AdminOrdersService.listOrders's
+  // own equivalent). Same pagination shape/select-then-map structure as that
+  // method, deliberately not shared with it (customer/admin responses diverge
+  // enough — see my-order.mapper.ts's own comment — that a shared helper
+  // would need to branch on caller type internally, which is worse).
+  async listMyOrders(userId: string, page: number, pageSize: number): Promise<ListMyOrdersResponse> {
+    const [rows, total] = await Promise.all([
+      this.prisma.order.findMany({
+        where: { userId },
+        select: MY_ORDER_LIST_SELECT,
+        orderBy: { createdAt: "desc" },
+        skip: (page - 1) * pageSize,
+        take: pageSize,
+      }),
+      this.prisma.order.count({ where: { userId } }),
+    ]);
+
+    return { items: rows.map(mapMyOrderListItem), page, pageSize, total };
+  }
+
+  // Ownership is checked here, not in the query's `where` — a mismatch and
+  // a nonexistent order both throw the identical NOT_FOUND(), the same
+  // enumeration-safe posture getStatus() below already uses (never confirm
+  // to the caller that an orderId belonging to someone else actually exists).
+  async getMyOrderDetail(userId: string, orderId: string): Promise<MyOrderDetailResponse> {
+    const order = await this.prisma.order.findUnique({
+      where: { id: orderId },
+      select: { userId: true, ...MY_ORDER_DETAIL_SELECT },
+    });
+    if (!order || order.userId !== userId) throw NOT_FOUND();
+
+    return mapMyOrderDetail(order);
+  }
 
   // Two authorization paths, deliberately not merged (DECISIONS.md
   // ADR-024): an authenticated caller is authorized purely by

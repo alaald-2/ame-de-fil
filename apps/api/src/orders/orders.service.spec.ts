@@ -152,3 +152,165 @@ describe("OrdersService.getStatus", () => {
     expect(Object.keys(result.payment)).toEqual(["status"]);
   });
 });
+
+const MY_ORDER_LIST_ROW = {
+  id: "order-1",
+  orderNumber: "1001",
+  status: OrderStatus.CONFIRMED,
+  createdAt: new Date("2026-09-01T00:00:00.000Z"),
+  totalMinor: 4500,
+  currency: "SEK",
+  _count: { items: 2 },
+};
+
+const MY_ORDER_DETAIL_ROW = {
+  userId: "user-1",
+  id: "order-1",
+  orderNumber: "1001",
+  status: OrderStatus.SHIPPED,
+  locale: "sv_SE",
+  currency: "SEK",
+  subtotalMinor: 4000,
+  discountMinor: 0,
+  shippingMinor: 500,
+  taxMinor: 0,
+  totalMinor: 4500,
+  shippingName: "Ada Lovelace",
+  shippingLine1: "Storgatan 1",
+  shippingLine2: null,
+  shippingPostalCode: "111 22",
+  shippingCity: "Stockholm",
+  shippingCountry: "SE",
+  shippingPhone: null,
+  billingName: "Ada Lovelace",
+  billingLine1: "Storgatan 1",
+  billingLine2: null,
+  billingPostalCode: "111 22",
+  billingCity: "Stockholm",
+  billingCountry: "SE",
+  billingPhone: null,
+  shippingMethod: { nameSv: "Standardfrakt", nameEn: "Standard shipping" },
+  items: [
+    {
+      id: "item-1",
+      productNameSnapshot: "Handgjord halsduk",
+      variantLabelSnapshot: "Röd",
+      skuSnapshot: null,
+      articleNumberSnapshot: 100001,
+      unitPriceMinor: 2000,
+      quantity: 2,
+      lineSubtotalMinor: 4000,
+      lineTotalMinor: 4000,
+      madeToOrder: false,
+      productionTimeDaysSnapshot: null,
+    },
+  ],
+  payments: [
+    {
+      method: "card",
+      status: PaymentStatus.PAID,
+      amountMinor: 4500,
+      currency: "SEK",
+      createdAt: new Date("2026-09-01T00:05:00.000Z"),
+      refunds: [],
+    },
+  ],
+  shipments: [
+    {
+      status: "IN_TRANSIT",
+      carrierName: "PostNord",
+      trackingNumber: "ABC123",
+      trackingUrl: "https://example.com/track/ABC123",
+      shippedAt: new Date("2026-09-02T00:00:00.000Z"),
+      deliveredAt: null,
+    },
+  ],
+  createdAt: new Date("2026-09-01T00:00:00.000Z"),
+  confirmedAt: new Date("2026-09-01T00:05:00.000Z"),
+  canceledAt: null,
+};
+
+function makeListPrismaMock(rows: unknown[], total: number) {
+  return {
+    order: {
+      findMany: vi.fn().mockResolvedValue(rows),
+      count: vi.fn().mockResolvedValue(total),
+    },
+  } as unknown as PrismaService;
+}
+
+function makeDetailPrismaMock(row: unknown) {
+  return { order: { findUnique: vi.fn().mockResolvedValue(row) } } as unknown as PrismaService;
+}
+
+describe("OrdersService.listMyOrders", () => {
+  it("scopes the query to the caller's own userId and paginates", async () => {
+    const prisma = makeListPrismaMock([MY_ORDER_LIST_ROW], 1);
+    const service = new OrdersService(prisma);
+
+    const result = await service.listMyOrders("user-1", 1, 20);
+
+    expect(result).toEqual({
+      items: [
+        {
+          orderId: "order-1",
+          orderNumber: "1001",
+          status: OrderStatus.CONFIRMED,
+          total: { amountMinor: 4500, currency: "SEK" },
+          itemCount: 2,
+          createdAt: "2026-09-01T00:00:00.000Z",
+        },
+      ],
+      page: 1,
+      pageSize: 20,
+      total: 1,
+    });
+    expect((prisma as unknown as { order: { findMany: ReturnType<typeof vi.fn> } }).order.findMany).toHaveBeenCalledWith(
+      expect.objectContaining({ where: { userId: "user-1" }, orderBy: { createdAt: "desc" }, skip: 0, take: 20 }),
+    );
+  });
+});
+
+describe("OrdersService.getMyOrderDetail", () => {
+  it("returns 404 when the order does not exist at all", async () => {
+    const prisma = makeDetailPrismaMock(null);
+    const service = new OrdersService(prisma);
+
+    await expect(service.getMyOrderDetail("user-1", "order-1")).rejects.toThrow(NotFoundException);
+  });
+
+  it("returns 404 for an order that exists but belongs to someone else — never confirms it exists", async () => {
+    const prisma = makeDetailPrismaMock({ ...MY_ORDER_DETAIL_ROW, userId: "user-2" });
+    const service = new OrdersService(prisma);
+
+    await expect(service.getMyOrderDetail("user-1", "order-1")).rejects.toThrow(NotFoundException);
+  });
+
+  it("returns full detail for the order's own owner, with no admin-only fields", async () => {
+    const prisma = makeDetailPrismaMock(MY_ORDER_DETAIL_ROW);
+    const service = new OrdersService(prisma);
+
+    const result = await service.getMyOrderDetail("user-1", "order-1");
+
+    expect(result.orderId).toBe("order-1");
+    expect(result.payment).toEqual({
+      method: "card",
+      status: PaymentStatus.PAID,
+      amount: { amountMinor: 4500, currency: "SEK" },
+      createdAt: "2026-09-01T00:05:00.000Z",
+    });
+    expect(result.refunds).toEqual([]);
+    expect(result.shipments).toEqual([
+      {
+        status: "IN_TRANSIT",
+        carrierName: "PostNord",
+        trackingNumber: "ABC123",
+        trackingUrl: "https://example.com/track/ABC123",
+        shippedAt: "2026-09-02T00:00:00.000Z",
+        deliveredAt: null,
+      },
+    ]);
+    expect(result).not.toHaveProperty("customer");
+    expect(result.payment && Object.keys(result.payment)).not.toContain("providerPaymentIntentId");
+  });
+});

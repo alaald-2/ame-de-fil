@@ -3,7 +3,7 @@
 import { useRef, useState, type FormEvent } from "react";
 import { useTranslations } from "next-intl";
 import { Heading, Text, Button, Input, FormField, Alert, Spinner } from "@ame-de-fil/ui";
-import type { ShippingMethod, CheckoutResponse, InitiateCheckoutRequest } from "@ame-de-fil/types";
+import type { ShippingMethod, CheckoutResponse, InitiateCheckoutRequest, AddressResponse } from "@ame-de-fil/types";
 import { api } from "../lib/api-client";
 import { getErrorMessage, getErrorCode } from "../lib/error-message";
 import { readCsrfCookie } from "../lib/csrf";
@@ -16,6 +16,10 @@ import { ResendVerificationButton } from "./resend-verification-button";
 interface CheckoutFormProps {
   locale: AppLocale;
   shippingMethods: ShippingMethod[];
+  // Empty for a guest or a signed-in customer with no saved addresses — the
+  // picker below simply never renders in either case, and the form behaves
+  // exactly as it did before this existed (design discussion, docs/plans).
+  savedAddresses: AddressResponse[];
   onSuccess: (order: CheckoutResponse) => void;
 }
 
@@ -30,28 +34,40 @@ interface FormState {
   shippingMethodId: string;
 }
 
-function initialFormState(shippingMethods: ShippingMethod[]): FormState {
+// The default saved address (guaranteed unique whenever savedAddresses is
+// non-empty — AddressesService's own invariant, docs/plans) seeds the
+// address fields the exact same way shippingMethods[0] already seeds
+// shippingMethodId — a one-time copy into local form state, not an effect.
+function initialFormState(shippingMethods: ShippingMethod[], savedAddresses: AddressResponse[]): FormState {
+  const defaultAddress = savedAddresses.find((address) => address.isDefault);
   return {
     guestEmail: "",
-    name: "",
-    line1: "",
-    line2: "",
-    postalCode: "",
-    city: "",
-    phone: "",
+    name: defaultAddress?.name ?? "",
+    line1: defaultAddress?.line1 ?? "",
+    line2: defaultAddress?.line2 ?? "",
+    postalCode: defaultAddress?.postalCode ?? "",
+    city: defaultAddress?.city ?? "",
+    phone: defaultAddress?.phone ?? "",
     shippingMethodId: shippingMethods[0]?.id ?? "",
   };
 }
+
+// The sentinel "Enter a new address" option's <select> value — never a real
+// address id (cuid()s never collide with a literal empty string).
+const NEW_ADDRESS_OPTION = "";
 
 // Both guest and authenticated checkout are supported (apps/api's
 // @OptionalAuth() checkout endpoint). An authenticated-but-unverified
 // customer gets a distinct 403 EmailNotVerified (apps/api's
 // EmailVerifiedGuard) — surfaced below via isEmailNotVerified, alongside a
 // resend-verification action, rather than the generic error message.
-export function CheckoutForm({ locale, shippingMethods, onSuccess }: CheckoutFormProps) {
+export function CheckoutForm({ locale, shippingMethods, savedAddresses, onSuccess }: CheckoutFormProps) {
   const t = useTranslations("Checkout");
   const { cart } = useCart();
-  const [form, setForm] = useState<FormState>(() => initialFormState(shippingMethods));
+  const [form, setForm] = useState<FormState>(() => initialFormState(shippingMethods, savedAddresses));
+  const [selectedAddressId, setSelectedAddressId] = useState<string>(
+    () => savedAddresses.find((address) => address.isDefault)?.id ?? NEW_ADDRESS_OPTION,
+  );
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [isEmailNotVerified, setIsEmailNotVerified] = useState(false);
@@ -62,6 +78,27 @@ export function CheckoutForm({ locale, shippingMethods, onSuccess }: CheckoutFor
 
   function updateField<K extends keyof FormState>(field: K, value: FormState[K]) {
     setForm((previous) => ({ ...previous, [field]: value }));
+  }
+
+  // Only ever copies the same plain-text fields the form already collects
+  // into local state — no addressId is ever sent to the API (see
+  // handleSubmit's body below), so from checkout's perspective this is
+  // indistinguishable from a customer typing the exact same values by hand.
+  // Picking "Enter a new address" clears the fields back to blank; editing
+  // afterward is just editing the form, same as always — there is no write
+  // path back to the saved address at all.
+  function handleAddressPick(addressId: string) {
+    setSelectedAddressId(addressId);
+    const picked = savedAddresses.find((address) => address.id === addressId);
+    setForm((previous) => ({
+      ...previous,
+      name: picked?.name ?? "",
+      line1: picked?.line1 ?? "",
+      line2: picked?.line2 ?? "",
+      postalCode: picked?.postalCode ?? "",
+      city: picked?.city ?? "",
+      phone: picked?.phone ?? "",
+    }));
   }
 
   // Estimate only, for the review panel — the API recalculates shipping
@@ -136,6 +173,25 @@ export function CheckoutForm({ locale, shippingMethods, onSuccess }: CheckoutFor
                 />
               )}
             </FormField>
+            {savedAddresses.length > 0 ? (
+              <FormField label={t("useSavedAddress")}>
+                {(fieldProps) => (
+                  <select
+                    {...fieldProps}
+                    value={selectedAddressId}
+                    onChange={(e) => handleAddressPick(e.target.value)}
+                    className="w-full rounded-sm border border-neutral-300 bg-white px-3 py-2 font-sans text-sm text-neutral-900 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent-500"
+                  >
+                    {savedAddresses.map((address) => (
+                      <option key={address.id} value={address.id}>
+                        {address.label || `${address.name} — ${address.line1}`}
+                      </option>
+                    ))}
+                    <option value={NEW_ADDRESS_OPTION}>{t("enterNewAddress")}</option>
+                  </select>
+                )}
+              </FormField>
+            ) : null}
             <FormField label={t("fullName")} required>
               {(fieldProps) => (
                 <Input

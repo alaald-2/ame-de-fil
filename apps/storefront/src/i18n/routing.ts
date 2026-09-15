@@ -17,6 +17,17 @@ export const routing = defineRouting({
     "/checkout": { "sv-SE": "/kassa", en: "/checkout" },
     "/login": { "sv-SE": "/logga-in", en: "/login" },
     "/account": { "sv-SE": "/mitt-konto", en: "/account" },
+    "/account/orders": { "sv-SE": "/mitt-konto/ordrar", en: "/account/orders" },
+    "/account/orders/[orderId]": {
+      "sv-SE": "/mitt-konto/ordrar/[orderId]",
+      en: "/account/orders/[orderId]",
+    },
+    "/account/addresses": { "sv-SE": "/mitt-konto/adresser", en: "/account/addresses" },
+    "/account/addresses/new": { "sv-SE": "/mitt-konto/adresser/ny", en: "/account/addresses/new" },
+    "/account/addresses/[addressId]": {
+      "sv-SE": "/mitt-konto/adresser/[addressId]",
+      en: "/account/addresses/[addressId]",
+    },
     "/create-account": { "sv-SE": "/skapa-konto", en: "/create-account" },
     "/verify-email": { "sv-SE": "/verifiera-e-post", en: "/verify-email" },
     "/forgot-password": { "sv-SE": "/glomt-losenord", en: "/forgot-password" },
