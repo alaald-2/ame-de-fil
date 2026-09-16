@@ -269,6 +269,24 @@ export default async function OrderDetailPage({ params }: OrderDetailPageProps) 
               </Text>
               <Text size="sm">{order.shippingMethodName}</Text>
             </div>
+            {order.pickupPointName ? (
+              <div className="mt-4 border-t border-neutral-200 pt-4">
+                <Text size="sm" tone="muted">
+                  {td("pickupPoint")}
+                </Text>
+                <Text size="sm">{order.pickupPointName}</Text>
+                {order.pickupPointAddress ? (
+                  <Text size="sm" tone="muted">
+                    {order.pickupPointAddress}
+                  </Text>
+                ) : null}
+                {order.pickupPointId ? (
+                  <Text size="sm" tone="muted" className="mt-1">
+                    {td("pickupPointId")}: {order.pickupPointId}
+                  </Text>
+                ) : null}
+              </div>
+            ) : null}
           </Card>
         </div>
       </div>

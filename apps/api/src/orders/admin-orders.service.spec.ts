@@ -341,6 +341,9 @@ describe("AdminOrdersService.getOrderDetail", () => {
     billingCountry: "SE",
     billingPhone: null,
     shippingMethod: { nameSv: "Standardfrakt", nameEn: "Standard shipping" },
+    pickupPointId: null,
+    pickupPointName: null,
+    pickupPointAddress: null,
     items: [
       {
         id: "item-1",
@@ -458,11 +461,39 @@ describe("AdminOrdersService.getOrderDetail", () => {
       phone: null,
     });
     expect(result.shippingMethodName).toBe("Standardfrakt"); // sv_SE order locale
+    expect(result.pickupPointId).toBeNull();
+    expect(result.pickupPointName).toBeNull();
+    expect(result.pickupPointAddress).toBeNull();
     expect(result.confirmedAt).toBe("2026-09-10T00:05:00.000Z");
     expect(result.canceledAt).toBeNull();
 
     // Never leaks anything beyond the four selected User columns.
     expect(result.customer).not.toHaveProperty("passwordHash");
+  });
+
+  it("includes the pickup point snapshot when the order has one", async () => {
+    const rowWithPickupPoint = {
+      ...DETAIL_ROW,
+      pickupPointId: "ship-2-pp-1-11122",
+      pickupPointName: "Ombud Centrum",
+      pickupPointAddress: "Storgatan 1",
+    };
+    const { prisma } = makePrismaMock({
+      order: { findUnique: vi.fn().mockResolvedValue(rowWithPickupPoint) },
+    });
+    const service = new AdminOrdersService(
+      prisma,
+      makeNotificationsMock(),
+      new AuditService(prisma),
+      makeUnusedPaymentProviderMock(),
+      makeUnusedConfigMock(),
+    );
+
+    const result = await service.getOrderDetail("order-1");
+
+    expect(result.pickupPointId).toBe("ship-2-pp-1-11122");
+    expect(result.pickupPointName).toBe("Ombud Centrum");
+    expect(result.pickupPointAddress).toBe("Storgatan 1");
   });
 
   it("maps a guest order's customer with no userId/name", async () => {

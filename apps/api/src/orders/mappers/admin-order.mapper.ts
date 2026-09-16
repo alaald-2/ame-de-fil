@@ -83,6 +83,9 @@ export const ADMIN_ORDER_DETAIL_SELECT = {
   billingCountry: true,
   billingPhone: true,
   shippingMethod: { select: { nameSv: true, nameEn: true } },
+  pickupPointId: true,
+  pickupPointName: true,
+  pickupPointAddress: true,
   items: {
     select: {
       id: true,
@@ -172,6 +175,9 @@ export function mapAdminOrderDetail(order: AdminOrderDetailRow) {
     total: { amountMinor: order.totalMinor, currency: order.currency },
     shippingMethodName:
       order.locale === Locale.sv_SE ? order.shippingMethod.nameSv : order.shippingMethod.nameEn,
+    pickupPointId: order.pickupPointId,
+    pickupPointName: order.pickupPointName,
+    pickupPointAddress: order.pickupPointAddress,
     shippingAddress: {
       name: order.shippingName,
       line1: order.shippingLine1,

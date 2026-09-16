@@ -12,7 +12,10 @@ const ROW = {
   minDeliveryDays: 2,
   maxDeliveryDays: 5,
   isActive: true,
+  requiresPickupPoint: false,
 };
+
+const PICKUP_ROW = { ...ROW, id: "ship-2", code: "OMBUD", requiresPickupPoint: true };
 
 function makePrisma(overrides: Record<string, unknown> = {}) {
   return {
@@ -44,6 +47,7 @@ describe("ManualShippingProvider.listAvailableMethods", () => {
         currency: "SEK",
         minDeliveryDays: 2,
         maxDeliveryDays: 5,
+        requiresPickupPoint: false,
       },
     ]);
   });
@@ -98,8 +102,82 @@ describe("ManualShippingProvider.getQuote", () => {
       currency: "SEK",
       minDeliveryDays: 2,
       maxDeliveryDays: 5,
+      requiresPickupPoint: false,
     });
     expect(txFindUnique).toHaveBeenCalledWith({ where: { id: "ship-1" } });
     expect(prisma.shippingMethod.findUnique).not.toHaveBeenCalled();
+  });
+});
+
+describe("ManualShippingProvider.listPickupPoints", () => {
+  it("returns an empty array for a method that doesn't require a pickup point", async () => {
+    const prisma = makePrisma({
+      shippingMethod: { findUnique: vi.fn().mockResolvedValue(ROW) },
+    });
+    const provider = new ManualShippingProvider(prisma);
+
+    const points = await provider.listPickupPoints("ship-1", "11122");
+
+    expect(points).toEqual([]);
+  });
+
+  it("returns fixture pickup points for a method that requires one", async () => {
+    const prisma = makePrisma({
+      shippingMethod: { findUnique: vi.fn().mockResolvedValue(PICKUP_ROW) },
+    });
+    const provider = new ManualShippingProvider(prisma);
+
+    const points = await provider.listPickupPoints("ship-2", "11122");
+
+    expect(points.length).toBeGreaterThan(0);
+    expect(points[0]).toMatchObject({ postalCode: "11122" });
+  });
+
+  it("returns an empty array for a deactivated method", async () => {
+    const prisma = makePrisma({
+      shippingMethod: { findUnique: vi.fn().mockResolvedValue({ ...PICKUP_ROW, isActive: false }) },
+    });
+    const provider = new ManualShippingProvider(prisma);
+
+    const points = await provider.listPickupPoints("ship-2", "11122");
+
+    expect(points).toEqual([]);
+  });
+});
+
+describe("ManualShippingProvider.getPickupPoint", () => {
+  it("returns null for a method that doesn't require a pickup point", async () => {
+    const prisma = makePrisma();
+    const provider = new ManualShippingProvider(prisma);
+    const tx = { shippingMethod: { findUnique: vi.fn().mockResolvedValue(ROW) } } as unknown as Prisma.TransactionClient;
+
+    const point = await provider.getPickupPoint(tx, "ship-1", "anything", "11122");
+
+    expect(point).toBeNull();
+  });
+
+  it("returns the matching fixture point for a valid id, read through the given transaction client", async () => {
+    const prisma = makePrisma({ shippingMethod: { findUnique: vi.fn().mockResolvedValue(PICKUP_ROW) } });
+    const provider = new ManualShippingProvider(prisma);
+    const txFindUnique = vi.fn().mockResolvedValue(PICKUP_ROW);
+    const tx = { shippingMethod: { findUnique: txFindUnique } } as unknown as Prisma.TransactionClient;
+
+    const [first] = await provider.listPickupPoints("ship-2", "11122");
+    const point = await provider.getPickupPoint(tx, "ship-2", first!.id, "11122");
+
+    expect(point).toEqual(first);
+    expect(txFindUnique).toHaveBeenCalledWith({ where: { id: "ship-2" } });
+  });
+
+  it("returns null for an id that doesn't match any fixture point", async () => {
+    const prisma = makePrisma();
+    const provider = new ManualShippingProvider(prisma);
+    const tx = {
+      shippingMethod: { findUnique: vi.fn().mockResolvedValue(PICKUP_ROW) },
+    } as unknown as Prisma.TransactionClient;
+
+    const point = await provider.getPickupPoint(tx, "ship-2", "not-a-real-id", "11122");
+
+    expect(point).toBeNull();
   });
 });

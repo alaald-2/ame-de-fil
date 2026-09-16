@@ -9,7 +9,10 @@
     "collections": "Collections",
     "about": "About",
     "cart": "Cart",
-    "account": "My account"
+    "account": "My account",
+    "myOrders": "My orders",
+    "addresses": "Addresses",
+    "signIn": "Sign in"
   },
   "Footer": {
     "rights": "All rights reserved.",
@@ -139,6 +142,11 @@
     "loadingShippingMethods": "Loading shipping methods…",
     "noShippingMethods": "No shipping methods are currently available.",
     "deliveryEstimate": "{min}–{max} business days",
+    "pickupPoint": "Pickup point",
+    "choosePickupPoint": "Choose a pickup point",
+    "loadingPickupPoints": "Loading pickup points…",
+    "noPickupPoints": "No pickup points found for this postal code.",
+    "pickupPointRequired": "Choose a pickup point to continue.",
     "subtotal": "Subtotal",
     "shipping": "Shipping",
     "tax": "of which VAT",

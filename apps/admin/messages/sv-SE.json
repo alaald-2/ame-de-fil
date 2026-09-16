@@ -430,6 +430,8 @@
       "tax": "Moms",
       "total": "Summa",
       "shippingMethod": "Fraktmetod",
+      "pickupPoint": "Ombud/paketbox",
+      "pickupPointId": "Ombuds-ID",
       "payments": "Betalningar",
       "shipments": "Leveranser",
       "carrier": "Fraktbolag",

@@ -161,7 +161,29 @@ async function seedShippingMethods(prisma: PrismaClient): Promise<void> {
     },
   });
 
-  console.log(`Ensured the "${shippingMethod.code}" shipping method exists.`);
+  // Demo pickup-point method (ADR-037) — exercises the requiresPickupPoint
+  // flow end-to-end against ManualShippingProvider's fixture pickup points
+  // until a real carrier (Shipmondo) is wired in. Carrier-agnostic naming
+  // deliberately, same as STANDARD above (ADR-022): "Ombud" is a generic
+  // Swedish delivery-type term, not a PostNord-specific one.
+  const pickupMethod = await prisma.shippingMethod.upsert({
+    where: { code: "OMBUD" },
+    update: {},
+    create: {
+      code: "OMBUD",
+      nameSv: "Ombud",
+      nameEn: "Pickup point",
+      priceMinor: 4900,
+      minDeliveryDays: 1,
+      maxDeliveryDays: 3,
+      isActive: true,
+      requiresPickupPoint: true,
+    },
+  });
+
+  console.log(
+    `Ensured the "${shippingMethod.code}" and "${pickupMethod.code}" shipping methods exist.`,
+  );
 }
 
 async function main(): Promise<void> {

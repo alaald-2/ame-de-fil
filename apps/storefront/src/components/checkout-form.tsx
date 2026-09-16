@@ -1,9 +1,15 @@
 "use client";
 
-import { useRef, useState, type FormEvent } from "react";
+import { useEffect, useRef, useState, type FormEvent } from "react";
 import { useTranslations } from "next-intl";
 import { Heading, Text, Button, Input, FormField, Alert, Spinner } from "@ame-de-fil/ui";
-import type { ShippingMethod, CheckoutResponse, InitiateCheckoutRequest, AddressResponse } from "@ame-de-fil/types";
+import type {
+  ShippingMethod,
+  PickupPoint,
+  CheckoutResponse,
+  InitiateCheckoutRequest,
+  AddressResponse,
+} from "@ame-de-fil/types";
 import { api } from "../lib/api-client";
 import { getErrorMessage, getErrorCode } from "../lib/error-message";
 import { readCsrfCookie } from "../lib/csrf";
@@ -32,6 +38,7 @@ interface FormState {
   city: string;
   phone: string;
   shippingMethodId: string;
+  pickupPointId: string;
 }
 
 // The default saved address (guaranteed unique whenever savedAddresses is
@@ -49,8 +56,15 @@ function initialFormState(shippingMethods: ShippingMethod[], savedAddresses: Add
     city: defaultAddress?.city ?? "",
     phone: defaultAddress?.phone ?? "",
     shippingMethodId: shippingMethods[0]?.id ?? "",
+    pickupPointId: "",
   };
 }
+
+// A postal code short enough to still be mid-typing isn't worth a request —
+// Swedish postal codes are 5 digits (with or without the conventional
+// space), so this is the shortest length that can possibly be complete.
+const MIN_POSTAL_CODE_LENGTH_FOR_LOOKUP = 5;
+const POSTAL_CODE_LOOKUP_DEBOUNCE_MS = 400;
 
 // The sentinel "Enter a new address" option's <select> value — never a real
 // address id (cuid()s never collide with a literal empty string).
@@ -61,16 +75,33 @@ const NEW_ADDRESS_OPTION = "";
 // customer gets a distinct 403 EmailNotVerified (apps/api's
 // EmailVerifiedGuard) — surfaced below via isEmailNotVerified, alongside a
 // resend-verification action, rather than the generic error message.
-export function CheckoutForm({ locale, shippingMethods, savedAddresses, onSuccess }: CheckoutFormProps) {
+export function CheckoutForm({
+  locale,
+  shippingMethods: initialShippingMethods,
+  savedAddresses,
+  onSuccess,
+}: CheckoutFormProps) {
   const t = useTranslations("Checkout");
   const { cart } = useCart();
-  const [form, setForm] = useState<FormState>(() => initialFormState(shippingMethods, savedAddresses));
+  const [form, setForm] = useState<FormState>(() =>
+    initialFormState(initialShippingMethods, savedAddresses),
+  );
   const [selectedAddressId, setSelectedAddressId] = useState<string>(
     () => savedAddresses.find((address) => address.isDefault)?.id ?? NEW_ADDRESS_OPTION,
   );
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [isEmailNotVerified, setIsEmailNotVerified] = useState(false);
+
+  // Re-fetched as the customer's postal code settles (debounced below) so
+  // the list reflects destination-aware availability once a real carrier
+  // (ADR-037) is behind ShippingController — ManualShippingProvider today
+  // still returns the same flat list regardless, but the plumbing is real.
+  const [shippingMethods, setShippingMethods] = useState<ShippingMethod[]>(initialShippingMethods);
+  const [isLoadingShippingMethods, setIsLoadingShippingMethods] = useState(false);
+
+  const [pickupPoints, setPickupPoints] = useState<PickupPoint[]>([]);
+  const [isLoadingPickupPoints, setIsLoadingPickupPoints] = useState(false);
   // One idempotency key per checkout attempt on this page — reused across
   // retries of the *same* submission (e.g. a network hiccup), not
   // regenerated per click, so a retry is recognized as the same request.
@@ -101,12 +132,88 @@ export function CheckoutForm({ locale, shippingMethods, savedAddresses, onSucces
     }));
   }
 
+  // Re-fetch shipping methods as the postal code settles — debounced so a
+  // customer still typing doesn't fire a request per keystroke. Only once
+  // the field looks complete enough to be worth asking about.
+  useEffect(() => {
+    const postalCode = form.postalCode.trim();
+    if (postalCode.length < MIN_POSTAL_CODE_LENGTH_FOR_LOOKUP) return;
+
+    let cancelled = false;
+    const timeoutId = setTimeout(() => {
+      setIsLoadingShippingMethods(true);
+      void api
+        .GET("/api/v1/shipping-methods", {
+          params: { query: { locale, postalCode, country: "SE" } },
+        })
+        .then(({ data }) => {
+          if (cancelled || !data) return;
+          setShippingMethods(data);
+          // Keep the current selection if it's still offered; otherwise
+          // fall back to the first available option, same seeding logic
+          // initialFormState already uses.
+          setForm((previous) =>
+            data.some((method) => method.id === previous.shippingMethodId)
+              ? previous
+              : { ...previous, shippingMethodId: data[0]?.id ?? "", pickupPointId: "" },
+          );
+        })
+        .finally(() => {
+          if (!cancelled) setIsLoadingShippingMethods(false);
+        });
+    }, POSTAL_CODE_LOOKUP_DEBOUNCE_MS);
+
+    return () => {
+      cancelled = true;
+      clearTimeout(timeoutId);
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- locale changes don't need to re-trigger this; only postalCode does.
+  }, [form.postalCode]);
+
   // Estimate only, for the review panel — the API recalculates shipping
   // (and everything else) authoritatively on submit; the client never
   // decides the real total.
   const selectedShippingMethod = shippingMethods.find(
     (method) => method.id === form.shippingMethodId,
   );
+
+  // Pickup points are looked up for the currently selected method once it
+  // requires one — reset whenever the method or postal code changes, so a
+  // stale selection from a previous method/address can never be submitted.
+  // Every state update happens inside the deferred callback below, never
+  // synchronously in the effect body itself (react-hooks/set-state-in-effect).
+  useEffect(() => {
+    let cancelled = false;
+    const requiresPickupPoint = selectedShippingMethod?.requiresPickupPoint === true;
+    const shippingMethodId = selectedShippingMethod?.id;
+    const postalCode = form.postalCode.trim();
+    const hasUsablePostalCode = postalCode.length >= MIN_POSTAL_CODE_LENGTH_FOR_LOOKUP;
+
+    const timeoutId = setTimeout(() => {
+      if (cancelled) return;
+      if (!requiresPickupPoint || !hasUsablePostalCode || !shippingMethodId) {
+        setPickupPoints([]);
+        return;
+      }
+      setIsLoadingPickupPoints(true);
+      setForm((previous) => (previous.pickupPointId ? { ...previous, pickupPointId: "" } : previous));
+      void api
+        .GET("/api/v1/shipping-methods/{shippingMethodId}/pickup-points", {
+          params: { path: { shippingMethodId }, query: { postalCode } },
+        })
+        .then(({ data }) => {
+          if (!cancelled) setPickupPoints(data ?? []);
+        })
+        .finally(() => {
+          if (!cancelled) setIsLoadingPickupPoints(false);
+        });
+    }, 0);
+
+    return () => {
+      cancelled = true;
+      clearTimeout(timeoutId);
+    };
+  }, [selectedShippingMethod?.id, selectedShippingMethod?.requiresPickupPoint, form.postalCode]);
 
   async function handleSubmit(event: FormEvent) {
     event.preventDefault();
@@ -117,6 +224,7 @@ export function CheckoutForm({ locale, shippingMethods, savedAddresses, onSucces
     const body: InitiateCheckoutRequest = {
       locale,
       shippingMethodId: form.shippingMethodId,
+      pickupPointId: form.pickupPointId || undefined,
       guestEmail: form.guestEmail,
       shippingAddress: {
         name: form.name,
@@ -265,7 +373,9 @@ export function CheckoutForm({ locale, shippingMethods, savedAddresses, onSucces
           <Heading level={2}>{t("shippingMethod")}</Heading>
           <div className="mt-4 flex flex-col gap-3">
             {shippingMethods.length === 0 ? (
-              <Text tone="muted">{t("noShippingMethods")}</Text>
+              <Text tone="muted">
+                {isLoadingShippingMethods ? t("loadingShippingMethods") : t("noShippingMethods")}
+              </Text>
             ) : (
               shippingMethods.map((method) => (
                 <label
@@ -298,6 +408,41 @@ export function CheckoutForm({ locale, shippingMethods, savedAddresses, onSucces
           </div>
         </div>
 
+        {selectedShippingMethod?.requiresPickupPoint ? (
+          <div>
+            <Heading level={2}>{t("pickupPoint")}</Heading>
+            <div className="mt-4 flex flex-col gap-3">
+              {isLoadingPickupPoints ? (
+                <Text tone="muted">{t("loadingPickupPoints")}</Text>
+              ) : pickupPoints.length === 0 ? (
+                <Text tone="muted">{t("noPickupPoints")}</Text>
+              ) : (
+                pickupPoints.map((point) => (
+                  <label
+                    key={point.id}
+                    className="flex cursor-pointer items-center gap-3 rounded-sm border border-neutral-300 px-4 py-3 has-[:checked]:border-neutral-900"
+                  >
+                    <input
+                      type="radio"
+                      name="pickupPoint"
+                      value={point.id}
+                      checked={form.pickupPointId === point.id}
+                      onChange={() => updateField("pickupPointId", point.id)}
+                      required
+                    />
+                    <span>
+                      <Text>{point.name}</Text>
+                      <Text size="sm" tone="muted">
+                        {point.address}, {point.postalCode} {point.city}
+                      </Text>
+                    </span>
+                  </label>
+                ))
+              )}
+            </div>
+          </div>
+        ) : null}
+
         {errorMessage ? <Alert tone="danger">{errorMessage}</Alert> : null}
         {isEmailNotVerified ? (
           <Alert tone="danger">
@@ -308,7 +453,14 @@ export function CheckoutForm({ locale, shippingMethods, savedAddresses, onSucces
           </Alert>
         ) : null}
 
-        <Button type="submit" disabled={isSubmitting || shippingMethods.length === 0}>
+        <Button
+          type="submit"
+          disabled={
+            isSubmitting ||
+            shippingMethods.length === 0 ||
+            (selectedShippingMethod?.requiresPickupPoint === true && !form.pickupPointId)
+          }
+        >
           {isSubmitting ? (
             <>
               <Spinner className="h-4 w-4" /> {t("placingOrder")}

@@ -9,7 +9,10 @@
     "collections": "Kollektioner",
     "about": "Om oss",
     "cart": "Varukorg",
-    "account": "Mitt konto"
+    "account": "Mitt konto",
+    "myOrders": "Mina ordrar",
+    "addresses": "Adresser",
+    "signIn": "Logga in"
   },
   "Footer": {
     "rights": "Alla rättigheter förbehållna.",
@@ -139,6 +142,11 @@
     "loadingShippingMethods": "Laddar fraktsätt…",
     "noShippingMethods": "Inga fraktsätt är tillgängliga just nu.",
     "deliveryEstimate": "{min}–{max} vardagar",
+    "pickupPoint": "Ombud/paketbox",
+    "choosePickupPoint": "Välj ett ombud eller en paketbox",
+    "loadingPickupPoints": "Laddar ombud…",
+    "noPickupPoints": "Inga ombud hittades för detta postnummer.",
+    "pickupPointRequired": "Välj ett ombud för att fortsätta.",
     "subtotal": "Delsumma",
     "shipping": "Frakt",
     "tax": "varav moms",

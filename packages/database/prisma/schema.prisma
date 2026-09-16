@@ -775,6 +775,23 @@ model Order {
   discountId       String?
   shippingMethodId String
 
+  // Shipping method name, snapshotted the same way OrderItem already
+  // snapshots product name/SKU (DATABASE.md §5) — closes the gap where
+  // Order previously relied on a live join through shippingMethodId to
+  // ShippingMethod.nameSv/nameEn, meaning a later name edit would silently
+  // rewrite history (ADR-037). Nullable because pre-this-migration order
+  // rows have nothing to backfill from.
+  shippingMethodNameSnapshot String?
+
+  // Chosen pickup point (ombud/paketbox), snapshotted at order time —
+  // null when the selected shipping method doesn't require one
+  // (ShippingMethod.requiresPickupPoint = false). id/name/address are a
+  // provider-agnostic snapshot, never a live FK to a carrier's own
+  // pickup-point directory (ADR-037).
+  pickupPointId      String?
+  pickupPointName    String?
+  pickupPointAddress String?
+
   // Immutable address snapshots at order time — never a live FK to the
   // customer's editable address book (DATABASE.md §5 immutability principle
   // applied to addresses, not just money).
@@ -978,17 +995,22 @@ model Refund {
 // ─────────────────────────────────────────────────────────────────────────
 
 model ShippingMethod {
-  id              String   @id @default(cuid())
-  code            String   @unique
-  nameSv          String
-  nameEn          String
-  priceMinor      Int
-  currency        Currency @default(SEK)
-  minDeliveryDays Int
-  maxDeliveryDays Int
-  isActive        Boolean  @default(true)
-  createdAt       DateTime @default(now())
-  updatedAt       DateTime @updatedAt
+  id                  String   @id @default(cuid())
+  code                String   @unique
+  nameSv              String
+  nameEn              String
+  priceMinor          Int
+  currency            Currency @default(SEK)
+  minDeliveryDays     Int
+  maxDeliveryDays     Int
+  isActive            Boolean  @default(true)
+  // Carrier-agnostic on purpose (ADR-022/ADR-037) — mirrors the generic
+  // "service_point_product" concept every real carrier/aggregator exposes,
+  // without naming a carrier. true means checkout must collect a chosen
+  // pickup point (ombud/paketbox) before this method can be selected.
+  requiresPickupPoint Boolean  @default(false)
+  createdAt           DateTime @default(now())
+  updatedAt           DateTime @updatedAt
 
   orders Order[]
 }

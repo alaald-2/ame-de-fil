@@ -430,6 +430,8 @@
       "tax": "Impuestos",
       "total": "Total",
       "shippingMethod": "Método de envío",
+      "pickupPoint": "Punto de recogida",
+      "pickupPointId": "ID del punto de recogida",
       "payments": "Pagos",
       "shipments": "Envíos",
       "carrier": "Transportista",

@@ -57,6 +57,17 @@ const SHIPPING_QUOTE: ShippingQuote = {
   currency: "SEK",
   minDeliveryDays: 2,
   maxDeliveryDays: 5,
+  requiresPickupPoint: false,
+};
+
+const PICKUP_SHIPPING_QUOTE: ShippingQuote = { ...SHIPPING_QUOTE, requiresPickupPoint: true };
+
+const PICKUP_POINT = {
+  id: "pp-1",
+  name: "Ombud Centrum",
+  address: "Storgatan 1",
+  postalCode: "111 22",
+  city: "Stockholm",
 };
 
 const PAYMENT_RECORD: PaymentRecord = {
@@ -239,10 +250,15 @@ function makeService(fixture: Fixture) {
   };
 }
 
-function makeShippingProvider(quote: ShippingQuote | null = SHIPPING_QUOTE): ShippingProvider {
+function makeShippingProvider(
+  quote: ShippingQuote | null = SHIPPING_QUOTE,
+  pickupPoint: Awaited<ReturnType<ShippingProvider["getPickupPoint"]>> = null,
+): ShippingProvider {
   return {
     listAvailableMethods: vi.fn(),
     getQuote: vi.fn().mockResolvedValue(quote),
+    listPickupPoints: vi.fn(),
+    getPickupPoint: vi.fn().mockResolvedValue(pickupPoint),
   };
 }
 
@@ -548,6 +564,97 @@ describe("CheckoutService.initiate — validation failures", () => {
     await expect(
       fixture.service.initiate(IDENTITY, undefined, "key-1", VALID_INPUT),
     ).rejects.toThrow(BadRequestException);
+  });
+
+  it("rejects checkout when the shipping method requires a pickup point and none was supplied", async () => {
+    const fixture = makeService({
+      cartItems: [madeToOrderCartItem()],
+      lockedRows: [],
+      taxRateRows: [{ taxClassId: "tc-standard", ratePercent: decimal(25) }],
+      shippingProvider: makeShippingProvider(PICKUP_SHIPPING_QUOTE),
+      paymentProvider: makePaymentProvider(),
+    });
+
+    await expect(
+      fixture.service.initiate(IDENTITY, undefined, "key-1", VALID_INPUT),
+    ).rejects.toThrow(BadRequestException);
+  });
+
+  it("rejects checkout when the supplied pickup point doesn't resolve", async () => {
+    const fixture = makeService({
+      cartItems: [madeToOrderCartItem()],
+      lockedRows: [],
+      taxRateRows: [{ taxClassId: "tc-standard", ratePercent: decimal(25) }],
+      shippingProvider: makeShippingProvider(PICKUP_SHIPPING_QUOTE, null),
+      paymentProvider: makePaymentProvider(),
+    });
+
+    await expect(
+      fixture.service.initiate(IDENTITY, undefined, "key-1", {
+        ...VALID_INPUT,
+        pickupPointId: "not-real",
+      }),
+    ).rejects.toThrow(BadRequestException);
+  });
+
+  it("rejects checkout when a pickup point is supplied for a method that doesn't use one", async () => {
+    const fixture = makeService({
+      cartItems: [madeToOrderCartItem()],
+      lockedRows: [],
+      taxRateRows: [{ taxClassId: "tc-standard", ratePercent: decimal(25) }],
+      shippingProvider: makeShippingProvider(),
+      paymentProvider: makePaymentProvider(),
+    });
+
+    await expect(
+      fixture.service.initiate(IDENTITY, undefined, "key-1", {
+        ...VALID_INPUT,
+        pickupPointId: "pp-1",
+      }),
+    ).rejects.toThrow(BadRequestException);
+  });
+
+  it("snapshots the shipping method name and pickup point onto the order when valid", async () => {
+    const fixture = makeService({
+      cartItems: [madeToOrderCartItem()],
+      lockedRows: [],
+      taxRateRows: [{ taxClassId: "tc-standard", ratePercent: decimal(25) }],
+      shippingProvider: makeShippingProvider(PICKUP_SHIPPING_QUOTE, PICKUP_POINT),
+      paymentProvider: makePaymentProvider(),
+    });
+
+    await fixture.service.initiate(IDENTITY, undefined, "key-1", {
+      ...VALID_INPUT,
+      pickupPointId: "pp-1",
+    });
+
+    const orderData = fixture.txOrderCreate.mock.calls[0]![0].data;
+    expect(orderData).toMatchObject({
+      shippingMethodNameSnapshot: "Standardfrakt",
+      pickupPointId: "pp-1",
+      pickupPointName: "Ombud Centrum",
+      pickupPointAddress: "Storgatan 1",
+    });
+  });
+
+  it("snapshots null pickup point fields when the method doesn't require one", async () => {
+    const fixture = makeService({
+      cartItems: [madeToOrderCartItem()],
+      lockedRows: [],
+      taxRateRows: [{ taxClassId: "tc-standard", ratePercent: decimal(25) }],
+      shippingProvider: makeShippingProvider(),
+      paymentProvider: makePaymentProvider(),
+    });
+
+    await fixture.service.initiate(IDENTITY, undefined, "key-1", VALID_INPUT);
+
+    const orderData = fixture.txOrderCreate.mock.calls[0]![0].data;
+    expect(orderData).toMatchObject({
+      shippingMethodNameSnapshot: "Standardfrakt",
+      pickupPointId: null,
+      pickupPointName: null,
+      pickupPointAddress: null,
+    });
   });
 
   it("rejects checkout when the locked row shows insufficient stock", async () => {

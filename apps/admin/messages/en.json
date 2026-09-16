@@ -430,6 +430,8 @@
       "tax": "Tax",
       "total": "Total",
       "shippingMethod": "Shipping method",
+      "pickupPoint": "Pickup point",
+      "pickupPointId": "Pickup point ID",
       "payments": "Payments",
       "shipments": "Shipments",
       "carrier": "Carrier",

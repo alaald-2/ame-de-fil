@@ -166,6 +166,39 @@ export class CheckoutService {
         });
       }
 
+      // 3.5. Pickup point (ombud/paketbox), re-verified transactionally the
+      // same way as the shipping method itself (ADR-037) — a client-supplied
+      // pickupPointId is never trusted without this. Required exactly when
+      // the chosen method demands one; rejected when supplied for a method
+      // that doesn't (a customer can't smuggle in a pickup point that
+      // wouldn't otherwise apply).
+      let pickupPoint: Awaited<ReturnType<ShippingProvider["getPickupPoint"]>> = null;
+      if (shippingQuote.requiresPickupPoint) {
+        if (!input.pickupPointId) {
+          throw new BadRequestException({
+            error: "PickupPointRequired",
+            message: "The selected shipping method requires a pickup point",
+          });
+        }
+        pickupPoint = await this.shippingProvider.getPickupPoint(
+          tx,
+          input.shippingMethodId,
+          input.pickupPointId,
+          input.shippingAddress.postalCode,
+        );
+        if (!pickupPoint) {
+          throw new BadRequestException({
+            error: "InvalidPickupPoint",
+            message: "The selected pickup point is not available",
+          });
+        }
+      } else if (input.pickupPointId) {
+        throw new BadRequestException({
+          error: "PickupPointNotApplicable",
+          message: "The selected shipping method does not use a pickup point",
+        });
+      }
+
       // 4. Current VAT rates — server-authoritative, never client-submitted.
       const taxClassIds = cart.items.map((item) => item.variant.taxClassId);
       const taxRates = await getCurrentTaxRatesByClassId(tx, taxClassIds, now);
@@ -241,6 +274,11 @@ export class CheckoutService {
           taxMinor: totals.taxMinor,
           totalMinor: totals.totalMinor,
           shippingMethodId: shippingQuote.shippingMethodId,
+          shippingMethodNameSnapshot:
+            input.locale === "sv-SE" ? shippingQuote.nameSv : shippingQuote.nameEn,
+          pickupPointId: pickupPoint?.id ?? null,
+          pickupPointName: pickupPoint?.name ?? null,
+          pickupPointAddress: pickupPoint?.address ?? null,
           shippingName: input.shippingAddress.name,
           shippingLine1: input.shippingAddress.line1,
           shippingLine2: input.shippingAddress.line2 ?? null,

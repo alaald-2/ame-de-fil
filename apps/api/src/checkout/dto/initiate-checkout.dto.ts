@@ -18,6 +18,10 @@ const addressSchema = z.object({
 export const initiateCheckoutSchema = z.object({
   locale: localeSchema,
   shippingMethodId: z.string().min(1),
+  // Required only when the chosen shippingMethodId's requiresPickupPoint is
+  // true — cross-field, checked in CheckoutService (ADR-037), since a pure
+  // schema can't know that without reading ShippingMethod.
+  pickupPointId: z.string().min(1).optional(),
   // Required only for a guest (no session) checkout — cross-field, checked
   // in CheckoutService against the resolved identity, since a pure schema
   // has no notion of "is this caller authenticated."

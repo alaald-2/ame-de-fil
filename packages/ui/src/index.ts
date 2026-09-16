@@ -38,6 +38,9 @@ export {
   ChevronLeftIcon,
   ChevronRightIcon,
   PersonIcon,
+  ArchiveIcon,
+  HomeIcon,
+  ExitIcon,
 } from "@radix-ui/react-icons";
 export * from "./components/Skeleton";
 export * from "./components/EmptyState";

@@ -107,6 +107,11 @@ export const adminOrderDetailResponseSchema = z.object({
   tax: moneySchema,
   total: moneySchema,
   shippingMethodName: z.string(),
+  // Present only when the chosen method required one (ADR-037) — snapshotted
+  // at checkout time onto Order, never a live carrier lookup.
+  pickupPointId: z.string().nullable(),
+  pickupPointName: z.string().nullable(),
+  pickupPointAddress: z.string().nullable(),
   shippingAddress: adminAddressSchema,
   billingAddress: adminAddressSchema,
   payments: z.array(adminPaymentResponseSchema),
