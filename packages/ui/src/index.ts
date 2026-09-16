@@ -42,6 +42,7 @@ export {
   HomeIcon,
   ExitIcon,
   LockClosedIcon,
+  CheckIcon,
 } from "@radix-ui/react-icons";
 export * from "./components/Skeleton";
 export * from "./components/EmptyState";

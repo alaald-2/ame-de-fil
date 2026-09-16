@@ -22,6 +22,8 @@ interface Variant {
 interface ProductVariantSelectorProps {
   variants: Variant[];
   locale: AppLocale;
+  productName: string;
+  image: { url: string; altText: string | null } | null;
 }
 
 function variantLabel(variant: Variant): string {
@@ -36,7 +38,12 @@ function variantLabel(variant: Variant): string {
 // across every product, so a flat "pick one of these" row is the one
 // selector shape that degrades correctly whether a product has 2 variants
 // or a dozen, without needing to know its option structure in advance.
-export function ProductVariantSelector({ variants, locale }: ProductVariantSelectorProps) {
+export function ProductVariantSelector({
+  variants,
+  locale,
+  productName,
+  image,
+}: ProductVariantSelectorProps) {
   const t = useTranslations("Shop");
   const firstAvailable = variants.find((v) => v.available) ?? variants[0];
   const [selectedId, setSelectedId] = useState(firstAvailable?.id);
@@ -92,7 +99,12 @@ export function ProductVariantSelector({ variants, locale }: ProductVariantSelec
       </div>
 
       <div>
-        <AddToCartButton variantId={selected.id} available={selected.available} />
+        <AddToCartButton
+          variantId={selected.id}
+          available={selected.available}
+          productName={productName}
+          image={image}
+        />
       </div>
     </div>
   );

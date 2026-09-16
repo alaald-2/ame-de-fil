@@ -126,7 +126,9 @@
     "total": "Totalt",
     "madeToOrderBody": "Varje plagg virkas för hand efter att din beställning har lagts.",
     "addToCart": "Lägg i varukorg",
-    "added": "Tillagd",
+    "addedTitle": "Varan har lagts i din varukorg",
+    "viewCart": "Visa varukorg ({count})",
+    "checkoutAction": "Till kassan",
     "onlyAvailable": "Endast {count} kvar i lager",
     "proceedToCheckout": "Gå till kassan"
   },

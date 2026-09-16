@@ -126,7 +126,9 @@
     "total": "Total",
     "madeToOrderBody": "Each piece is carefully handmade after your order is placed.",
     "addToCart": "Add to cart",
-    "added": "Added",
+    "addedTitle": "Item added to your cart",
+    "viewCart": "View cart ({count})",
+    "checkoutAction": "Check out",
     "onlyAvailable": "Only {count} left in stock",
     "proceedToCheckout": "Proceed to checkout"
   },

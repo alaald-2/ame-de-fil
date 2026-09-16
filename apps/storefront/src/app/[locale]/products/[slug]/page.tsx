@@ -99,7 +99,12 @@ export default async function ProductPage({ params }: { params: Promise<PagePara
             </Text>
           ) : null}
 
-          <ProductVariantSelector variants={product.variants} locale={locale} />
+          <ProductVariantSelector
+            variants={product.variants}
+            locale={locale}
+            productName={product.name}
+            image={product.images[0] ? { url: product.images[0].url, altText: product.images[0].altText } : null}
+          />
 
           <CartErrorAlert />
 
