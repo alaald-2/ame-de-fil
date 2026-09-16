@@ -42,7 +42,8 @@ function itemRow(overrides: Record<string, unknown> = {}) {
         isLimitedEdition: false,
         productionTimeDays: null,
       },
-      product: { translations: [{ locale: Locale.sv_SE, name: "Halsduk" }] },
+      product: { translations: [{ locale: Locale.sv_SE, name: "Halsduk" }], images: [] },
+      optionValues: [],
     },
     ...overrides,
   };
@@ -108,7 +109,55 @@ describe("CartService.getCart", () => {
       id: "item-1",
       productName: "Halsduk",
       available: true,
+      image: null,
+      variantLabel: null,
     });
+  });
+
+  it("includes the primary image and joined variant label when the variant has both", async () => {
+    const prisma = makePrisma({
+      cart: {
+        findUnique: vi.fn().mockResolvedValue(
+          cartWithItems([
+            itemRow({
+              variant: {
+                id: "var-1",
+                sku: "SKU-1",
+                priceMinor: 29900,
+                inventoryItem: {
+                  tracksStock: true,
+                  onHand: 10,
+                  reserved: 2,
+                  isLimitedEdition: false,
+                  productionTimeDays: null,
+                },
+                product: {
+                  translations: [{ locale: Locale.sv_SE, name: "Halsduk" }],
+                  images: [
+                    { url: "https://example.test/b.jpg", position: 1, altTextSv: "B", altTextEn: "B-en" },
+                    { url: "https://example.test/a.jpg", position: 0, altTextSv: "A", altTextEn: "A-en" },
+                  ],
+                },
+                optionValues: [
+                  { option: { key: "color" }, optionValue: { labelSv: "Blå", labelEn: "Blue" } },
+                  { option: { key: "size" }, optionValue: { labelSv: "M", labelEn: "M" } },
+                ],
+              },
+            }),
+          ]),
+        ),
+        upsert: vi.fn(),
+        findUniqueOrThrow: vi.fn(),
+      },
+    });
+    const service = new CartService(prisma);
+
+    const result = await service.getCart({ guestToken: "guest-token" }, "sv-SE");
+
+    // Lowest `position` wins, not array order — same rule product.mapper.ts's
+    // own image-sorting already follows.
+    expect(result.items[0]?.image).toEqual({ url: "https://example.test/a.jpg", altText: "A" });
+    expect(result.items[0]?.variantLabel).toBe("Blå / M");
   });
 
   // Promotion domain integration — the cart must never trust a

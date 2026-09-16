@@ -12,7 +12,8 @@
     "account": "Mitt konto",
     "myOrders": "Mina ordrar",
     "addresses": "Adresser",
-    "signIn": "Logga in"
+    "signIn": "Logga in",
+    "greeting": "Hej, {name}"
   },
   "Footer": {
     "rights": "Alla rättigheter förbehållna.",
@@ -110,11 +111,18 @@
   },
   "Cart": {
     "title": "Din varukorg",
-    "empty": "Din varukorg är tom.",
+    "emptyTitle": "Din varukorg är tom",
+    "empty": "När du lägger till ett plagg dyker det upp här.",
     "continueShopping": "Fortsätt handla",
     "quantity": "Antal",
+    "decreaseQuantity": "Minska antal",
+    "increaseQuantity": "Öka antal",
     "remove": "Ta bort",
     "subtotal": "Delsumma",
+    "shipping": "Frakt",
+    "shippingNote": "Beräknas i kassan",
+    "total": "Totalt",
+    "madeToOrderBody": "Varje plagg virkas för hand efter att din beställning har lagts.",
     "addToCart": "Lägg i varukorg",
     "added": "Tillagd",
     "onlyAvailable": "Endast {count} kvar i lager",

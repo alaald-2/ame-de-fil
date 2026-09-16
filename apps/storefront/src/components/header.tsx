@@ -55,7 +55,7 @@ export async function Header() {
               {t("market")}
             </span>
             <LocaleSwitcher />
-            <AccountMenu displayName={displayName} email={session?.user.email ?? null} />
+            <AccountMenu displayName={displayName} />
             <div className="lg:hidden">
               <CartLink label={tNav("cart")} variant="icon" />
             </div>

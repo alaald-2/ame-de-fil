@@ -12,6 +12,12 @@ export const cartItemResponseSchema = z.object({
   articleNumber: z.number().int(),
   sku: z.string().nullable(),
   productName: z.string(),
+  // Additive only — first product image and the joined option labels
+  // ("Color / Size"), same shape/derivation catalog already exposes
+  // (product.mapper.ts). Null when a product has no image yet or a variant
+  // has no options (this catalog's dev data currently has neither).
+  image: z.object({ url: z.string(), altText: z.string().nullable() }).nullable(),
+  variantLabel: z.string().nullable(),
   quantity: z.number().int(),
   // The effective (post-promotion) price — what the customer actually
   // pays, and what checkout will charge for this line.

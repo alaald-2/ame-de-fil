@@ -12,7 +12,8 @@
     "account": "My account",
     "myOrders": "My orders",
     "addresses": "Addresses",
-    "signIn": "Sign in"
+    "signIn": "Sign in",
+    "greeting": "Hi, {name}"
   },
   "Footer": {
     "rights": "All rights reserved.",
@@ -110,11 +111,18 @@
   },
   "Cart": {
     "title": "Your cart",
-    "empty": "Your cart is empty.",
+    "emptyTitle": "Your bag is empty",
+    "empty": "Once you add a piece, it will appear here.",
     "continueShopping": "Continue shopping",
     "quantity": "Quantity",
+    "decreaseQuantity": "Decrease quantity",
+    "increaseQuantity": "Increase quantity",
     "remove": "Remove",
     "subtotal": "Subtotal",
+    "shipping": "Shipping",
+    "shippingNote": "Calculated at checkout",
+    "total": "Total",
+    "madeToOrderBody": "Each piece is carefully handmade after your order is placed.",
     "addToCart": "Add to cart",
     "added": "Added",
     "onlyAvailable": "Only {count} left in stock",

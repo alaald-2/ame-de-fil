@@ -20,14 +20,13 @@ interface AccountMenuProps {
   // null for a signed-out visitor — same signal shape header.tsx already
   // gets from getCurrentUser(), just passed through instead of re-fetched.
   displayName: string | null;
-  email: string | null;
 }
 
 // Same toggle/outside-click/Escape idiom as header-search.tsx's panel
 // (mirrored deliberately, not reinvented) — an always-mounted panel whose
 // opacity/translate transitions, gated by pointer-events/aria-hidden so a
 // closed panel is never reachable by pointer, keyboard, or screen reader.
-export function AccountMenu({ displayName, email }: AccountMenuProps) {
+export function AccountMenu({ displayName }: AccountMenuProps) {
   const t = useTranslations("Navigation");
   const tCommon = useTranslations("Common");
   const router = useRouter();
@@ -101,7 +100,9 @@ export function AccountMenu({ displayName, email }: AccountMenuProps) {
       <div
         aria-hidden={!isOpen}
         className={cn(
-          "absolute top-full right-0 z-30 mt-4 w-60 origin-top-right rounded-sm border border-neutral-200 bg-neutral-50 py-2 shadow-lg transition-all duration-200 ease-out-slow",
+          // Hairline border, never a shadow (DESIGN_SYSTEM.md §5) — same
+          // separation rule as every other card/panel in the app.
+          "absolute top-full right-0 z-30 mt-4 w-60 origin-top-right rounded-sm border border-neutral-200 bg-neutral-50 py-2 transition-all duration-200 ease-out-slow",
           isOpen ? "translate-y-0 opacity-100" : "pointer-events-none -translate-y-1 opacity-0",
         )}
       >
@@ -109,16 +110,8 @@ export function AccountMenu({ displayName, email }: AccountMenuProps) {
           <>
             <div className="border-b border-neutral-200 px-4 pb-3">
               <Text size="sm" className="truncate font-medium text-neutral-900">
-                {displayName}
+                {t("greeting", { name: displayName })}
               </Text>
-              {/* Skipped when displayName already IS the email — the
-                  no-first/last-name fallback in header.tsx — so a customer
-                  with no name on file never sees the same email twice. */}
-              {email && email !== displayName ? (
-                <Text size="sm" tone="muted" className="truncate">
-                  {email}
-                </Text>
-              ) : null}
             </div>
             <Link href="/account" tabIndex={itemTabIndex} onClick={close} className={itemClassName}>
               <PersonIcon aria-hidden="true" className="h-4 w-4 text-neutral-400" />

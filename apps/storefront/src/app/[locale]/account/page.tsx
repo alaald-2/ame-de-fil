@@ -1,6 +1,16 @@
 import type { Metadata } from "next";
 import { getTranslations } from "next-intl/server";
-import { Container, Heading, Text, Alert } from "@ame-de-fil/ui";
+import {
+  Container,
+  Heading,
+  Text,
+  Alert,
+  Card,
+  PersonIcon,
+  LockClosedIcon,
+  ArchiveIcon,
+  HomeIcon,
+} from "@ame-de-fil/ui";
 import { requireSession } from "../../../lib/dal";
 import { getServerApiClient } from "../../../lib/server-api";
 import { Link } from "../../../i18n/navigation";
@@ -20,11 +30,13 @@ export async function generateMetadata(): Promise<Metadata> {
   return { title: t("title") };
 }
 
-// The account hub — a set of light sections (Profile, Login & Security,
-// Orders, Addresses), each growing its own nested route once it has real
-// content (design discussion, docs/plans) rather than one flat page. No
-// placeholder sections for Wishlist/Reviews/Preferences etc. — those get a
-// card here only once they're real.
+// The account hub — Profile/Security/Addresses as compact cards in a row
+// (design discussion, docs/plans) matching the two-card grid already
+// established in apps/admin's order-detail page (shipping/billing address
+// cards), with Recent orders as a full-width card below since its content
+// varies in length. A hairline border, not a shadow (DESIGN_SYSTEM.md §5)
+// — Card already enforces that. No placeholder cards for Wishlist/Reviews/
+// Preferences etc. — those get a card here only once they're real.
 export default async function AccountPage({ params }: { params: Promise<{ locale: AppLocale }> }) {
   const { locale } = await params;
   const t = await getTranslations("Account");
@@ -44,36 +56,67 @@ export default async function AccountPage({ params }: { params: Promise<{ locale
     <Container className="py-16">
       <Heading level={1}>{t("title")}</Heading>
 
-      <section className="mt-10 max-w-sm">
-        <Heading level={2}>{t("profileHeading")}</Heading>
-        <Text size="lg" className="mt-3 text-neutral-900">
-          {displayName}
-        </Text>
-        <Text tone="muted" className="mt-1">
-          {user.email}
-        </Text>
-      </section>
+      <div className="mt-10 grid gap-6 lg:grid-cols-3">
+        <Card>
+          <div className="mb-3 flex items-center gap-2 text-neutral-500">
+            <PersonIcon aria-hidden="true" className="h-4 w-4" />
+            <Heading level={3}>{t("profileHeading")}</Heading>
+          </div>
+          <Text size="lg" className="text-neutral-900">
+            {displayName}
+          </Text>
+          <Text tone="muted" className="mt-1">
+            {user.email}
+          </Text>
+        </Card>
 
-      <section className="mt-10 max-w-sm">
-        <Heading level={2}>{t("securityHeading")}</Heading>
-        {!user.emailVerifiedAt ? (
-          <Alert tone="info" className="mt-3">
-            <Text size="sm">{t("unverifiedBanner")}</Text>
-            <div className="mt-3">
-              <ResendVerificationButton />
-            </div>
-          </Alert>
-        ) : null}
-        <div className="mt-4">
+        <Card>
+          <div className="mb-3 flex items-center gap-2 text-neutral-500">
+            <LockClosedIcon aria-hidden="true" className="h-4 w-4" />
+            <Heading level={3}>{t("securityHeading")}</Heading>
+          </div>
+          {!user.emailVerifiedAt ? (
+            <Alert tone="info" className="mb-4">
+              <Text size="sm">{t("unverifiedBanner")}</Text>
+              <div className="mt-3">
+                <ResendVerificationButton />
+              </div>
+            </Alert>
+          ) : null}
           <SignOutButton />
-        </div>
-      </section>
+        </Card>
 
-      <section className="mt-10">
-        <Heading level={2}>{tOrders("recentOrdersHeading")}</Heading>
+        <Card>
+          <div className="mb-3 flex items-center gap-2 text-neutral-500">
+            <HomeIcon aria-hidden="true" className="h-4 w-4" />
+            <Heading level={3}>{t("addressesHeading")}</Heading>
+          </div>
+          {defaultAddress ? (
+            <Text tone="muted">
+              {defaultAddress.name}
+              <br />
+              {formatAddressLine(defaultAddress)}
+            </Text>
+          ) : (
+            <Text tone="muted">{tAddresses("emptyTitle")}</Text>
+          )}
+          <Link
+            href="/account/addresses"
+            className="mt-4 inline-block text-sm text-accent-600 underline-offset-4 hover:underline"
+          >
+            {tAddresses("manageAddresses")}
+          </Link>
+        </Card>
+      </div>
+
+      <Card className="mt-6">
+        <div className="mb-4 flex items-center gap-2 text-neutral-500">
+          <ArchiveIcon aria-hidden="true" className="h-4 w-4" />
+          <Heading level={3}>{tOrders("recentOrdersHeading")}</Heading>
+        </div>
         {orders && orders.items.length > 0 ? (
           <>
-            <div className="mt-4 flex flex-col">
+            <div className="flex flex-col">
               {orders.items.map((order) => (
                 <OrderSummaryRow key={order.orderId} order={order} locale={locale} />
               ))}
@@ -86,32 +129,9 @@ export default async function AccountPage({ params }: { params: Promise<{ locale
             </Link>
           </>
         ) : (
-          <Text tone="muted" className="mt-3">
-            {tOrders("emptyTitle")}
-          </Text>
+          <Text tone="muted">{tOrders("emptyTitle")}</Text>
         )}
-      </section>
-
-      <section className="mt-10 max-w-sm">
-        <Heading level={2}>{t("addressesHeading")}</Heading>
-        {defaultAddress ? (
-          <Text tone="muted" className="mt-3">
-            {defaultAddress.name}
-            <br />
-            {formatAddressLine(defaultAddress)}
-          </Text>
-        ) : (
-          <Text tone="muted" className="mt-3">
-            {tAddresses("emptyTitle")}
-          </Text>
-        )}
-        <Link
-          href="/account/addresses"
-          className="mt-4 inline-block text-sm text-accent-600 underline-offset-4 hover:underline"
-        >
-          {tAddresses("manageAddresses")}
-        </Link>
-      </section>
+      </Card>
     </Container>
   );
 }

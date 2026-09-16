@@ -8,7 +8,11 @@ import type { CartResponse } from "../dto/responses.ts";
 export type CartItemWithContext = Prisma.CartItemGetPayload<{
   include: {
     variant: {
-      include: { product: { include: { translations: true } }; inventoryItem: true };
+      include: {
+        product: { include: { translations: true; images: true } };
+        inventoryItem: true;
+        optionValues: { include: { option: true; optionValue: true } };
+      };
     };
   };
 }>;
@@ -18,18 +22,30 @@ export type CartWithItems = Prisma.CartGetPayload<{
     items: {
       include: {
         variant: {
-          include: { product: { include: { translations: true } }; inventoryItem: true };
+          include: {
+            product: { include: { translations: true; images: true } };
+            inventoryItem: true;
+            optionValues: { include: { option: true; optionValue: true } };
+          };
         };
       };
     };
   };
 }>;
 
+// Mirrors catalog's own PRODUCT_INCLUDE shape (product.mapper.ts) for the
+// image/option-value relations — the cart previously fetched neither
+// (image/variant-label were never part of this response), purely additive:
+// no change to how quantity/price/promotion/stock are computed below.
 export const CART_INCLUDE = {
   items: {
     include: {
       variant: {
-        include: { product: { include: { translations: true } }, inventoryItem: true },
+        include: {
+          product: { include: { translations: true, images: true } },
+          inventoryItem: true,
+          optionValues: { include: { option: true, optionValue: true } },
+        },
       },
     },
   },
@@ -72,12 +88,30 @@ export function mapCartItem(
   );
   const amountMinor = effective.effectivePriceMinor * item.quantity;
 
+  // Same derivation as catalog's mapProduct/mapProductVariant
+  // (product.mapper.ts) — first image by position, options joined into one
+  // "Color / Size"-style label, both locale-resolved the same way.
+  const primaryImage = [...item.variant.product.images].sort((a, b) => a.position - b.position)[0];
+  const image = primaryImage
+    ? {
+        url: primaryImage.url,
+        altText: requestedLocale === "sv-SE" ? primaryImage.altTextSv : primaryImage.altTextEn,
+      }
+    : null;
+
+  const optionLabels = item.variant.optionValues.map((ov) =>
+    requestedLocale === "sv-SE" ? ov.optionValue.labelSv : ov.optionValue.labelEn,
+  );
+  const variantLabel = optionLabels.length > 0 ? optionLabels.join(" / ") : null;
+
   return {
     id: item.id,
     variantId: item.variant.id,
     articleNumber: item.variant.articleNumber,
     sku: item.variant.sku,
     productName: resolveDisplayName(item, requestedLocale, defaultLocale),
+    image,
+    variantLabel,
     quantity: item.quantity,
     unitPrice: { amountMinor: effective.effectivePriceMinor, currency: "SEK" as const },
     // Only non-null when a promotion is actually knocking the price down —
