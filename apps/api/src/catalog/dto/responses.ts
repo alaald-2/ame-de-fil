@@ -91,8 +91,23 @@ export const categoryWithProductsResponseSchema = categoryResponseSchema.extend(
   productsTotal: z.number().int(),
 });
 
-export const collectionResponseSchema = categoryResponseSchema;
-export const collectionWithProductsResponseSchema = categoryWithProductsResponseSchema;
+// Collection stops being a bare alias of Category here — its own
+// COLLECTION_GALLERY_IMAGE_LIMIT-capped images array (collection.mapper.ts)
+// is genuinely new content Category doesn't have and isn't gaining.
+const collectionGalleryImageResponseSchema = z.object({
+  url: z.string(),
+  altText: z.string().nullable(),
+});
+
+export const collectionResponseSchema = categoryResponseSchema.extend({
+  images: z.array(collectionGalleryImageResponseSchema),
+});
+export const collectionWithProductsResponseSchema = collectionResponseSchema.extend({
+  products: z.array(productResponseSchema),
+  productsPage: z.number().int(),
+  productsPageSize: z.number().int(),
+  productsTotal: z.number().int(),
+});
 
 export const createProductResponseSchema = z.object({ id: z.string() });
 

@@ -3,6 +3,7 @@ import { getTranslations } from "next-intl/server";
 import { Container, Heading, Text } from "@ame-de-fil/ui";
 import { api } from "../../../lib/api-client";
 import { Link } from "../../../i18n/navigation";
+import { CollectionsGallery, type GalleryTile } from "../../../components/collections-gallery";
 import type { AppLocale } from "../../../lib/locale";
 
 type PageParams = { locale: AppLocale };
@@ -25,6 +26,20 @@ export default async function CollectionsPage({ params }: { params: Promise<Page
   const { data, error } = await api.GET("/api/v1/collections", { params: { query: { locale } } });
   if (error || !data) throw new Error("Failed to load collections");
 
+  // Every image any collection has, flattened into one gallery — each tile
+  // still carries its own collection's slug/name so it links and captions
+  // correctly (design discussion). A collection with no product images yet
+  // simply contributes nothing here; the plain list below still reaches it.
+  const tiles: GalleryTile[] = data.flatMap((collection) =>
+    collection.images.map((image, index) => ({
+      id: `${collection.id}-${index}`,
+      url: image.url,
+      altText: image.altText,
+      collectionSlug: collection.slug,
+      collectionName: collection.name,
+    })),
+  );
+
   return (
     <Container className="py-16">
       <Heading level={1}>{t("collections")}</Heading>
@@ -33,23 +48,33 @@ export default async function CollectionsPage({ params }: { params: Promise<Page
           {tCollection("empty")}
         </Text>
       ) : (
-        <ul className="mt-10 flex flex-col gap-4">
-          {data.map((collection) => (
-            <li key={collection.id}>
-              <Link
-                href={{ pathname: "/collections/[slug]", params: { slug: collection.slug } }}
-                className="font-display text-xl text-neutral-900 hover:text-accent-600"
-              >
-                {collection.name}
-              </Link>
-              {collection.description ? (
-                <Text tone="muted" className="mt-1">
-                  {collection.description}
-                </Text>
-              ) : null}
-            </li>
-          ))}
-        </ul>
+        <>
+          <Text tone="muted" className="mt-3 max-w-xl">
+            {tCollection("intro")}
+          </Text>
+
+          <div className="mt-10">
+            <CollectionsGallery tiles={tiles} label={tCollection("galleryLabel")} />
+          </div>
+
+          <ul className="mt-12 flex flex-col gap-4 border-t border-neutral-200 pt-10">
+            {data.map((collection) => (
+              <li key={collection.id}>
+                <Link
+                  href={{ pathname: "/collections/[slug]", params: { slug: collection.slug } }}
+                  className="font-display text-xl text-neutral-900 hover:text-accent-600"
+                >
+                  {collection.name}
+                </Link>
+                {collection.description ? (
+                  <Text tone="muted" className="mt-1">
+                    {collection.description}
+                  </Text>
+                ) : null}
+              </li>
+            ))}
+          </ul>
+        </>
       )}
     </Container>
   );

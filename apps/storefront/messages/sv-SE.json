@@ -107,7 +107,9 @@
   },
   "Collection": {
     "notFoundTitle": "Kollektionen hittades inte",
-    "empty": "Inga produkter i den här kollektionen ännu."
+    "empty": "Inga produkter i den här kollektionen ännu.",
+    "intro": "Utvalda kollektioner av handgjorda plagg, tillverkade i små serier.",
+    "galleryLabel": "Kollektionshöjdpunkter"
   },
   "Cart": {
     "title": "Din varukorg",

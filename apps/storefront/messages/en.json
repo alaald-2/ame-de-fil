@@ -107,7 +107,9 @@
   },
   "Collection": {
     "notFoundTitle": "Collection not found",
-    "empty": "No products in this collection yet."
+    "empty": "No products in this collection yet.",
+    "intro": "Curated edits of handmade pieces, made in small batches.",
+    "galleryLabel": "Collection highlights"
   },
   "Cart": {
     "title": "Your cart",

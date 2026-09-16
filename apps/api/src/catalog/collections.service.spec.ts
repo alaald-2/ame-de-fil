@@ -20,6 +20,7 @@ const collectionRow = {
       metaDescription: null,
     },
   ],
+  products: [],
 };
 
 function makePrismaMock(overrides: Partial<Record<string, unknown>> = {}) {
@@ -56,6 +57,28 @@ describe("CollectionsService", () => {
     // itself resolves correctly when it's the only one present.)
     const result = await service.list("en");
     expect(result).toHaveLength(1);
+  });
+
+  it("list() derives one gallery image per linked product, sorted by position", async () => {
+    const rowWithImages = {
+      ...collectionRow,
+      products: [
+        {
+          product: {
+            images: [
+              { url: "https://example.test/b.jpg", position: 1, altTextSv: "B", altTextEn: "B-en" },
+              { url: "https://example.test/a.jpg", position: 0, altTextSv: "A", altTextEn: "A-en" },
+            ],
+          },
+        },
+      ],
+    };
+    const prisma = makePrismaMock({ findMany: vi.fn().mockResolvedValue([rowWithImages]) });
+    const service = new CollectionsService(prisma);
+
+    const result = await service.list("en");
+
+    expect(result[0]?.images).toEqual([{ url: "https://example.test/a.jpg", altText: "A-en" }]);
   });
 
   it("getBySlug() throws NotFoundException when no collection matches", async () => {

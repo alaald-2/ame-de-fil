@@ -2,7 +2,11 @@ import { Injectable, NotFoundException } from "@nestjs/common";
 import { ProductStatus } from "@ame-de-fil/database";
 import type { Locale as AppLocale } from "@ame-de-fil/validation";
 import { PrismaService } from "../database/prisma.service.ts";
-import { mapCollection, type CollectionResponse } from "./mappers/collection.mapper.ts";
+import {
+  mapCollection,
+  COLLECTION_GALLERY_IMAGE_LIMIT,
+  type CollectionResponse,
+} from "./mappers/collection.mapper.ts";
 import { mapProduct, PRODUCT_INCLUDE, collectVariantIds, type ProductResponse } from "./mappers/product.mapper.ts";
 import { resolveActivePromotionsForVariants } from "../promotions/effective-price.ts";
 
@@ -21,7 +25,15 @@ export class CollectionsService {
 
   async list(locale: AppLocale): Promise<CollectionResponse[]> {
     const rows = await this.prisma.collection.findMany({
-      include: { translations: true },
+      include: {
+        translations: true,
+        products: {
+          where: { product: { status: ProductStatus.PUBLISHED } },
+          take: COLLECTION_GALLERY_IMAGE_LIMIT,
+          orderBy: { product: { createdAt: "desc" } },
+          include: { product: { include: { images: true } } },
+        },
+      },
       orderBy: { createdAt: "asc" },
     });
     return rows
@@ -37,7 +49,15 @@ export class CollectionsService {
   ): Promise<CollectionWithProducts> {
     const collection = await this.prisma.collection.findFirst({
       where: { translations: { some: { slug } } },
-      include: { translations: true },
+      include: {
+        translations: true,
+        products: {
+          where: { product: { status: ProductStatus.PUBLISHED } },
+          take: COLLECTION_GALLERY_IMAGE_LIMIT,
+          orderBy: { product: { createdAt: "desc" } },
+          include: { product: { include: { images: true } } },
+        },
+      },
     });
 
     if (!collection) {
