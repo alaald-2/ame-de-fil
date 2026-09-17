@@ -45,7 +45,7 @@ flowchart TB
     Worker --> Valkey
     Worker -- transactional sends --> Email
     Stripe -- signed webhooks --> API
-    API -.->|"ShippingProvider — v1 is manual, no v1 integration"| Carrier
+    API -.->|"ShippingProvider — Manual (fallback), Shipmondo (live), PostNord (built, pending sandbox)"| Carrier
     Browser -.->|"OAuth redirect, storefront customers only — never apps/admin"| Google
     API -- token/userinfo exchange --> Google
 ```
@@ -85,7 +85,7 @@ ame-de-fil/
 
 REST, versioned from day one (`/api/v1/...`), documented via NestJS's Swagger module. A typed client is generated at build time into `packages/types` (or a dedicated `packages/api-client`) so `storefront`/`admin` get compile-time safety without hand-maintained fetch wrappers.
 
-Domain modules in `apps/api` (Nest modules, one per bounded context): `identity` (users/roles/sessions), `catalog` (products/variants/categories/collections), `inventory`, `cart`, `checkout`, `orders`, `payments`, `shipping` (carrier-agnostic `ShippingProvider` abstraction, `ManualShippingProvider` for v1 — `DECISIONS.md` ADR-022), `discounts`, `reviews`, `customers`, `admin` (cross-cutting admin operations), `notifications`, `audit`.
+Domain modules in `apps/api` (Nest modules, one per bounded context): `identity` (users/roles/sessions), `catalog` (products/variants/categories/collections), `inventory`, `cart`, `checkout`, `orders`, `payments`, `shipping` (carrier-agnostic `ShippingProvider` abstraction — `ManualShippingProvider` fallback, `ShipmondoShippingProvider` (live), `PostNordShippingProvider` (built, pending sandbox) — `DECISIONS.md` ADR-022/037/038/039/040), `discounts`, `reviews`, `customers`, `admin` (cross-cutting admin operations), `dashboard`, `tasks`, `addresses`, `marketing`, `notifications`, `audit`.
 
 ## 4. Rendering & data-flow strategy (storefront)
 
@@ -104,4 +104,4 @@ Abandoned-checkout follow-up (beyond reservation release), webhook-retry backoff
 
 ## 6. Open architectural questions
 
-Market/locale/currency scope is now confirmed (Sweden-only, `sv-SE`+`en`, SEK-only — `DECISIONS.md` ADR-021). Still open, by your explicit choice: deployment target, image storage provider, email provider (`DECISIONS.md` ADR-020), and shipping carrier — the `ShippingProvider` abstraction (ADR-022) means none of these block Phase 1.
+Market/locale/currency scope is now confirmed (Sweden-only, `sv-SE`+`en`, SEK-only — `DECISIONS.md` ADR-021). Resolved since: image storage — Cloudinary (ADR-034); shipping carrier — Shipmondo/DHL Freight, live-verified (ADR-037/038/039), plus a direct PostNord integration built and unit-tested but not yet sandbox-verified (ADR-040, pending PostNord account signup and a customer/agreement number). Still open, by your explicit choice: deployment target and email vendor (`DECISIONS.md` ADR-020) — generic SMTP is wired and works against a real Mailpit catcher locally, but no production vendor has been chosen.
