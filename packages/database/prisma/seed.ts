@@ -208,8 +208,32 @@ async function seedShippingMethods(prisma: PrismaClient): Promise<void> {
     },
   });
 
+  // PostNordShippingProvider's real, live-booked product (DECISIONS.md
+  // ADR-040) — code must match postnord-shipping.provider.ts's
+  // SHIPPING_METHOD_CODE constant exactly, or that provider silently has
+  // nothing to quote/book. Unlike Shipmondo, PostNord has no live pricing
+  // API at all (confirmed by inspecting every documented endpoint) — this
+  // priceMinor is not a display fallback that a live call overrides, it is
+  // the real, only price this method will ever show, same as
+  // ManualShippingProvider's own methods. requiresPickupPoint: true always
+  // (PostNord Mypack Collect only delivers to a chosen service point).
+  const postnordMethod = await prisma.shippingMethod.upsert({
+    where: { code: "POSTNORD_MYPACK_COLLECT" },
+    update: {},
+    create: {
+      code: "POSTNORD_MYPACK_COLLECT",
+      nameSv: "PostNord Mypack Collect",
+      nameEn: "PostNord Mypack Collect",
+      priceMinor: 5900,
+      minDeliveryDays: 1,
+      maxDeliveryDays: 3,
+      isActive: true,
+      requiresPickupPoint: true,
+    },
+  });
+
   console.log(
-    `Ensured the "${shippingMethod.code}", "${pickupMethod.code}", and "${shipmondoMethod.code}" shipping methods exist.`,
+    `Ensured the "${shippingMethod.code}", "${pickupMethod.code}", "${shipmondoMethod.code}", and "${postnordMethod.code}" shipping methods exist.`,
   );
 }
 

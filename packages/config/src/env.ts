@@ -200,6 +200,53 @@ export const envSchema = z.object({
   // store's own real, already-public brand name rather than adding a
   // fourth mandatory env var for a single string.
   SHIPMONDO_SENDER_NAME: z.string().min(1).default("Âme de Fil"),
+
+  // PostNord (DECISIONS.md ADR-040) — a direct integration, bypassing
+  // Shipmondo entirely (Shipmondo has no pooled agreement for PostNord SE
+  // domestic, and PostNord isn't on Shipmondo's own-agreement carrier list
+  // either — ADR-037's 2026-09-17 updates). Same "optional at the schema
+  // level, disclosed rather than faked" posture as every other integration
+  // above: unset means ShippingModule falls back per its precedence chain,
+  // never a silent no-op. Required together in practice, checked in
+  // PostNordShippingProvider's factory. POSTNORD_BASE_URL switches between
+  // the sandbox (atapi2.postnord.com) and production (api2.postnord.com)
+  // hosts — no default, same reasoning as SHIPMONDO_BASE_URL.
+  POSTNORD_API_KEY: optionalSecret(),
+  POSTNORD_BASE_URL: z.url().optional(),
+  // Identifies this integration to PostNord — required by Service Points
+  // V5 and the Delivery Options API (unused by this integration — see
+  // ADR-040). Format assigned by PostNord during onboarding
+  // (consignorCompanyName, or partnerName-consignorCompanyName for a
+  // partner integration), not something this project can choose freely.
+  POSTNORD_CUSTOMER_KEY: optionalSecret(),
+  // The real PostNord customer/agreement number — required for booking
+  // (consignor.partyIdentification.partyId, partyIdType "160" = Customer
+  // number). A real carrier contract, separate from developer-portal
+  // signup, same "own agreement required" category as the Bring gap
+  // ADR-037 already flagged, just directly with PostNord this time.
+  POSTNORD_CUSTOMER_NUMBER: optionalSecret(),
+  // The store's own ship-from address — every booking's consignor party
+  // needs one. Same shape/reasoning as SHIPMONDO_SENDER_*.
+  POSTNORD_SENDER_NAME: z.string().min(1).default("Âme de Fil"),
+  POSTNORD_SENDER_ADDRESS1: optionalSecret(),
+  POSTNORD_SENDER_ZIPCODE: optionalSecret(),
+  POSTNORD_SENDER_CITY: optionalSecret(),
+  POSTNORD_SENDER_COUNTRY_CODE: z.string().min(1).default("SE"),
+  // No documented valid-values list exists anywhere in PostNord's Service
+  // Points V5 spec for this required param (confirmed by direct schema
+  // inspection, not an oversight) — deliberately left with no default so
+  // PostNordShippingProvider simply can't activate the pickup-point path
+  // until a real value is confirmed against the sandbox, rather than
+  // shipping a guess (DECISIONS.md ADR-040).
+  POSTNORD_SERVICE_POINTS_RETURN_TYPE: optionalSecret(),
+  // Same "genuinely undocumented, isolated rather than guessed" reasoning:
+  // the booking response's ids[].idType has no enum anywhere in PostNord's
+  // spec (confirmed by direct schema inspection — a bare unconstrained
+  // string). Without this set, PostNordShippingProvider.createShipment
+  // still books a real shipment and returns a real trackingUrl (from
+  // urls[], which has no such ambiguity), but trackingNumber stays null —
+  // a disclosed gap, not a fabricated value.
+  POSTNORD_TRACKING_ID_TYPE: optionalSecret(),
 });
 
 export type Env = z.infer<typeof envSchema>;

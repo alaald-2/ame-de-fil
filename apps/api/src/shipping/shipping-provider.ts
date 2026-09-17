@@ -81,6 +81,12 @@ export interface ShipmentDestination extends Omit<ShippingDestination, "city"> {
   line1: string;
   line2?: string;
   phone?: string;
+  // The customer's chosen pickup point (Order.pickupPointId), snapshotted
+  // at checkout — undefined for a method that doesn't require one.
+  // PostNordShippingProvider (DECISIONS.md ADR-040) needs this to book to
+  // the right service point; Shipmondo's only supported product today
+  // doesn't require a pickup point at all, so it never reads this.
+  pickupPointId?: string;
 }
 
 // What a real carrier handed back after actually creating a shipment —

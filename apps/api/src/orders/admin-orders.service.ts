@@ -794,6 +794,7 @@ export class AdminOrdersService {
         shippingCity: true,
         shippingCountry: true,
         shippingPhone: true,
+        pickupPointId: true,
         items: {
           select: {
             quantity: true,
@@ -832,6 +833,7 @@ export class AdminOrdersService {
           line1: order.shippingLine1,
           line2: order.shippingLine2 ?? undefined,
           phone: order.shippingPhone ?? undefined,
+          pickupPointId: order.pickupPointId ?? undefined,
         },
         parcel,
         order.orderNumber,
