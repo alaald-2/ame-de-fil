@@ -20,6 +20,8 @@ import { PrismaService } from "../database/prisma.service.ts";
 import { NotificationsService } from "../notifications/notifications.service.ts";
 import { AuditService } from "../audit/audit.service.ts";
 import { PAYMENT_PROVIDER, type PaymentProvider } from "../payments/payment-provider.ts";
+import { SHIPPING_PROVIDER, type ShippingProvider } from "../shipping/shipping-provider.ts";
+import { computeParcelInfo } from "../shipping/parcel.ts";
 import { isUniqueConstraintViolation } from "../checkout/prisma-errors.ts";
 import { toCsv } from "../common/csv.ts";
 import {
@@ -77,6 +79,7 @@ export class AdminOrdersService {
     private readonly notifications: NotificationsService,
     private readonly audit: AuditService,
     @Inject(PAYMENT_PROVIDER) private readonly paymentProvider: PaymentProvider,
+    @Inject(SHIPPING_PROVIDER) private readonly shippingProvider: ShippingProvider,
     private readonly config: ConfigService<Env, true>,
   ) {}
 
@@ -772,6 +775,73 @@ export class AdminOrdersService {
     actorUserId: string,
     ipAddress?: string,
   ): Promise<FulfillmentResponse> {
+    // Read once, outside the transaction — this is the order's own already-
+    // final shipping address/items, not client input, so there's no
+    // TOCTOU-sensitive value here to protect by reading it transactionally.
+    // Deliberately not the source of authority for the state transition
+    // itself: the guarded updateMany inside the transaction below is (same
+    // reasoning as markReadyToShip's own "before" read).
+    const order = await this.prisma.order.findUniqueOrThrow({
+      where: { id: orderId },
+      select: {
+        status: true,
+        orderNumber: true,
+        shippingMethodId: true,
+        shippingName: true,
+        shippingLine1: true,
+        shippingLine2: true,
+        shippingPostalCode: true,
+        shippingCity: true,
+        shippingCountry: true,
+        shippingPhone: true,
+        items: {
+          select: {
+            quantity: true,
+            variant: { select: { weightGrams: true, lengthMm: true, widthMm: true, heightMm: true } },
+          },
+        },
+      },
+    });
+
+    // Real shipment creation (DECISIONS.md ADR-039) happens *before* the
+    // transaction below, deliberately: a slow external HTTP call must never
+    // hold this transaction's row lock open (same reasoning as
+    // PaymentsWebhookService's post-commit notification dispatch, though
+    // this one has to happen before the local write, not after — the
+    // tracking number it returns is exactly what that write needs to
+    // store). Attempted only when the order is currently READY_TO_SHIP;
+    // the transaction's own guarded updateMany remains the sole authority
+    // on whether the transition itself is valid — this is purely an
+    // optimization against calling Shipmondo for an order that's already
+    // provably in the wrong state. A real, since-the-read state change
+    // (someone else shipped it a moment ago) still means the transaction
+    // below throws and this call's result is simply discarded — an
+    // accepted, disclosed risk identical to StripePaymentProvider's own
+    // (DECISIONS.md ADR-024): a real carrier shipment can end up created
+    // with no local Shipment row to show for it.
+    let created: Awaited<ReturnType<ShippingProvider["createShipment"]>> = null;
+    if (order.status === OrderStatus.READY_TO_SHIP) {
+      const parcel = computeParcelInfo(order.items);
+      created = await this.shippingProvider.createShipment(
+        order.shippingMethodId,
+        {
+          postalCode: order.shippingPostalCode,
+          country: order.shippingCountry,
+          city: order.shippingCity,
+          name: order.shippingName,
+          line1: order.shippingLine1,
+          line2: order.shippingLine2 ?? undefined,
+          phone: order.shippingPhone ?? undefined,
+        },
+        parcel,
+        order.orderNumber,
+      );
+    }
+
+    const carrierName = created?.carrierName ?? input.carrierName ?? null;
+    const trackingNumber = created?.trackingNumber ?? input.trackingNumber ?? null;
+    const trackingUrl = created?.trackingUrl ?? input.trackingUrl ?? null;
+
     await this.prisma.$transaction(async (tx) => {
       const updated = await tx.order.updateMany({
         where: { id: orderId, status: OrderStatus.READY_TO_SHIP },
@@ -790,9 +860,10 @@ export class AdminOrdersService {
         data: {
           orderId,
           status: ShipmentStatus.IN_TRANSIT,
-          carrierName: input.carrierName ?? null,
-          trackingNumber: input.trackingNumber ?? null,
-          trackingUrl: input.trackingUrl ?? null,
+          carrierName,
+          trackingNumber,
+          trackingUrl,
+          providerShipmentId: created?.providerShipmentId ?? null,
           shippedAt: new Date(),
         },
       });
@@ -806,8 +877,9 @@ export class AdminOrdersService {
           before: { status: OrderStatus.READY_TO_SHIP },
           after: {
             status: OrderStatus.SHIPPED,
-            carrierName: input.carrierName ?? null,
-            trackingNumber: input.trackingNumber ?? null,
+            carrierName,
+            trackingNumber,
+            createdByProvider: created !== null,
           },
           ipAddress,
         },
@@ -885,6 +957,7 @@ export class AdminOrdersService {
             carrierName: shipment.carrierName,
             trackingNumber: shipment.trackingNumber,
             trackingUrl: shipment.trackingUrl,
+            providerShipmentId: shipment.providerShipmentId,
             shippedAt: shipment.shippedAt?.toISOString() ?? null,
             deliveredAt: shipment.deliveredAt?.toISOString() ?? null,
           }

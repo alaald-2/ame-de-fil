@@ -40,5 +40,14 @@ export const cartResponseSchema = z.object({
   items: z.array(cartItemResponseSchema),
   itemCount: z.number().int(),
   subtotal: z.object({ amountMinor: z.number().int(), currency: z.literal("SEK") }),
+  // Same computeParcelInfo (shipping/parcel.ts) checkout/fulfillment already
+  // use, applied here to the cart's own items — an estimate for the
+  // storefront's pre-submission shipping-method list only (DECISIONS.md
+  // ADR-038's disclosed gap: that list previously sent no weight at all, so
+  // ShipmondoShippingProvider always returned zero methods there). Checkout
+  // submission itself never reads this field — checkout-cart.ts recomputes
+  // the authoritative figure from the same transactional cart it already
+  // re-validates.
+  estimatedWeightGrams: z.number().int(),
 });
 export type CartResponse = z.infer<typeof cartResponseSchema>;

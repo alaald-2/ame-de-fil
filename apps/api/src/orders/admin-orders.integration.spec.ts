@@ -12,6 +12,7 @@ import { Currency, Locale, OrderStatus, PaymentStatus, ShipmentStatus } from "@a
 import { AdminOrdersService } from "./admin-orders.service.ts";
 import { NotificationsService } from "../notifications/notifications.service.ts";
 import { PendingEmailProvider } from "../notifications/email-provider.ts";
+import { ManualShippingProvider } from "../shipping/shipping-provider.ts";
 import { AuditService } from "../audit/audit.service.ts";
 import type {
   PaymentProvider,
@@ -91,6 +92,12 @@ describe("AdminOrdersService — real Postgres", () => {
       new NotificationsService(db.prisma, new PendingEmailProvider(), makeTestConfig()),
       new AuditService(db.prisma),
       paymentProvider,
+      // The real ManualShippingProvider, not a mock/stub — always resolves
+      // createShipment to null (ADR-022: no external carrier), which is
+      // exactly what this harness (no Shipmondo sandbox reachable from
+      // Testcontainers) needs: markShipped falls through to its existing
+      // manual carrier/tracking behavior, unaffected by ADR-039.
+      new ManualShippingProvider(db.prisma),
       makeTestConfig(),
     );
   }, 120_000);

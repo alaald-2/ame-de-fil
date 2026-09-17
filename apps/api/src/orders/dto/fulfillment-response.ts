@@ -12,6 +12,7 @@ export const fulfillmentResponseSchema = z.object({
       carrierName: z.string().nullable(),
       trackingNumber: z.string().nullable(),
       trackingUrl: z.string().nullable(),
+      providerShipmentId: z.string().nullable(),
       shippedAt: z.iso.datetime().nullable(),
       deliveredAt: z.iso.datetime().nullable(),
     })

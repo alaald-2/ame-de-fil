@@ -165,6 +165,41 @@ export const envSchema = z.object({
   // IN_PRODUCTION/READY_TO_SHIP before a FOLLOW_UP_DELAYED_ORDER task is
   // generated.
   TASK_DELAYED_ORDER_GRACE_DAYS: z.coerce.number().int().positive().default(2),
+
+  // Shipmondo (DECISIONS.md ADR-037) — HTTP Basic, API user + API key, same
+  // "optional at the schema level, disclosed rather than faked" posture as
+  // Stripe/SMTP/Google/Cloudinary above: unset means ShippingModule falls
+  // back to ManualShippingProvider, never a silent no-op. Required together
+  // in practice, checked in the future ShipmondoShippingProvider factory
+  // rather than enforced here. SHIPMONDO_BASE_URL switches between the
+  // sandbox (sandbox.shipmondo.com) and production (app.shipmondo.com)
+  // hosts — no default, so an unset value fails loudly instead of a
+  // provider silently pointing at the wrong environment. Field names
+  // (API user/API key vs. some other pairing) are provisional pending the
+  // sandbox credentials email confirming Shipmondo's actual Basic-auth
+  // parameter names.
+  SHIPMONDO_API_USER: optionalSecret(),
+  SHIPMONDO_API_KEY: optionalSecret(),
+  SHIPMONDO_BASE_URL: z.url().optional(),
+  // The store's own ship-from address — every Shipmondo quote call requires
+  // a real sender, and there is no other source for it anywhere in this
+  // codebase (no warehouse/store-address concept exists yet). Required
+  // together with the credentials above in ShippingModule's factory, same
+  // "all-or-nothing, checked in the factory" posture as Stripe/Google/
+  // Cloudinary. SHIPMONDO_SENDER_COUNTRY_CODE defaults to "SE" (ADR-021 is
+  // Sweden-only for both market and shipping) rather than being required —
+  // the other three have no sensible default and must be the real address.
+  SHIPMONDO_SENDER_ADDRESS1: optionalSecret(),
+  SHIPMONDO_SENDER_ZIPCODE: optionalSecret(),
+  SHIPMONDO_SENDER_CITY: optionalSecret(),
+  SHIPMONDO_SENDER_COUNTRY_CODE: z.string().min(1).default("SE"),
+  // Printed on real shipping labels/documents once ShipmentDestination
+  // creation is wired in (DECISIONS.md ADR-039) — not required-together
+  // with the address fields above (Shipmondo's own API only requires
+  // `type` on a shipment party, not a name), so this defaults to the
+  // store's own real, already-public brand name rather than adding a
+  // fourth mandatory env var for a single string.
+  SHIPMONDO_SENDER_NAME: z.string().min(1).default("Âme de Fil"),
 });
 
 export type Env = z.infer<typeof envSchema>;

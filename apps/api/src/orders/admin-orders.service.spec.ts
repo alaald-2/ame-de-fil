@@ -9,6 +9,7 @@ import type { PrismaService } from "../database/prisma.service.ts";
 import type { NotificationsService } from "../notifications/notifications.service.ts";
 import { AuditService } from "../audit/audit.service.ts";
 import type { PaymentProvider } from "../payments/payment-provider.ts";
+import type { ShippingProvider } from "../shipping/shipping-provider.ts";
 
 const ACTOR_USER_ID = "user-1";
 
@@ -34,7 +35,40 @@ function makeUnusedConfigMock(): ConfigService<Env, true> {
   return { get: vi.fn() } as unknown as ConfigService<Env, true>;
 }
 
+// markShipped-specific tests (below) construct their own tailored mock — this
+// one is for every other test in this file, which never calls markShipped's
+// automatic-creation path and so never touches this dependency at all.
+// createShipment resolves null so any accidental call falls through to the
+// pre-existing manual carrier/tracking behavior rather than throwing.
+function makeUnusedShippingProviderMock(): ShippingProvider {
+  return {
+    listAvailableMethods: vi.fn(),
+    getQuote: vi.fn(),
+    listPickupPoints: vi.fn(),
+    getPickupPoint: vi.fn(),
+    createShipment: vi.fn().mockResolvedValue(null),
+  };
+}
+
 const ORDER = { id: "order-1", status: OrderStatus.CONFIRMED };
+
+// markShipped's automatic-creation tests (below) need a full order shipping
+// address/items shape — status READY_TO_SHIP is what makes the pre-read
+// gate actually attempt shipping-provider.createShipment.
+const READY_ORDER = {
+  status: OrderStatus.READY_TO_SHIP,
+  orderNumber: "AF-20260917-TEST0001",
+  shippingMethodId: "method-1",
+  shippingName: "Test Testsson",
+  shippingLine1: "Drottninggatan 1",
+  shippingLine2: null,
+  shippingPostalCode: "111 51",
+  shippingCity: "Stockholm",
+  shippingCountry: "SE",
+  shippingPhone: null,
+  items: [{ quantity: 1, variant: { weightGrams: 500, lengthMm: null, widthMm: null, heightMm: null } }],
+};
+
 const SHIPMENT = {
   id: "ship-1",
   orderId: "order-1",
@@ -141,6 +175,7 @@ describe("AdminOrdersService.listOrders", () => {
       makeNotificationsMock(),
       new AuditService(prisma),
       makeUnusedPaymentProviderMock(),
+      makeUnusedShippingProviderMock(),
       makeUnusedConfigMock(),
     );
 
@@ -188,6 +223,7 @@ describe("AdminOrdersService.listOrders", () => {
       makeNotificationsMock(),
       new AuditService(prisma),
       makeUnusedPaymentProviderMock(),
+      makeUnusedShippingProviderMock(),
       makeUnusedConfigMock(),
     );
 
@@ -205,6 +241,7 @@ describe("AdminOrdersService.listOrders", () => {
       makeNotificationsMock(),
       new AuditService(prisma),
       makeUnusedPaymentProviderMock(),
+      makeUnusedShippingProviderMock(),
       makeUnusedConfigMock(),
     );
 
@@ -222,6 +259,7 @@ describe("AdminOrdersService.listOrders", () => {
       makeNotificationsMock(),
       new AuditService(prisma),
       makeUnusedPaymentProviderMock(),
+      makeUnusedShippingProviderMock(),
       makeUnusedConfigMock(),
     );
 
@@ -248,6 +286,7 @@ describe("AdminOrdersService.listOrders", () => {
         makeNotificationsMock(),
         new AuditService(prisma),
         makeUnusedPaymentProviderMock(),
+        makeUnusedShippingProviderMock(),
         makeUnusedConfigMock(),
       );
 
@@ -267,6 +306,7 @@ describe("AdminOrdersService.listOrders", () => {
         makeNotificationsMock(),
         new AuditService(prisma),
         makeUnusedPaymentProviderMock(),
+        makeUnusedShippingProviderMock(),
         makeUnusedConfigMock(),
       );
 
@@ -301,6 +341,7 @@ describe("AdminOrdersService.listOrders", () => {
         makeNotificationsMock(),
         new AuditService(prisma),
         makeUnusedPaymentProviderMock(),
+        makeUnusedShippingProviderMock(),
         makeUnusedConfigMock(),
       );
 
@@ -385,6 +426,7 @@ describe("AdminOrdersService.getOrderDetail", () => {
       makeNotificationsMock(),
       new AuditService(prisma),
       makeUnusedPaymentProviderMock(),
+      makeUnusedShippingProviderMock(),
       makeUnusedConfigMock(),
     );
 
@@ -400,6 +442,7 @@ describe("AdminOrdersService.getOrderDetail", () => {
       makeNotificationsMock(),
       new AuditService(prisma),
       makeUnusedPaymentProviderMock(),
+      makeUnusedShippingProviderMock(),
       makeUnusedConfigMock(),
     );
 
@@ -418,6 +461,7 @@ describe("AdminOrdersService.getOrderDetail", () => {
       makeNotificationsMock(),
       new AuditService(prisma),
       makeUnusedPaymentProviderMock(),
+      makeUnusedShippingProviderMock(),
       makeUnusedConfigMock(),
     );
 
@@ -486,6 +530,7 @@ describe("AdminOrdersService.getOrderDetail", () => {
       makeNotificationsMock(),
       new AuditService(prisma),
       makeUnusedPaymentProviderMock(),
+      makeUnusedShippingProviderMock(),
       makeUnusedConfigMock(),
     );
 
@@ -504,6 +549,7 @@ describe("AdminOrdersService.getOrderDetail", () => {
       makeNotificationsMock(),
       new AuditService(prisma),
       makeUnusedPaymentProviderMock(),
+      makeUnusedShippingProviderMock(),
       makeUnusedConfigMock(),
     );
 
@@ -521,6 +567,7 @@ describe("AdminOrdersService.markReadyToShip", () => {
       makeNotificationsMock(),
       new AuditService(prisma),
       makeUnusedPaymentProviderMock(),
+      makeUnusedShippingProviderMock(),
       makeUnusedConfigMock(),
     );
 
@@ -555,6 +602,7 @@ describe("AdminOrdersService.markReadyToShip", () => {
       makeNotificationsMock(),
       new AuditService(prisma),
       makeUnusedPaymentProviderMock(),
+      makeUnusedShippingProviderMock(),
       makeUnusedConfigMock(),
     );
 
@@ -573,6 +621,7 @@ describe("AdminOrdersService.markShipped", () => {
       makeNotificationsMock(),
       new AuditService(prisma),
       makeUnusedPaymentProviderMock(),
+      makeUnusedShippingProviderMock(),
       makeUnusedConfigMock(),
     );
 
@@ -596,6 +645,7 @@ describe("AdminOrdersService.markShipped", () => {
       makeNotificationsMock(),
       new AuditService(prisma),
       makeUnusedPaymentProviderMock(),
+      makeUnusedShippingProviderMock(),
       makeUnusedConfigMock(),
     );
 
@@ -614,6 +664,7 @@ describe("AdminOrdersService.markShipped", () => {
       notifications,
       new AuditService(prisma),
       makeUnusedPaymentProviderMock(),
+      makeUnusedShippingProviderMock(),
       makeUnusedConfigMock(),
     );
 
@@ -631,21 +682,141 @@ describe("AdminOrdersService.markShipped", () => {
     const orderUpdateMany = vi.fn().mockResolvedValue({ count: 0 });
     const shipmentCreate = vi.fn();
     const tx = { order: { updateMany: orderUpdateMany }, shipment: { create: shipmentCreate } };
+    // status: CONFIRMED (not READY_TO_SHIP) — the pre-read's own gate skips
+    // attempting automatic shipment creation for it, same as the real
+    // authoritative guard inside the transaction below.
+    const orderFindUniqueOrThrow = vi.fn().mockResolvedValue({ status: OrderStatus.CONFIRMED });
     const prisma = {
+      order: { findUniqueOrThrow: orderFindUniqueOrThrow },
       $transaction: vi.fn().mockImplementation((cb: (tx: unknown) => unknown) => cb(tx)),
     } as unknown as PrismaService;
     const notifications = makeNotificationsMock();
+    const shippingProvider = makeUnusedShippingProviderMock();
     const service = new AdminOrdersService(
       prisma,
       notifications,
       new AuditService(prisma),
       makeUnusedPaymentProviderMock(),
+      shippingProvider,
       makeUnusedConfigMock(),
     );
 
     await expect(service.markShipped("order-1", INPUT, ACTOR_USER_ID)).rejects.toThrow(ConflictException);
     expect(shipmentCreate).not.toHaveBeenCalled();
     expect(notifications.sendShippingNotification).not.toHaveBeenCalled();
+    expect(shippingProvider.createShipment).not.toHaveBeenCalled();
+  });
+
+  it("uses the shipping provider's real shipment when it can create one, ignoring any manually-supplied carrier/tracking input", async () => {
+    const { prisma, shipmentCreate } = makePrismaMock({
+      order: {
+        updateMany: vi.fn().mockResolvedValue({ count: 1 }),
+        findUniqueOrThrow: vi.fn().mockResolvedValue({ ...READY_ORDER }),
+      },
+    });
+    const shippingProvider: ShippingProvider = {
+      listAvailableMethods: vi.fn(),
+      getQuote: vi.fn(),
+      listPickupPoints: vi.fn(),
+      getPickupPoint: vi.fn(),
+      createShipment: vi.fn().mockResolvedValue({
+        carrierName: "DHL Freight",
+        trackingNumber: "2906731480",
+        trackingUrl: null,
+        providerShipmentId: "66934091",
+      }),
+    };
+    const service = new AdminOrdersService(
+      prisma,
+      makeNotificationsMock(),
+      new AuditService(prisma),
+      makeUnusedPaymentProviderMock(),
+      shippingProvider,
+      makeUnusedConfigMock(),
+    );
+
+    // Admin-supplied INPUT is deliberately passed here too, to prove the
+    // provider's real result wins over it rather than being merged/ignored.
+    await service.markShipped("order-1", INPUT, ACTOR_USER_ID);
+
+    expect(shippingProvider.createShipment).toHaveBeenCalledWith(
+      READY_ORDER.shippingMethodId,
+      expect.objectContaining({
+        postalCode: READY_ORDER.shippingPostalCode,
+        country: READY_ORDER.shippingCountry,
+        city: READY_ORDER.shippingCity,
+        name: READY_ORDER.shippingName,
+        line1: READY_ORDER.shippingLine1,
+      }),
+      expect.objectContaining({ weightGrams: expect.any(Number) }),
+      READY_ORDER.orderNumber,
+    );
+    expect(shipmentCreate).toHaveBeenCalledWith({
+      data: expect.objectContaining({
+        carrierName: "DHL Freight",
+        trackingNumber: "2906731480",
+        trackingUrl: null,
+        providerShipmentId: "66934091",
+      }),
+    });
+  });
+
+  it("falls back to manually-supplied carrier/tracking when the provider can't create a shipment for this order", async () => {
+    const { prisma, shipmentCreate } = makePrismaMock({
+      order: {
+        updateMany: vi.fn().mockResolvedValue({ count: 1 }),
+        findUniqueOrThrow: vi.fn().mockResolvedValue({ ...READY_ORDER }),
+      },
+    });
+    const shippingProvider = makeUnusedShippingProviderMock(); // createShipment resolves null
+    const service = new AdminOrdersService(
+      prisma,
+      makeNotificationsMock(),
+      new AuditService(prisma),
+      makeUnusedPaymentProviderMock(),
+      shippingProvider,
+      makeUnusedConfigMock(),
+    );
+
+    await service.markShipped("order-1", INPUT, ACTOR_USER_ID);
+
+    expect(shippingProvider.createShipment).toHaveBeenCalled();
+    expect(shipmentCreate).toHaveBeenCalledWith({
+      data: expect.objectContaining({
+        carrierName: "PostNord",
+        trackingNumber: "ABC123",
+        providerShipmentId: null,
+      }),
+    });
+  });
+
+  it("propagates a real shipment-creation failure rather than silently falling back to manual input", async () => {
+    const { prisma, shipmentCreate } = makePrismaMock({
+      order: {
+        updateMany: vi.fn().mockResolvedValue({ count: 1 }),
+        findUniqueOrThrow: vi.fn().mockResolvedValue({ ...READY_ORDER }),
+      },
+    });
+    const shippingProvider: ShippingProvider = {
+      listAvailableMethods: vi.fn(),
+      getQuote: vi.fn(),
+      listPickupPoints: vi.fn(),
+      getPickupPoint: vi.fn(),
+      createShipment: vi.fn().mockRejectedValue(new Error("Shipmondo shipment creation failed")),
+    };
+    const service = new AdminOrdersService(
+      prisma,
+      makeNotificationsMock(),
+      new AuditService(prisma),
+      makeUnusedPaymentProviderMock(),
+      shippingProvider,
+      makeUnusedConfigMock(),
+    );
+
+    await expect(service.markShipped("order-1", INPUT, ACTOR_USER_ID)).rejects.toThrow(
+      "Shipmondo shipment creation failed",
+    );
+    expect(shipmentCreate).not.toHaveBeenCalled();
   });
 });
 
@@ -657,6 +828,7 @@ describe("AdminOrdersService.markDelivered", () => {
       makeNotificationsMock(),
       new AuditService(prisma),
       makeUnusedPaymentProviderMock(),
+      makeUnusedShippingProviderMock(),
       makeUnusedConfigMock(),
     );
 
@@ -684,6 +856,7 @@ describe("AdminOrdersService.markDelivered", () => {
       makeNotificationsMock(),
       new AuditService(prisma),
       makeUnusedPaymentProviderMock(),
+      makeUnusedShippingProviderMock(),
       makeUnusedConfigMock(),
     );
 
@@ -704,6 +877,7 @@ describe("AdminOrdersService.exportOrdersCsv", () => {
       makeNotificationsMock(),
       new AuditService(prisma),
       makeUnusedPaymentProviderMock(),
+      makeUnusedShippingProviderMock(),
       makeUnusedConfigMock(),
     );
 
@@ -754,6 +928,7 @@ describe("AdminOrdersService.exportOrdersCsv", () => {
       makeNotificationsMock(),
       new AuditService(prisma),
       makeUnusedPaymentProviderMock(),
+      makeUnusedShippingProviderMock(),
       makeUnusedConfigMock(),
     );
 
@@ -794,6 +969,7 @@ describe("AdminOrdersService.exportOrdersCsv", () => {
       makeNotificationsMock(),
       new AuditService(prisma),
       makeUnusedPaymentProviderMock(),
+      makeUnusedShippingProviderMock(),
       makeUnusedConfigMock(),
     );
 

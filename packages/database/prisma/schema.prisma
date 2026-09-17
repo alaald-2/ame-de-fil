@@ -1015,19 +1015,30 @@ model ShippingMethod {
   orders Order[]
 }
 
-// No carrier-specific fields or foreign keys (ADR-022) — carrierName and
-// trackingNumber are free text, entered by admin via ManualShippingProvider.
+// No carrier-specific foreign keys (ADR-022) — carrierName/trackingNumber
+// are free text. Originally always admin-entered (ManualShippingProvider);
+// ADR-039 added real shipment creation (ShipmondoShippingProvider), which
+// fills carrierName/trackingNumber/providerShipmentId from a live API
+// response instead — the columns themselves didn't need to change shape,
+// only who populates them.
 model Shipment {
-  id             String         @id @default(cuid())
-  orderId        String
-  status         ShipmentStatus @default(PENDING)
-  carrierName    String?
-  trackingNumber String?
-  trackingUrl    String?
-  shippedAt      DateTime?
-  deliveredAt    DateTime?
-  createdAt      DateTime       @default(now())
-  updatedAt      DateTime       @updatedAt
+  id                 String         @id @default(cuid())
+  orderId            String
+  status             ShipmentStatus @default(PENDING)
+  carrierName        String?
+  trackingNumber     String?
+  trackingUrl        String?
+  // The provider's own shipment id (e.g. Shipmondo's numeric shipment id,
+  // stringified) — null for a manually-entered shipment (ADR-022, no
+  // provider ever created it), set for one ShipmondoShippingProvider
+  // actually created (ADR-039). Mirrors Payment.providerPaymentIntentId's
+  // existing pattern; kept for traceability/future ops even though nothing
+  // reads it back yet.
+  providerShipmentId String?
+  shippedAt          DateTime?
+  deliveredAt        DateTime?
+  createdAt          DateTime       @default(now())
+  updatedAt          DateTime       @updatedAt
 
   order Order @relation(fields: [orderId], references: [id], onDelete: Restrict)
 

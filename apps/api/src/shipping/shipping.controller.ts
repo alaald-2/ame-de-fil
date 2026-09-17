@@ -37,7 +37,7 @@ export class ShippingController {
   async list(@Query() query: ListShippingMethodsQuery) {
     const destination =
       query.postalCode && query.country
-        ? { postalCode: query.postalCode, country: query.country }
+        ? { postalCode: query.postalCode, country: query.country, city: query.city }
         : undefined;
     const parcel = query.weightGrams !== undefined ? { weightGrams: query.weightGrams } : undefined;
     const quotes = await this.shipping.listAvailableMethods(destination, parcel);

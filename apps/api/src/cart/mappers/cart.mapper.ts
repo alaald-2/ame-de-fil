@@ -3,6 +3,7 @@ import type { Locale as AppLocale } from "@ame-de-fil/validation";
 import { computeAvailability } from "../../common/inventory-availability.ts";
 import { resolveTranslation } from "../../catalog/mappers/translation.mapper.ts";
 import { resolveEffectivePrice, type ActivePromotionSummary } from "../../promotions/effective-price.ts";
+import { computeParcelInfo } from "../../shipping/parcel.ts";
 import type { CartResponse } from "../dto/responses.ts";
 
 export type CartItemWithContext = Prisma.CartItemGetPayload<{
@@ -146,6 +147,7 @@ export function mapCart(
     items,
     itemCount: items.reduce((sum, item) => sum + item.quantity, 0),
     subtotal: { amountMinor: subtotalMinor, currency: "SEK" },
+    estimatedWeightGrams: computeParcelInfo(cart.items).weightGrams,
   };
 }
 
@@ -155,5 +157,6 @@ export function emptyCartResponse(): CartResponse {
     items: [],
     itemCount: 0,
     subtotal: { amountMinor: 0, currency: "SEK" },
+    estimatedWeightGrams: 0,
   };
 }

@@ -93,3 +93,4 @@ export function buildOrderItemSnapshot(
     ...priceLine(effective.effectivePriceMinor, item.quantity, taxRatePercent),
   };
 }
+

@@ -86,6 +86,7 @@ describe("CartService.getCart", () => {
       items: [],
       itemCount: 0,
       subtotal: { amountMinor: 0, currency: "SEK" },
+      estimatedWeightGrams: 0,
     });
     expect(prisma.cart.upsert).not.toHaveBeenCalled();
   });
@@ -112,6 +113,28 @@ describe("CartService.getCart", () => {
       image: null,
       variantLabel: null,
     });
+    // itemRow()'s variant has no weightGrams set — computeParcelInfo's own
+    // 300g/unit fallback (shipping/parcel.ts), times quantity 2.
+    expect(result.estimatedWeightGrams).toBe(600);
+  });
+
+  it("sums real variant weightGrams into estimatedWeightGrams when set", async () => {
+    const prisma = makePrisma({
+      cart: {
+        findUnique: vi.fn().mockResolvedValue(
+          cartWithItems([
+            itemRow({ variant: { ...itemRow().variant, weightGrams: 150 } }),
+          ]),
+        ),
+        upsert: vi.fn(),
+        findUniqueOrThrow: vi.fn(),
+      },
+    });
+    const service = new CartService(prisma);
+
+    const result = await service.getCart({ guestToken: "guest-token" }, "sv-SE");
+
+    expect(result.estimatedWeightGrams).toBe(300); // 150g x quantity 2
   });
 
   it("includes the primary image and joined variant label when the variant has both", async () => {

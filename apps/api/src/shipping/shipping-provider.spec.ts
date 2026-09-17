@@ -181,3 +181,24 @@ describe("ManualShippingProvider.getPickupPoint", () => {
     expect(point).toBeNull();
   });
 });
+
+describe("ManualShippingProvider.createShipment", () => {
+  it("always returns null — no external carrier exists to create anything at (ADR-022)", async () => {
+    const provider = new ManualShippingProvider(makePrisma());
+
+    const result = await provider.createShipment(
+      "ship-1",
+      {
+        postalCode: "11122",
+        country: "SE",
+        city: "Stockholm",
+        name: "Test Testsson",
+        line1: "Testgatan 1",
+      },
+      { weightGrams: 500 },
+      "AF-TEST-1",
+    );
+
+    expect(result).toBeNull();
+  });
+});

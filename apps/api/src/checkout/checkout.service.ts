@@ -17,6 +17,7 @@ import type { AuthContext } from "../common/types/auth-context.ts";
 import { SHIPPING_PROVIDER, type ShippingProvider } from "../shipping/shipping-provider.ts";
 import { PAYMENT_PROVIDER, type PaymentProvider } from "../payments/payment-provider.ts";
 import { CHECKOUT_CART_INCLUDE, buildOrderItemSnapshot } from "./checkout-cart.ts";
+import { computeParcelInfo } from "../shipping/parcel.ts";
 import { getCurrentTaxRatesByClassId, getShippingTaxRatePercent } from "./tax-rates.ts";
 import { resolveActivePromotionsForVariants } from "../promotions/effective-price.ts";
 import { computeOrderTotals } from "./pricing.ts";
@@ -157,8 +158,24 @@ export class CheckoutService {
       }
 
       // 3. Shipping method, re-read transactionally through the approved
-      // ShippingProvider abstraction (ManualShippingProvider for v1).
-      const shippingQuote = await this.shippingProvider.getQuote(tx, input.shippingMethodId);
+      // ShippingProvider abstraction (ManualShippingProvider for v1,
+      // ShipmondoShippingProvider once configured — DECISIONS.md ADR-037).
+      // destination/parcel are re-derived from this same transaction's own
+      // cart/input, never trusted from the client, so a live carrier
+      // provider re-quotes the *same* price it quoted moments earlier
+      // instead of trusting a stale/tampered one.
+      const destination = {
+        postalCode: input.shippingAddress.postalCode,
+        country: input.shippingAddress.country,
+        city: input.shippingAddress.city,
+      };
+      const parcel = computeParcelInfo(cart.items);
+      const shippingQuote = await this.shippingProvider.getQuote(
+        tx,
+        input.shippingMethodId,
+        destination,
+        parcel,
+      );
       if (!shippingQuote) {
         throw new BadRequestException({
           error: "InvalidShippingMethod",

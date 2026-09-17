@@ -9,6 +9,7 @@ export const EMPTY_CART: CartResponse = {
   items: [],
   itemCount: 0,
   subtotal: { amountMinor: 0, currency: "SEK" },
+  estimatedWeightGrams: 0,
 };
 
 export interface CartState {

@@ -11,6 +11,12 @@ export const listShippingMethodsQuerySchema = z.object({
   locale: localeSchema,
   postalCode: z.string().min(1).max(20).optional(),
   country: z.literal("SE").optional(),
+  // A real carrier's upstream validation can reject a postal code/city
+  // mismatch outright (confirmed live against DHL Freight — DECISIONS.md
+  // ADR-037's 2026-09-17 update), so ShipmondoShippingProvider needs it to
+  // quote at all; optional here for the same "first paint, no destination
+  // yet" reason postalCode/country are.
+  city: z.string().min(1).max(100).optional(),
   weightGrams: z.coerce.number().int().positive().optional(),
 });
 export type ListShippingMethodsQuery = z.infer<typeof listShippingMethodsQuerySchema>;

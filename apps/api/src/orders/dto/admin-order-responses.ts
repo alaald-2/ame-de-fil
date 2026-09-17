@@ -90,6 +90,10 @@ const adminShipmentResponseSchema = z.object({
   carrierName: z.string().nullable(),
   trackingNumber: z.string().nullable(),
   trackingUrl: z.string().nullable(),
+  // The provider's own shipment id (DECISIONS.md ADR-039) — null for a
+  // manually-entered shipment (no provider ever created one, ADR-022),
+  // set when ShipmondoShippingProvider created a real one.
+  providerShipmentId: z.string().nullable(),
   shippedAt: z.iso.datetime().nullable(),
   deliveredAt: z.iso.datetime().nullable(),
 });

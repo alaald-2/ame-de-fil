@@ -134,9 +134,21 @@ export function CheckoutForm({
 
   // Re-fetch shipping methods as the postal code settles — debounced so a
   // customer still typing doesn't fire a request per keystroke. Only once
-  // the field looks complete enough to be worth asking about.
+  // the field looks complete enough to be worth asking about. city is
+  // included (not just postalCode/country) because a real carrier's
+  // upstream validation can reject a postal code/city mismatch outright
+  // (confirmed live against DHL Freight, DECISIONS.md ADR-037/ADR-038) —
+  // omitting it here would make ShipmondoShippingProvider return zero
+  // methods for the common case where city was already filled in. Also
+  // re-fetches when city changes for the same reason (postalCode alone
+  // isn't the full trigger anymore). weightGrams comes from the cart's own
+  // estimatedWeightGrams (an approximation — ShipmondoShippingProvider
+  // requires *some* parcel to quote at all, DECISIONS.md ADR-038's disclosed
+  // gap); checkout submission itself re-derives the authoritative figure
+  // server-side and never trusts this value.
   useEffect(() => {
     const postalCode = form.postalCode.trim();
+    const city = form.city.trim();
     if (postalCode.length < MIN_POSTAL_CODE_LENGTH_FOR_LOOKUP) return;
 
     let cancelled = false;
@@ -144,7 +156,15 @@ export function CheckoutForm({
       setIsLoadingShippingMethods(true);
       void api
         .GET("/api/v1/shipping-methods", {
-          params: { query: { locale, postalCode, country: "SE" } },
+          params: {
+            query: {
+              locale,
+              postalCode,
+              country: "SE",
+              city: city || undefined,
+              weightGrams: cart.estimatedWeightGrams || undefined,
+            },
+          },
         })
         .then(({ data }) => {
           if (cancelled || !data) return;
@@ -167,8 +187,8 @@ export function CheckoutForm({
       cancelled = true;
       clearTimeout(timeoutId);
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- locale changes don't need to re-trigger this; only postalCode does.
-  }, [form.postalCode]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- locale changes don't need to re-trigger this; only postalCode/city/cart weight do.
+  }, [form.postalCode, form.city, cart.estimatedWeightGrams]);
 
   // Estimate only, for the review panel — the API recalculates shipping
   // (and everything else) authoritatively on submit; the client never

@@ -181,8 +181,35 @@ async function seedShippingMethods(prisma: PrismaClient): Promise<void> {
     },
   });
 
+  // ShipmondoShippingProvider's real, live-quoted product (DECISIONS.md
+  // ADR-037's 2026-09-17 update) — code must match
+  // shipmondo-shipping.provider.ts's SUPPORTED_PRODUCTS entry exactly, or
+  // that provider silently has nothing to quote (its own listAvailableMethods
+  // skips any configured product whose shippingMethodCode isn't seeded).
+  // priceMinor/minDeliveryDays/maxDeliveryDays here are only
+  // ManualShippingProvider's dev/test display fallback (live Shipmondo
+  // price always wins when Shipmondo is configured) — priceMinor is a
+  // rough placeholder, not the real DHL Freight rate (which varies by
+  // destination/weight); minDeliveryDays/maxDeliveryDays are a reasonable
+  // estimate for a domestic Sweden parcel carrier, not sourced from
+  // Shipmondo's API (its expected_transit_time was null for this product/
+  // route when checked).
+  const shipmondoMethod = await prisma.shippingMethod.upsert({
+    where: { code: "SHIPMONDO_DHLFSE_P" },
+    update: {},
+    create: {
+      code: "SHIPMONDO_DHLFSE_P",
+      nameSv: "DHL Freight – Paket",
+      nameEn: "DHL Freight – Parcel",
+      priceMinor: 9900,
+      minDeliveryDays: 1,
+      maxDeliveryDays: 3,
+      isActive: true,
+    },
+  });
+
   console.log(
-    `Ensured the "${shippingMethod.code}" and "${pickupMethod.code}" shipping methods exist.`,
+    `Ensured the "${shippingMethod.code}", "${pickupMethod.code}", and "${shipmondoMethod.code}" shipping methods exist.`,
   );
 }
 

@@ -259,6 +259,7 @@ function makeShippingProvider(
     getQuote: vi.fn().mockResolvedValue(quote),
     listPickupPoints: vi.fn(),
     getPickupPoint: vi.fn().mockResolvedValue(pickupPoint),
+    createShipment: vi.fn(), // never called from checkout — admin-fulfillment-only (DECISIONS.md ADR-039)
   };
 }
 

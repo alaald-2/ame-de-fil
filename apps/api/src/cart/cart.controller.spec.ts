@@ -26,6 +26,7 @@ const EMPTY_CART = {
   items: [],
   itemCount: 0,
   subtotal: { amountMinor: 0, currency: "SEK" },
+  estimatedWeightGrams: 0,
 };
 
 // Real SessionAuthGuard + PermissionsGuard + CsrfGuard, wired in the exact
