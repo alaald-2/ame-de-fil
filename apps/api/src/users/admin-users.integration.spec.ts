@@ -12,7 +12,11 @@ import { PasswordService } from "../identity/password.service.ts";
 import { SessionService } from "../identity/session.service.ts";
 import { AuditService } from "../audit/audit.service.ts";
 import type { AuthContext } from "../common/types/auth-context.ts";
-import { startTestDatabase, stopTestDatabase, type TestDatabase } from "../test/testcontainers-postgres.ts";
+import {
+  startTestDatabase,
+  stopTestDatabase,
+  type TestDatabase,
+} from "../test/testcontainers-postgres.ts";
 
 const GATE = "users.manage_roles";
 
@@ -44,13 +48,22 @@ describe("AdminUsersService — real Postgres", () => {
   async function seedRole(permissionKeys: string[], name = `role-${randomUUID()}`) {
     const role = await db.prisma.role.create({ data: { name } });
     for (const key of permissionKeys) {
-      const permission = await db.prisma.permission.upsert({ where: { key }, create: { key }, update: {} });
-      await db.prisma.rolePermission.create({ data: { roleId: role.id, permissionId: permission.id } });
+      const permission = await db.prisma.permission.upsert({
+        where: { key },
+        create: { key },
+        update: {},
+      });
+      await db.prisma.rolePermission.create({
+        data: { roleId: role.id, permissionId: permission.id },
+      });
     }
     return role;
   }
 
-  async function seedStaffUser(permissionKeys: string[], options: { status?: UserStatus; roleId?: string } = {}) {
+  async function seedStaffUser(
+    permissionKeys: string[],
+    options: { status?: UserStatus; roleId?: string } = {},
+  ) {
     const roleId = options.roleId ?? (await seedRole(permissionKeys)).id;
     const user = await db.prisma.user.create({
       data: {
@@ -142,7 +155,9 @@ describe("AdminUsersService — real Postgres", () => {
       const verifies = await passwords.verify(created.passwordHash!, response.generatedPassword);
       expect(verifies).toBe(true);
 
-      const auditEntry = await db.prisma.auditLog.findFirst({ where: { entityType: "User", entityId: response.id } });
+      const auditEntry = await db.prisma.auditLog.findFirst({
+        where: { entityType: "User", entityId: response.id },
+      });
       expect(JSON.stringify(auditEntry?.after)).not.toContain(response.generatedPassword); // never logged/audited
     });
 
@@ -151,9 +166,9 @@ describe("AdminUsersService — real Postgres", () => {
       const email = `dup-${randomUUID()}@example.com`;
       await service.createUser({ email }, authFor(actor.userId, ["users.manage"]));
 
-      await expect(service.createUser({ email }, authFor(actor.userId, ["users.manage"]))).rejects.toThrow(
-        ConflictException,
-      );
+      await expect(
+        service.createUser({ email }, authFor(actor.userId, ["users.manage"])),
+      ).rejects.toThrow(ConflictException);
 
       const count = await db.prisma.user.count({ where: { email } });
       expect(count).toBe(1);
@@ -207,12 +222,16 @@ describe("AdminUsersService — real Postgres", () => {
       // same guarantee SessionAuthGuard relies on in production.
       expect(await sessions.validateSession(created.token)).toBeNull();
 
-      await expect(service.deactivate(target.userId, actor.userId)).rejects.toThrow(ConflictException);
+      await expect(service.deactivate(target.userId, actor.userId)).rejects.toThrow(
+        ConflictException,
+      );
     });
 
     it("blocks self-deactivation", async () => {
       const actor = await seedStaffUser(["users.manage"]);
-      await expect(service.deactivate(actor.userId, actor.userId)).rejects.toThrow(ForbiddenException);
+      await expect(service.deactivate(actor.userId, actor.userId)).rejects.toThrow(
+        ForbiddenException,
+      );
       const unchanged = await db.prisma.user.findUniqueOrThrow({ where: { id: actor.userId } });
       expect(unchanged.status).toBe(UserStatus.ACTIVE);
     });
@@ -223,7 +242,9 @@ describe("AdminUsersService — real Postgres", () => {
       const lastAdmin = await seedStaffUser([], { roleId: gateRole.id });
       const actor = await seedStaffUser(["users.manage"]);
 
-      await expect(service.deactivate(lastAdmin.userId, actor.userId)).rejects.toThrow(ConflictException);
+      await expect(service.deactivate(lastAdmin.userId, actor.userId)).rejects.toThrow(
+        ConflictException,
+      );
       const unchanged = await db.prisma.user.findUniqueOrThrow({ where: { id: lastAdmin.userId } });
       expect(unchanged.status).toBe(UserStatus.ACTIVE);
     });
@@ -248,7 +269,9 @@ describe("AdminUsersService — real Postgres", () => {
       const updated = await db.prisma.user.findUniqueOrThrow({ where: { id: target.userId } });
       expect(updated.status).toBe(UserStatus.ACTIVE);
 
-      await expect(service.activate(target.userId, actor.userId)).rejects.toThrow(ConflictException);
+      await expect(service.activate(target.userId, actor.userId)).rejects.toThrow(
+        ConflictException,
+      );
     });
   });
 
@@ -259,7 +282,11 @@ describe("AdminUsersService — real Postgres", () => {
       const actorRole = await seedRole(["users.manage_roles", "orders.view"]);
       const actor = await seedStaffUser([], { roleId: actorRole.id });
 
-      await service.assignRole(customer.id, roleToGrant.id, authFor(actor.userId, ["users.manage_roles", "orders.view"]));
+      await service.assignRole(
+        customer.id,
+        roleToGrant.id,
+        authFor(actor.userId, ["users.manage_roles", "orders.view"]),
+      );
 
       const result = await service.list(1, 50);
       expect(result.items.map((item) => item.id)).toContain(customer.id);
@@ -271,10 +298,16 @@ describe("AdminUsersService — real Postgres", () => {
       const actor = await seedStaffUser(["users.manage_roles"]);
 
       await expect(
-        service.assignRole(target.userId, roleWithRefund.id, authFor(actor.userId, ["users.manage_roles"])),
+        service.assignRole(
+          target.userId,
+          roleWithRefund.id,
+          authFor(actor.userId, ["users.manage_roles"]),
+        ),
       ).rejects.toThrow(ForbiddenException);
 
-      const roles = await db.prisma.userRole.findMany({ where: { userId: target.userId, roleId: roleWithRefund.id } });
+      const roles = await db.prisma.userRole.findMany({
+        where: { userId: target.userId, roleId: roleWithRefund.id },
+      });
       expect(roles).toHaveLength(0);
     });
 
@@ -283,7 +316,11 @@ describe("AdminUsersService — real Postgres", () => {
       const actor = await seedStaffUser(["users.manage_roles", "orders.view"]);
 
       await expect(
-        service.assignRole(actor.userId, role.id, authFor(actor.userId, ["users.manage_roles", "orders.view"])),
+        service.assignRole(
+          actor.userId,
+          role.id,
+          authFor(actor.userId, ["users.manage_roles", "orders.view"]),
+        ),
       ).rejects.toThrow(ForbiddenException);
     });
 
@@ -293,10 +330,16 @@ describe("AdminUsersService — real Postgres", () => {
       const actor = await seedStaffUser(["users.manage_roles", "orders.view"]);
 
       await expect(
-        service.assignRole(target.userId, role.id, authFor(actor.userId, ["users.manage_roles", "orders.view"])),
+        service.assignRole(
+          target.userId,
+          role.id,
+          authFor(actor.userId, ["users.manage_roles", "orders.view"]),
+        ),
       ).rejects.toThrow(ConflictException);
 
-      const roles = await db.prisma.userRole.findMany({ where: { userId: target.userId, roleId: role.id } });
+      const roles = await db.prisma.userRole.findMany({
+        where: { userId: target.userId, roleId: role.id },
+      });
       expect(roles).toHaveLength(1);
     });
 
@@ -304,7 +347,9 @@ describe("AdminUsersService — real Postgres", () => {
       const role = await seedRole(["orders.view"]);
       const actor = await seedStaffUser([], { roleId: role.id });
 
-      await expect(service.removeRole(actor.userId, role.id, actor.userId)).rejects.toThrow(ForbiddenException);
+      await expect(service.removeRole(actor.userId, role.id, actor.userId)).rejects.toThrow(
+        ForbiddenException,
+      );
     });
 
     it("409s removing a role the user does not hold", async () => {
@@ -312,7 +357,9 @@ describe("AdminUsersService — real Postgres", () => {
       const target = await seedStaffUser(["customers.view"]);
       const actor = await seedStaffUser(["users.manage_roles"]);
 
-      await expect(service.removeRole(target.userId, role.id, actor.userId)).rejects.toThrow(ConflictException);
+      await expect(service.removeRole(target.userId, role.id, actor.userId)).rejects.toThrow(
+        ConflictException,
+      );
     });
 
     it("blocks removing the only role granting users.manage_roles from the last active holder", async () => {
@@ -326,8 +373,12 @@ describe("AdminUsersService — real Postgres", () => {
       // the system, which an actor who also held it would falsely satisfy.
       const actor = await seedStaffUser(["users.manage"]);
 
-      await expect(service.removeRole(lastAdmin.userId, gateRole.id, actor.userId)).rejects.toThrow(ConflictException);
-      const stillHeld = await db.prisma.userRole.findMany({ where: { userId: lastAdmin.userId, roleId: gateRole.id } });
+      await expect(service.removeRole(lastAdmin.userId, gateRole.id, actor.userId)).rejects.toThrow(
+        ConflictException,
+      );
+      const stillHeld = await db.prisma.userRole.findMany({
+        where: { userId: lastAdmin.userId, roleId: gateRole.id },
+      });
       expect(stillHeld).toHaveLength(1);
     });
 
@@ -353,7 +404,9 @@ describe("AdminUsersService — real Postgres", () => {
 
       await service.removeRole(admin1.userId, gateRole.id, admin2.userId);
 
-      const remaining = await db.prisma.userRole.findMany({ where: { userId: admin1.userId, roleId: gateRole.id } });
+      const remaining = await db.prisma.userRole.findMany({
+        where: { userId: admin1.userId, roleId: gateRole.id },
+      });
       expect(remaining).toHaveLength(0);
     });
   });

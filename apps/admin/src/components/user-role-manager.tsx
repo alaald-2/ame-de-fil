@@ -78,7 +78,9 @@ export function UserRoleManager({ userId, currentRoles, assignableRoles }: UserR
 
     if (error) {
       if (response.status === 409) {
-        setErrorKind(error.error === "LastRoleManagerProtected" ? "lastRoleManager" : "roleNotAssigned");
+        setErrorKind(
+          error.error === "LastRoleManagerProtected" ? "lastRoleManager" : "roleNotAssigned",
+        );
       } else {
         setErrorKind("generic");
       }
@@ -172,7 +174,12 @@ export function UserRoleManager({ userId, currentRoles, assignableRoles }: UserR
               </option>
             ))}
           </select>
-          <Button type="button" variant="secondary" onClick={handleAssign} disabled={pendingRoleId !== null}>
+          <Button
+            type="button"
+            variant="secondary"
+            onClick={handleAssign}
+            disabled={pendingRoleId !== null}
+          >
             {pendingRoleId === selectedRoleId ? <Spinner className="h-4 w-4" /> : null}
             {t("assignRole")}
           </Button>

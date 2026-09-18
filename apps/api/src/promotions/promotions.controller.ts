@@ -134,7 +134,7 @@ export class PromotionsController {
   @ApiOperation({ summary: "Detach one variant from a promotion" })
   @ApiZodParam(promotionVariantParamSchema)
   @ApiOkResponse({ schema: toOpenApiSchema(adminPromotionResponseSchema) })
-  @ApiErrorResponses(401, 403, 404)
+  @ApiErrorResponses(400, 401, 403, 404, 409)
   async removeVariant(
     @Param(new ZodValidationPipe(promotionVariantParamSchema)) params: PromotionVariantParam,
     @CurrentUser() auth: AuthContext,

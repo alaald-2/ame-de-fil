@@ -11,7 +11,10 @@ import {
 import type { PrismaService } from "../database/prisma.service.ts";
 import { SHIPPING_TAX_CLASS_CODE } from "../checkout/tax-rates.ts";
 import { PasswordService } from "../identity/password.service.ts";
-import { generateAccountActionToken, hashAccountActionToken } from "../common/account-action-token.ts";
+import {
+  generateAccountActionToken,
+  hashAccountActionToken,
+} from "../common/account-action-token.ts";
 import { generateLoginOtpCode, hashLoginOtpCode } from "../common/login-otp.ts";
 
 export interface UserFixture {
@@ -190,13 +193,29 @@ export async function seedVariant(
   });
   await prisma.productTranslation.createMany({
     data: [
-      { productId: product.id, locale: Locale.sv_SE, name: "Testprodukt", slug: `testprodukt-${id}` },
-      { productId: product.id, locale: Locale.en, name: "Test Product", slug: `test-product-${id}` },
+      {
+        productId: product.id,
+        locale: Locale.sv_SE,
+        name: "Testprodukt",
+        slug: `testprodukt-${id}`,
+      },
+      {
+        productId: product.id,
+        locale: Locale.en,
+        name: "Test Product",
+        slug: `test-product-${id}`,
+      },
     ],
   });
 
   const variant = await prisma.productVariant.create({
-    data: { productId: product.id, sku: `SKU-${id}`, priceMinor: unitPriceMinor, taxClassId, isActive: true },
+    data: {
+      productId: product.id,
+      sku: `SKU-${id}`,
+      priceMinor: unitPriceMinor,
+      taxClassId,
+      isActive: true,
+    },
   });
 
   const inventoryItem = await prisma.inventoryItem.create({

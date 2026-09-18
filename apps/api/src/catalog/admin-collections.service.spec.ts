@@ -15,7 +15,10 @@ const validInput: CreateTaxonomyInput = {
 
 function makeTxMock() {
   return {
-    collection: { create: vi.fn().mockResolvedValue({ id: "col-1" }), delete: vi.fn().mockResolvedValue({}) },
+    collection: {
+      create: vi.fn().mockResolvedValue({ id: "col-1" }),
+      delete: vi.fn().mockResolvedValue({}),
+    },
     collectionTranslation: {
       createMany: vi.fn().mockResolvedValue({ count: 1 }),
       upsert: vi.fn().mockResolvedValue({}),
@@ -36,7 +39,14 @@ function makeAdminCollectionRow(overrides: Partial<Record<string, unknown>> = {}
     createdAt: new Date("2026-01-01T00:00:00.000Z"),
     updatedAt: new Date("2026-01-02T00:00:00.000Z"),
     translations: [
-      { locale: "sv_SE", name: "Höstkollektion", slug: "hostkollektion", description: null, metaTitle: null, metaDescription: null },
+      {
+        locale: "sv_SE",
+        name: "Höstkollektion",
+        slug: "hostkollektion",
+        description: null,
+        metaTitle: null,
+        metaDescription: null,
+      },
     ],
     _count: { products: 0 },
     ...overrides,
@@ -109,8 +119,22 @@ describe("AdminCollectionsService.list/getOne", () => {
   it("getOne returns every locale's translation content, not resolved to one", async () => {
     const row = makeAdminCollectionRow({
       translations: [
-        { locale: "sv_SE", name: "Höstkollektion", slug: "hostkollektion", description: null, metaTitle: null, metaDescription: null },
-        { locale: "en", name: "Autumn Collection", slug: "autumn-collection", description: null, metaTitle: null, metaDescription: null },
+        {
+          locale: "sv_SE",
+          name: "Höstkollektion",
+          slug: "hostkollektion",
+          description: null,
+          metaTitle: null,
+          metaDescription: null,
+        },
+        {
+          locale: "en",
+          name: "Autumn Collection",
+          slug: "autumn-collection",
+          description: null,
+          metaTitle: null,
+          metaDescription: null,
+        },
       ],
     });
     const prisma = {
@@ -146,13 +170,17 @@ describe("AdminCollectionsService.update", () => {
           .mockResolvedValueOnce({ id: "col-1" })
           .mockResolvedValueOnce(makeAdminCollectionRow()),
       },
-      $transaction: vi.fn().mockImplementation((callback: (tx: unknown) => unknown) => callback(tx)),
+      $transaction: vi
+        .fn()
+        .mockImplementation((callback: (tx: unknown) => unknown) => callback(tx)),
     } as unknown as PrismaService;
     const service = new AdminCollectionsService(prisma, new AuditService(prisma));
 
     await service.update(
       "col-1",
-      { translations: [{ locale: "en", name: "Autumn Collection", slug: "autumn-collection" }] } as UpdateTaxonomyInput,
+      {
+        translations: [{ locale: "en", name: "Autumn Collection", slug: "autumn-collection" }],
+      } as UpdateTaxonomyInput,
       ACTOR_USER_ID,
     );
 
@@ -175,7 +203,9 @@ describe("AdminCollectionsService.update", () => {
     );
     const prisma = {
       collection: { findUnique: vi.fn().mockResolvedValueOnce({ id: "col-1" }) },
-      $transaction: vi.fn().mockImplementation((callback: (tx: unknown) => unknown) => callback(tx)),
+      $transaction: vi
+        .fn()
+        .mockImplementation((callback: (tx: unknown) => unknown) => callback(tx)),
     } as unknown as PrismaService;
     const service = new AdminCollectionsService(prisma, new AuditService(prisma));
 
@@ -218,7 +248,9 @@ describe("AdminCollectionsService.remove", () => {
       collection: {
         findUnique: vi.fn().mockResolvedValue({ id: "col-1", _count: { products: 0 } }),
       },
-      $transaction: vi.fn().mockImplementation((callback: (tx: unknown) => unknown) => callback(tx)),
+      $transaction: vi
+        .fn()
+        .mockImplementation((callback: (tx: unknown) => unknown) => callback(tx)),
     } as unknown as PrismaService;
     const service = new AdminCollectionsService(prisma, new AuditService(prisma));
 

@@ -70,7 +70,15 @@ describe("HomepageSectionsService.list", () => {
     const [, sv] = await service.list("sv-SE");
     const [, en] = await service.list("en");
 
-    expect(sv).toMatchObject({ eyebrow: "Vårt hantverk", title: "Handgjort, i små serier", ctaLabel: "Läs vår historia" });
-    expect(en).toMatchObject({ eyebrow: "Our craft", title: "Made by hand, in small batches", ctaLabel: "Read our story" });
+    expect(sv).toMatchObject({
+      eyebrow: "Vårt hantverk",
+      title: "Handgjort, i små serier",
+      ctaLabel: "Läs vår historia",
+    });
+    expect(en).toMatchObject({
+      eyebrow: "Our craft",
+      title: "Made by hand, in small batches",
+      ctaLabel: "Read our story",
+    });
   });
 });

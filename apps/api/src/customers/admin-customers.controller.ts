@@ -32,7 +32,9 @@ export class AdminCustomersController {
   @ApiZodQuery(listAdminCustomersQuerySchema)
   @ApiOkResponse({ schema: toOpenApiSchema(listAdminCustomersResponseSchema) })
   @ApiErrorResponses(400, 401, 403)
-  async list(@Query(new ZodValidationPipe(listAdminCustomersQuerySchema)) query: ListAdminCustomersQuery) {
+  async list(
+    @Query(new ZodValidationPipe(listAdminCustomersQuerySchema)) query: ListAdminCustomersQuery,
+  ) {
     return this.adminCustomers.list(query.page, query.pageSize, query.q);
   }
 

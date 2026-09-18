@@ -57,7 +57,8 @@
     "nextSlide": "Next slide",
     "goToSlide": "Go to slide {number}",
     "signOut": "Sign out",
-    "signOutError": "Something went wrong while signing out. Please try again."
+    "signOutError": "Something went wrong while signing out. Please try again.",
+    "language": "Language"
   },
   "Errors": {
     "notFoundTitle": "Page not found",
@@ -210,6 +211,8 @@
     "otpResend": "Resend code",
     "otpResendIn": "Resend code in {seconds}s",
     "otpSending": "Sending…",
+    "otpGroupLabel": "Verification code",
+    "otpDigitLabel": "Digit {index} of {count}",
     "invalidCode": "That code is incorrect or has expired.",
     "rateLimited": "Too many attempts. Please try again in a minute."
   },

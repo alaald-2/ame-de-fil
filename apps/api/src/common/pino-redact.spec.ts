@@ -12,7 +12,11 @@ import { PINO_REDACT_PATHS, pinoRedactCensor } from "./pino-redact.ts";
 class CapturingStream extends Writable {
   private chunks: Buffer[] = [];
 
-  override _write(chunk: Buffer, _encoding: string, callback: (error?: Error | null) => void): void {
+  override _write(
+    chunk: Buffer,
+    _encoding: string,
+    callback: (error?: Error | null) => void,
+  ): void {
     this.chunks.push(chunk);
     callback();
   }
@@ -35,7 +39,11 @@ describe("pino-redact (real pino logger, captured output)", () => {
     logger.info(
       {
         req: {
-          headers: { cookie: "ame_session=SECRET_TOKEN", authorization: "Bearer SECRET", "x-csrf-token": "csrf-1" },
+          headers: {
+            cookie: "ame_session=SECRET_TOKEN",
+            authorization: "Bearer SECRET",
+            "x-csrf-token": "csrf-1",
+          },
           query: { code: "PARSED_CODE_SECRET", state: "keep-me" },
           url: "/x?code=PARSED_CODE_SECRET&state=keep-me",
         },
@@ -45,7 +53,13 @@ describe("pino-redact (real pino logger, captured output)", () => {
     );
 
     const output = stream.toString();
-    for (const secret of ["SECRET_TOKEN", "Bearer SECRET", "csrf-1", "PARSED_CODE_SECRET", "NEW_SECRET_TOKEN"]) {
+    for (const secret of [
+      "SECRET_TOKEN",
+      "Bearer SECRET",
+      "csrf-1",
+      "PARSED_CODE_SECRET",
+      "NEW_SECRET_TOKEN",
+    ]) {
       expect(output).not.toContain(secret);
     }
     expect(output).toContain("keep-me"); // state survives — not a credential

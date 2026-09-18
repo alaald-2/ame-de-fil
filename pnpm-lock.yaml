@@ -333,9 +333,6 @@ importers:
       '@ame-de-fil/ui':
         specifier: workspace:*
         version: link:../../packages/ui
-      '@ame-de-fil/validation':
-        specifier: workspace:*
-        version: link:../../packages/validation
       '@stripe/react-stripe-js':
         specifier: ^6.9.0
         version: 6.9.0(@stripe/stripe-js@9.15.0)(react-dom@19.2.8(react@19.2.8))(react@19.2.8)

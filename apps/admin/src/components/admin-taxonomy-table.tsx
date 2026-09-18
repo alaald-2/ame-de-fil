@@ -11,6 +11,7 @@ import {
   Text,
 } from "@ame-de-fil/ui";
 import type { AdminLocale } from "../i18n/config";
+import { formatDate } from "../lib/format-date";
 
 export interface AdminTaxonomyListItem {
   id: string;
@@ -26,17 +27,18 @@ interface AdminTaxonomyTableProps {
   namespace: "Content.categories" | "Content.collections";
 }
 
-function formatDate(iso: string, locale: string): string {
-  return new Intl.DateTimeFormat(locale, { dateStyle: "medium" }).format(new Date(iso));
-}
-
 // Shared by both /content (categories) and /content/collections — Category
 // and Collection are structurally identical (see admin-taxonomy.mapper.ts on
 // the API side), so this is one parameterized component rather than two
 // near-duplicate tables. Same "whole row is a link" pattern as every other
 // admin list — see orders-table.tsx's own comment for the full
 // accessibility reasoning.
-export function AdminTaxonomyTable({ items, locale, detailBasePath, namespace }: AdminTaxonomyTableProps) {
+export function AdminTaxonomyTable({
+  items,
+  locale,
+  detailBasePath,
+  namespace,
+}: AdminTaxonomyTableProps) {
   const t = useTranslations(namespace);
   const viewLabelKey = namespace === "Content.categories" ? "viewCategory" : "viewCollection";
 

@@ -3,8 +3,8 @@ import { Injectable } from "@nestjs/common";
 import { ConfigService } from "@nestjs/config";
 import type { Env } from "@ame-de-fil/config";
 import { Prisma, UserStatus } from "@ame-de-fil/database";
-import { PrismaService } from "../database/prisma.service.js";
-import type { AuthContext } from "../common/types/auth-context.js";
+import { PrismaService } from "../database/prisma.service.ts";
+import type { AuthContext } from "../common/types/auth-context.ts";
 
 const TOKEN_BYTES = 32;
 

@@ -1,4 +1,14 @@
-import { Body, Container, Head, Heading, Hr, Html, Link, Preview, Text } from "@react-email/components";
+import {
+  Body,
+  Container,
+  Head,
+  Heading,
+  Hr,
+  Html,
+  Link,
+  Preview,
+  Text,
+} from "@react-email/components";
 import { h } from "./h.ts";
 import type { EmailLocale } from "./order-confirmation.ts";
 
@@ -17,14 +27,16 @@ const COPY = {
   "sv-SE": {
     preview: "Bekräfta din e-postadress hos Âme de Fil",
     heading: "Bekräfta din e-postadress",
-    intro: "Tack för att du skapar ett konto hos Âme de Fil. Klicka på länken nedan för att bekräfta din e-postadress.",
+    intro:
+      "Tack för att du skapar ett konto hos Âme de Fil. Klicka på länken nedan för att bekräfta din e-postadress.",
     cta: "Bekräfta e-postadress",
     ignore: "Om du inte skapade det här kontot kan du bortse från det här mejlet.",
   },
   en: {
     preview: "Confirm your email address for Âme de Fil",
     heading: "Confirm your email address",
-    intro: "Thanks for creating an account with Âme de Fil. Click the link below to confirm your email address.",
+    intro:
+      "Thanks for creating an account with Âme de Fil. Click the link below to confirm your email address.",
     cta: "Confirm email address",
     ignore: "If you didn't create this account, you can safely ignore this email.",
   },

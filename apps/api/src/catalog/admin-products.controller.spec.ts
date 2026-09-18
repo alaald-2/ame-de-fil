@@ -56,8 +56,20 @@ async function bootApp(validateSession: (token: string) => Promise<AuthContext |
     position: 0,
   });
   const reorderImages = vi.fn().mockResolvedValue([
-    { id: "img-2", url: "https://res.cloudinary.com/x/b.jpg", altTextSv: null, altTextEn: null, position: 0 },
-    { id: "img-1", url: "https://res.cloudinary.com/x/a.jpg", altTextSv: null, altTextEn: null, position: 1 },
+    {
+      id: "img-2",
+      url: "https://res.cloudinary.com/x/b.jpg",
+      altTextSv: null,
+      altTextEn: null,
+      position: 0,
+    },
+    {
+      id: "img-1",
+      url: "https://res.cloudinary.com/x/a.jpg",
+      altTextSv: null,
+      altTextEn: null,
+      position: 1,
+    },
   ]);
   const deleteImage = vi.fn().mockResolvedValue(undefined);
   const deleteProduct = vi.fn().mockResolvedValue(undefined);
@@ -340,7 +352,12 @@ describe("PATCH /admin/products/:id — authorization", () => {
       .send({ status: "PUBLISHED" });
 
     expect(response.status).toBe(200);
-    expect(booted.update).toHaveBeenCalledWith("prod-1", { status: "PUBLISHED" }, "user-1", expect.anything());
+    expect(booted.update).toHaveBeenCalledWith(
+      "prod-1",
+      { status: "PUBLISHED" },
+      "user-1",
+      expect.anything(),
+    );
   });
 
   it("returns 400 for an invalid status value, before the service is ever called", async () => {

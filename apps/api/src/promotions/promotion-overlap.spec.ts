@@ -33,7 +33,12 @@ describe("lockVariantsForPromotionWrite", () => {
 describe("findOverlapConflicts", () => {
   it("returns no conflicts for an empty variant list, without querying", async () => {
     const tx = makeTx();
-    const conflicts = await findOverlapConflicts(tx, [], { startsAt: null, endsAt: null }, undefined);
+    const conflicts = await findOverlapConflicts(
+      tx,
+      [],
+      { startsAt: null, endsAt: null },
+      undefined,
+    );
     expect(conflicts).toEqual([]);
     expect(tx.promotionVariant.findMany).not.toHaveBeenCalled();
   });
@@ -59,7 +64,11 @@ describe("findOverlapConflicts", () => {
     );
 
     expect(conflicts).toEqual([
-      { variantId: "var-1", conflictingPromotionId: "promo-a", conflictingPromotionName: "Promotion A" },
+      {
+        variantId: "var-1",
+        conflictingPromotionId: "promo-a",
+        conflictingPromotionName: "Promotion A",
+      },
     ]);
   });
 
@@ -108,12 +117,7 @@ describe("findOverlapConflicts", () => {
     const findMany = vi.fn().mockResolvedValue([]);
     const tx = { promotionVariant: { findMany } } as unknown as Prisma.TransactionClient;
 
-    await findOverlapConflicts(
-      tx,
-      ["var-1"],
-      { startsAt: null, endsAt: null },
-      "promo-self",
-    );
+    await findOverlapConflicts(tx, ["var-1"], { startsAt: null, endsAt: null }, "promo-self");
 
     expect(findMany).toHaveBeenCalledWith(
       expect.objectContaining({
@@ -173,12 +177,16 @@ function makeExclusionViolation(constraintName: string) {
 describe("isExclusionConstraintViolation", () => {
   it("recognizes the real live shape (P2039, SQLSTATE 23P01, constraint name in the message)", () => {
     const error = makeExclusionViolation(PROMOTION_VARIANT_NO_OVERLAP_CONSTRAINT);
-    expect(isExclusionConstraintViolation(error, PROMOTION_VARIANT_NO_OVERLAP_CONSTRAINT)).toBe(true);
+    expect(isExclusionConstraintViolation(error, PROMOTION_VARIANT_NO_OVERLAP_CONSTRAINT)).toBe(
+      true,
+    );
   });
 
   it("rejects a P2039 for a different constraint name", () => {
     const error = makeExclusionViolation("some_other_constraint");
-    expect(isExclusionConstraintViolation(error, PROMOTION_VARIANT_NO_OVERLAP_CONSTRAINT)).toBe(false);
+    expect(isExclusionConstraintViolation(error, PROMOTION_VARIANT_NO_OVERLAP_CONSTRAINT)).toBe(
+      false,
+    );
   });
 
   it("rejects a non-P2039 error entirely", () => {
@@ -187,12 +195,14 @@ describe("isExclusionConstraintViolation", () => {
       clientVersion: "7.10.0",
       meta: { target: ["id"] },
     });
-    expect(isExclusionConstraintViolation(error, PROMOTION_VARIANT_NO_OVERLAP_CONSTRAINT)).toBe(false);
+    expect(isExclusionConstraintViolation(error, PROMOTION_VARIANT_NO_OVERLAP_CONSTRAINT)).toBe(
+      false,
+    );
   });
 
   it("rejects a plain Error (not a PrismaClientKnownRequestError)", () => {
-    expect(isExclusionConstraintViolation(new Error("boom"), PROMOTION_VARIANT_NO_OVERLAP_CONSTRAINT)).toBe(
-      false,
-    );
+    expect(
+      isExclusionConstraintViolation(new Error("boom"), PROMOTION_VARIANT_NO_OVERLAP_CONSTRAINT),
+    ).toBe(false);
   });
 });

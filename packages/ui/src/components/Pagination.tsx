@@ -34,7 +34,10 @@ export function Pagination({
   const hasNext = page < totalPages;
 
   return (
-    <nav aria-label={pageLabel(page, totalPages)} className={cn("flex items-center justify-between gap-4", className)}>
+    <nav
+      aria-label={pageLabel(page, totalPages)}
+      className={cn("flex items-center justify-between gap-4", className)}
+    >
       <PaginationLink href={hasPrevious ? makeHref(page - 1) : undefined} disabled={!hasPrevious}>
         <ChevronLeftIcon aria-hidden="true" className="h-4 w-4" />
         {previousLabel}
@@ -67,7 +70,10 @@ function PaginationLink({
     return <span className={cn(classes, "text-neutral-600")}>{children}</span>;
   }
   return (
-    <NextLink href={href as string} className={cn(classes, "text-neutral-700 hover:text-neutral-900")}>
+    <NextLink
+      href={href as string}
+      className={cn(classes, "text-neutral-700 hover:text-neutral-900")}
+    >
       {children}
     </NextLink>
   );

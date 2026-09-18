@@ -6,6 +6,7 @@ import type { MyOrderDetailResponse } from "@ame-de-fil/types";
 import { requireSession } from "../../../../../lib/dal";
 import { getServerApiClient } from "../../../../../lib/server-api";
 import { formatMoney } from "../../../../../lib/format-money";
+import { unwrapOrNotFound } from "../../../../../lib/fetch-or-not-found";
 import type { AppLocale } from "../../../../../lib/locale";
 import {
   orderStatusLabelKey,
@@ -37,12 +38,10 @@ function addressesEqual(a: MyAddress, b: MyAddress): boolean {
 
 async function loadOrder(orderId: string) {
   const client = await getServerApiClient();
-  const { data, error, response } = await client.GET("/api/v1/orders/{orderId}", {
+  const result = await client.GET("/api/v1/orders/{orderId}", {
     params: { path: { orderId } },
   });
-  if (response.status === 404) return null;
-  if (error || !data) throw new Error("Failed to load order");
-  return data;
+  return unwrapOrNotFound(result, "Failed to load order");
 }
 
 export async function generateMetadata({
@@ -77,13 +76,18 @@ export default async function AccountOrderDetailPage({ params }: { params: Promi
             {dateFormatter.format(new Date(order.createdAt))}
           </Text>
         </div>
-        <Badge tone={orderStatusTone(order.status)}>{t(`status.${orderStatusLabelKey(order.status)}`)}</Badge>
+        <Badge tone={orderStatusTone(order.status)}>
+          {t(`status.${orderStatusLabelKey(order.status)}`)}
+        </Badge>
       </div>
 
       <Card className="mt-8">
         <div className="flex flex-col">
           {order.items.map((item) => (
-            <div key={item.id} className="flex justify-between gap-4 border-b border-neutral-200 py-4 last:border-b-0 last:pb-0">
+            <div
+              key={item.id}
+              className="flex justify-between gap-4 border-b border-neutral-200 py-4 last:border-b-0 last:pb-0"
+            >
               <div>
                 <Text>{item.productName}</Text>
                 <Text size="sm" tone="muted" className="mt-1">

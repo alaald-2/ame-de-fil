@@ -155,7 +155,14 @@ interface Fixture {
   // — only the dedicated "promotions" describe block below sets this.
   promotionVariantRows?: Array<{
     productVariantId: string;
-    promotion: { id: string; name: string; percentage: number; active: boolean; startsAt: Date | null; endsAt: Date | null };
+    promotion: {
+      id: string;
+      name: string;
+      percentage: number;
+      active: boolean;
+      startsAt: Date | null;
+      endsAt: Date | null;
+    };
   }>;
   shippingProvider: ShippingProvider;
   paymentProvider: PaymentProvider;
@@ -360,7 +367,9 @@ describe("CheckoutService.initiate — successful checkout", () => {
     await fixture.service.initiate(IDENTITY, undefined, "key-1", VALID_INPUT);
 
     expect(fixture.txOrderItemCreate).toHaveBeenCalledTimes(1);
-    const { data } = fixture.txOrderItemCreate.mock.calls[0]![0] as { data: Record<string, unknown> };
+    const { data } = fixture.txOrderItemCreate.mock.calls[0]![0] as {
+      data: Record<string, unknown>;
+    };
     expect(data).not.toHaveProperty("lineTaxMinor");
     expect(Object.keys(data).every((key) => ORDER_ITEM_SCALAR_COLUMNS.has(key))).toBe(true);
   });
@@ -435,7 +444,9 @@ describe("CheckoutService.initiate — successful checkout", () => {
 // that the server computes the discounted price on its own from the
 // variant + active promotion, with no other code path able to influence it.
 describe("CheckoutService.initiate — promotions", () => {
-  function activePromotionRow(overrides: Partial<{ startsAt: Date | null; endsAt: Date | null; active: boolean }> = {}) {
+  function activePromotionRow(
+    overrides: Partial<{ startsAt: Date | null; endsAt: Date | null; active: boolean }> = {},
+  ) {
     return {
       productVariantId: "var-1",
       promotion: {
@@ -497,7 +508,11 @@ describe("CheckoutService.initiate — promotions", () => {
 
     expect(fixture.txOrderItemCreate).toHaveBeenCalledWith(
       expect.objectContaining({
-        data: expect.objectContaining({ unitPriceMinor: 29900, promotionId: null, promotionPercentage: null }),
+        data: expect.objectContaining({
+          unitPriceMinor: 29900,
+          promotionId: null,
+          promotionPercentage: null,
+        }),
       }),
     );
   });
@@ -516,7 +531,11 @@ describe("CheckoutService.initiate — promotions", () => {
 
     expect(fixture.txOrderItemCreate).toHaveBeenCalledWith(
       expect.objectContaining({
-        data: expect.objectContaining({ unitPriceMinor: 29900, promotionId: null, promotionPercentage: null }),
+        data: expect.objectContaining({
+          unitPriceMinor: 29900,
+          promotionId: null,
+          promotionPercentage: null,
+        }),
       }),
     );
   });

@@ -24,7 +24,9 @@ export const ADMIN_CUSTOMER_LIST_SELECT = {
   _count: { select: { orders: true } },
 } satisfies Prisma.UserSelect;
 
-export type AdminCustomerListRow = Prisma.UserGetPayload<{ select: typeof ADMIN_CUSTOMER_LIST_SELECT }>;
+export type AdminCustomerListRow = Prisma.UserGetPayload<{
+  select: typeof ADMIN_CUSTOMER_LIST_SELECT;
+}>;
 
 export function mapAdminCustomerListItem(user: AdminCustomerListRow) {
   return {

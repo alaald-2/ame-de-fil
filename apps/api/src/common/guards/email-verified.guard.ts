@@ -1,4 +1,9 @@
-import { ForbiddenException, Injectable, type CanActivate, type ExecutionContext } from "@nestjs/common";
+import {
+  ForbiddenException,
+  Injectable,
+  type CanActivate,
+  type ExecutionContext,
+} from "@nestjs/common";
 import { Reflector } from "@nestjs/core";
 import type { Request } from "express";
 import { REQUIRE_VERIFIED_EMAIL_KEY } from "../decorators/require-verified-email.decorator.ts";

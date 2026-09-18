@@ -4,6 +4,7 @@ import { Heading, Text, Link, Badge, ErrorState } from "@ame-de-fil/ui";
 import { requireSession } from "../../../../lib/dal";
 import { getServerApiClient } from "../../../../lib/server-api";
 import { PromotionDetailForm } from "../../../../components/promotion-detail-form";
+import { formatDate as formatDateValue } from "../../../../lib/format-date";
 import type { AdminLocale } from "../../../../i18n/config";
 
 interface PromotionDetailPageProps {
@@ -11,7 +12,7 @@ interface PromotionDetailPageProps {
 }
 
 function formatDate(iso: string | null, locale: string): string {
-  return iso ? new Intl.DateTimeFormat(locale, { dateStyle: "medium" }).format(new Date(iso)) : "—";
+  return iso ? formatDateValue(iso, locale) : "—";
 }
 
 // Real GET /admin/promotions/:id data (promotions.view-gated server-side).
@@ -29,7 +30,11 @@ export default async function PromotionDetailPage({ params }: PromotionDetailPag
   const permissions = session.user.permissions;
 
   const contentLocale = locale === "sv-SE" ? "sv-SE" : "en";
-  const { data: promotion, error, response } = await client.GET("/api/v1/admin/promotions/{id}", {
+  const {
+    data: promotion,
+    error,
+    response,
+  } = await client.GET("/api/v1/admin/promotions/{id}", {
     params: { path: { id }, query: { locale: contentLocale } },
   });
 
@@ -39,7 +44,9 @@ export default async function PromotionDetailPage({ params }: PromotionDetailPag
       <ErrorState
         className="mt-6"
         title={response.status === 403 ? t("forbiddenTitle") : td("detailErrorTitle")}
-        description={response.status === 403 ? t("forbiddenDescription") : td("detailErrorDescription")}
+        description={
+          response.status === 403 ? t("forbiddenDescription") : td("detailErrorDescription")
+        }
       />
     );
   }
@@ -47,7 +54,9 @@ export default async function PromotionDetailPage({ params }: PromotionDetailPag
   const canManage = permissions.includes("promotions.manage");
 
   const variantOptionsResult = canManage
-    ? await client.GET("/api/v1/admin/products/variants", { params: { query: { locale: contentLocale } } })
+    ? await client.GET("/api/v1/admin/products/variants", {
+        params: { query: { locale: contentLocale } },
+      })
     : null;
   const variantOptions =
     variantOptionsResult && !variantOptionsResult.error ? variantOptionsResult.data : [];
@@ -91,8 +100,12 @@ export default async function PromotionDetailPage({ params }: PromotionDetailPag
               </Badge>
             ) : null}
           </div>
-          <Text size="sm">{td("percentageLabel")}: {t("percentageValue", { percentage: promotion.percentage })}</Text>
-          <Text size="sm" tone="muted">{td("readOnlyNotice")}</Text>
+          <Text size="sm">
+            {td("percentageLabel")}: {t("percentageValue", { percentage: promotion.percentage })}
+          </Text>
+          <Text size="sm" tone="muted">
+            {td("readOnlyNotice")}
+          </Text>
           <ul className="mt-2 flex flex-col gap-1">
             {promotion.variants.map((variant) => (
               <li key={variant.variantId}>

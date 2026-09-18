@@ -32,7 +32,9 @@ import {
           Boolean(config.get("CLOUDINARY_CLOUD_NAME", { infer: true })) &&
           Boolean(config.get("CLOUDINARY_API_KEY", { infer: true })) &&
           Boolean(config.get("CLOUDINARY_API_SECRET", { infer: true }));
-        return configured ? new CloudinaryImageStorageProvider(config) : new PendingImageStorageProvider();
+        return configured
+          ? new CloudinaryImageStorageProvider(config)
+          : new PendingImageStorageProvider();
       },
       inject: [ConfigService],
     },

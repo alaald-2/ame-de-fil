@@ -12,7 +12,15 @@ import {
   Res,
   ServiceUnavailableException,
 } from "@nestjs/common";
-import { ApiBody, ApiCookieAuth, ApiExcludeEndpoint, ApiOkResponse, ApiOperation, ApiTags } from "@nestjs/swagger";
+import {
+  ApiBody,
+  ApiCookieAuth,
+  ApiCreatedResponse,
+  ApiExcludeEndpoint,
+  ApiOkResponse,
+  ApiOperation,
+  ApiTags,
+} from "@nestjs/swagger";
 import { ConfigService } from "@nestjs/config";
 import type { Request, Response } from "express";
 import type { Env } from "@ame-de-fil/config";
@@ -32,7 +40,10 @@ import { requestOtpSchema, type RequestOtpInput } from "./dto/request-otp.dto.ts
 import { verifyOtpSchema, type VerifyOtpInput } from "./dto/verify-otp.dto.ts";
 import { registerSchema, type RegisterInput } from "./dto/register.dto.ts";
 import { verifyEmailSchema, type VerifyEmailInput } from "./dto/verify-email.dto.ts";
-import { resendVerificationSchema, type ResendVerificationInput } from "./dto/resend-verification.dto.ts";
+import {
+  resendVerificationSchema,
+  type ResendVerificationInput,
+} from "./dto/resend-verification.dto.ts";
 import { forgotPasswordSchema, type ForgotPasswordInput } from "./dto/forgot-password.dto.ts";
 import { resetPasswordSchema, type ResetPasswordInput } from "./dto/reset-password.dto.ts";
 import {
@@ -130,7 +141,9 @@ export class AuthController {
   @Post("otp/request")
   @HttpCode(HttpStatus.OK)
   @RateLimit({ windowMs: 60_000, max: 5 })
-  @ApiOperation({ summary: "Email a one-time sign-in code — always returns the same generic response" })
+  @ApiOperation({
+    summary: "Email a one-time sign-in code — always returns the same generic response",
+  })
   @ApiBody({ schema: toOpenApiSchema(requestOtpSchema) })
   @ApiOkResponse({ schema: toOpenApiSchema(messageResponseSchema) })
   @ApiErrorResponses(400, 429)
@@ -174,9 +187,11 @@ export class AuthController {
   @RateLimit({ windowMs: 60_000, max: 5 })
   @ApiOperation({ summary: "Create a password account — always returns the same generic response" })
   @ApiBody({ schema: toOpenApiSchema(registerSchema) })
-  @ApiOkResponse({ schema: toOpenApiSchema(messageResponseSchema) })
+  @ApiCreatedResponse({ schema: toOpenApiSchema(messageResponseSchema) })
   @ApiErrorResponses(400, 429)
-  async register(@Body(new ZodValidationPipe(registerSchema)) body: RegisterInput): Promise<MessageResponse> {
+  async register(
+    @Body(new ZodValidationPipe(registerSchema)) body: RegisterInput,
+  ): Promise<MessageResponse> {
     return this.auth.register(body);
   }
 
@@ -204,7 +219,9 @@ export class AuthController {
   @Post("resend-verification")
   @HttpCode(HttpStatus.OK)
   @RateLimit({ windowMs: 60_000, max: 5 })
-  @ApiOperation({ summary: "Resend the email-verification link — always returns the same generic response" })
+  @ApiOperation({
+    summary: "Resend the email-verification link — always returns the same generic response",
+  })
   @ApiBody({ schema: toOpenApiSchema(resendVerificationSchema) })
   @ApiOkResponse({ schema: toOpenApiSchema(messageResponseSchema) })
   @ApiErrorResponses(400, 429)
@@ -220,7 +237,9 @@ export class AuthController {
   @Post("forgot-password")
   @HttpCode(HttpStatus.OK)
   @RateLimit({ windowMs: 60_000, max: 5 })
-  @ApiOperation({ summary: "Request a password-reset email — always returns the same generic response" })
+  @ApiOperation({
+    summary: "Request a password-reset email — always returns the same generic response",
+  })
   @ApiBody({ schema: toOpenApiSchema(forgotPasswordSchema) })
   @ApiOkResponse({ schema: toOpenApiSchema(messageResponseSchema) })
   @ApiErrorResponses(400, 429)
@@ -352,7 +371,12 @@ export class AuthController {
     };
 
     if (googleError) return fail("google_denied");
-    if (typeof code !== "string" || typeof stateParam !== "string" || !cookieState || !codeVerifier) {
+    if (
+      typeof code !== "string" ||
+      typeof stateParam !== "string" ||
+      !cookieState ||
+      !codeVerifier
+    ) {
       return fail("invalid_request");
     }
     if (!timingSafeEqualStrings(stateParam, cookieState)) return fail("state_mismatch");

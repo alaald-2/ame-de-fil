@@ -19,9 +19,15 @@ import type { AuthContext } from "../common/types/auth-context.ts";
 // mocked (mirrors inventory.controller.spec.ts). No @OptionalAuth()/@Public()
 // on this controller, so a fully authorized request still needs CSRF.
 async function bootApp(validateSession: (token: string) => Promise<AuthContext | null>) {
-  const markReadyToShip = vi.fn().mockResolvedValue({ orderId: "order-1", status: "READY_TO_SHIP", shipment: null });
-  const markShipped = vi.fn().mockResolvedValue({ orderId: "order-1", status: "SHIPPED", shipment: {} });
-  const markDelivered = vi.fn().mockResolvedValue({ orderId: "order-1", status: "DELIVERED", shipment: {} });
+  const markReadyToShip = vi
+    .fn()
+    .mockResolvedValue({ orderId: "order-1", status: "READY_TO_SHIP", shipment: null });
+  const markShipped = vi
+    .fn()
+    .mockResolvedValue({ orderId: "order-1", status: "SHIPPED", shipment: {} });
+  const markDelivered = vi
+    .fn()
+    .mockResolvedValue({ orderId: "order-1", status: "DELIVERED", shipment: {} });
   const listOrders = vi.fn().mockResolvedValue({ items: [], page: 1, pageSize: 20, total: 0 });
   const getOrderDetail = vi.fn().mockResolvedValue({ orderId: "order-1", status: "CONFIRMED" });
   const exportOrdersCsv = vi.fn().mockResolvedValue("Order number\r\n");
@@ -264,7 +270,9 @@ describe("POST /admin/orders/:orderId/ready-to-ship — authorization", () => {
     const booted = await bootApp(async () => null);
     app = booted.app;
 
-    const response = await supertest(app.getHttpServer()).post("/admin/orders/order-1/ready-to-ship");
+    const response = await supertest(app.getHttpServer()).post(
+      "/admin/orders/order-1/ready-to-ship",
+    );
 
     expect(response.status).toBe(401);
     expect(booted.markReadyToShip).not.toHaveBeenCalled();

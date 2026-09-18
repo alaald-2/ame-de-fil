@@ -61,10 +61,14 @@ export class NotificationsService {
 
     if (await this.wasAlreadySent(NotificationType.ORDER_CONFIRMATION, orderId)) return;
 
-    const notification = await this.createPending(order.userId, NotificationType.ORDER_CONFIRMATION, {
-      orderId,
-      orderNumber: order.orderNumber,
-    });
+    const notification = await this.createPending(
+      order.userId,
+      NotificationType.ORDER_CONFIRMATION,
+      {
+        orderId,
+        orderNumber: order.orderNumber,
+      },
+    );
 
     try {
       const rendered = await renderOrderConfirmationEmail({
@@ -125,11 +129,15 @@ export class NotificationsService {
       orderBy: { createdAt: "desc" },
     });
 
-    const notification = await this.createPending(order.userId, NotificationType.SHIPPING_NOTIFICATION, {
-      orderId,
-      orderNumber: order.orderNumber,
-      shipmentId: shipment?.id ?? null,
-    });
+    const notification = await this.createPending(
+      order.userId,
+      NotificationType.SHIPPING_NOTIFICATION,
+      {
+        orderId,
+        orderNumber: order.orderNumber,
+        shipmentId: shipment?.id ?? null,
+      },
+    );
 
     try {
       const rendered = await renderShippingNotificationEmail({
@@ -164,7 +172,9 @@ export class NotificationsService {
       return;
     }
 
-    const notification = await this.createPending(userId, NotificationType.EMAIL_VERIFICATION, { userId });
+    const notification = await this.createPending(userId, NotificationType.EMAIL_VERIFICATION, {
+      userId,
+    });
     const storefrontBaseUrl = this.config.get("STOREFRONT_BASE_URL", { infer: true });
     if (!storefrontBaseUrl) {
       // Disclosed, not faked (DECISIONS.md ADR-033's Google-flow posture) —
@@ -195,7 +205,9 @@ export class NotificationsService {
       return;
     }
 
-    const notification = await this.createPending(userId, NotificationType.PASSWORD_RESET, { userId });
+    const notification = await this.createPending(userId, NotificationType.PASSWORD_RESET, {
+      userId,
+    });
     const storefrontBaseUrl = this.config.get("STOREFRONT_BASE_URL", { infer: true });
     if (!storefrontBaseUrl) {
       await this.markFailed(notification.id, new Error("STOREFRONT_BASE_URL is not configured"));
@@ -249,7 +261,11 @@ export class NotificationsService {
   // notification of this type never sends a second one.
   private async wasAlreadySent(type: string, orderId: string): Promise<boolean> {
     const existing = await this.prisma.notification.findFirst({
-      where: { type, status: NotificationStatus.SENT, payload: { path: ["orderId"], equals: orderId } },
+      where: {
+        type,
+        status: NotificationStatus.SENT,
+        payload: { path: ["orderId"], equals: orderId },
+      },
       select: { id: true },
     });
     return existing !== null;

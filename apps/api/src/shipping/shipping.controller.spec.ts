@@ -24,7 +24,9 @@ async function bootApp(
 ) {
   const moduleRef = await Test.createTestingModule({
     controllers: [ShippingController],
-    providers: [{ provide: SHIPPING_PROVIDER, useValue: { listAvailableMethods, listPickupPoints } }],
+    providers: [
+      { provide: SHIPPING_PROVIDER, useValue: { listAvailableMethods, listPickupPoints } },
+    ],
   }).compile();
 
   const app = moduleRef.createNestApplication();
@@ -117,7 +119,13 @@ describe("GET /shipping-methods/:shippingMethodId/pickup-points — public", () 
 
   it("returns the provider's pickup points for the given method/postal code", async () => {
     const points = [
-      { id: "pp-1", name: "Ombud Centrum", address: "Storgatan 1", postalCode: "11122", city: "Stockholm" },
+      {
+        id: "pp-1",
+        name: "Ombud Centrum",
+        address: "Storgatan 1",
+        postalCode: "11122",
+        city: "Stockholm",
+      },
     ];
     const listPickupPoints = vi.fn().mockResolvedValue(points);
     const booted = await bootApp(undefined, listPickupPoints);

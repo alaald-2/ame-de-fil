@@ -1,7 +1,17 @@
 import { useTranslations } from "next-intl";
 import Link from "next/link";
-import { Table, TableHead, TableBody, TableRow, TableHeaderCell, TableCell, Badge, Text } from "@ame-de-fil/ui";
+import {
+  Table,
+  TableHead,
+  TableBody,
+  TableRow,
+  TableHeaderCell,
+  TableCell,
+  Badge,
+  Text,
+} from "@ame-de-fil/ui";
 import { reservationStatusTone } from "../lib/inventory-status";
+import { formatDateTime } from "../lib/format-date";
 
 export interface ReservationListItem {
   id: string;
@@ -20,10 +30,6 @@ export interface ReservationListItem {
 interface ReservationsTableProps {
   reservations: ReservationListItem[];
   locale: string;
-}
-
-function formatDateTime(iso: string, locale: string): string {
-  return new Intl.DateTimeFormat(locale, { dateStyle: "medium", timeStyle: "short" }).format(new Date(iso));
 }
 
 // No row-level link (there's no reservation detail page) — only the order
@@ -78,7 +84,9 @@ export function ReservationsTable({ reservations, locale }: ReservationsTablePro
         {reservations.map((reservation) => (
           <li key={reservation.id} className="px-1 py-4">
             <div className="flex items-center justify-between gap-3">
-              <Text className="truncate font-medium text-neutral-900">{reservation.productName}</Text>
+              <Text className="truncate font-medium text-neutral-900">
+                {reservation.productName}
+              </Text>
               <Badge tone={reservationStatusTone(reservation.status)}>
                 {t(`reservationStatus.${reservation.status}`)}
               </Badge>

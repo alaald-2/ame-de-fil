@@ -43,13 +43,18 @@ export class TaskAutomationScheduler implements OnModuleInit, OnModuleDestroy {
     try {
       const result = await this.automation.runSweep();
       if (result.created > 0 || result.closed > 0) {
-        this.logger.log(`Task automation sweep created ${result.created} task(s), closed ${result.closed} task(s)`);
+        this.logger.log(
+          `Task automation sweep created ${result.created} task(s), closed ${result.closed} task(s)`,
+        );
       }
     } catch (error) {
       // Never let one failed tick kill the interval — every step is
       // idempotent and safe to retry on the next tick regardless of why
       // this one failed (e.g. a transient DB connection blip).
-      this.logger.error("Task automation sweep failed", error instanceof Error ? error.stack : String(error));
+      this.logger.error(
+        "Task automation sweep failed",
+        error instanceof Error ? error.stack : String(error),
+      );
     }
   }
 }

@@ -3,7 +3,10 @@ import { AccountActionTokenPurpose, Prisma, UserStatus, type User } from "@ame-d
 import { PrismaService } from "../database/prisma.service.ts";
 import { fromPrismaLocale } from "../common/locale.ts";
 import { normalizeEmail } from "../common/normalize-email.ts";
-import { generateAccountActionToken, hashAccountActionToken } from "../common/account-action-token.ts";
+import {
+  generateAccountActionToken,
+  hashAccountActionToken,
+} from "../common/account-action-token.ts";
 import { generateLoginOtpCode, hashLoginOtpCode } from "../common/login-otp.ts";
 import { isUniqueConstraintViolation } from "../checkout/prisma-errors.ts";
 import type { AuthContext } from "../common/types/auth-context.ts";
@@ -31,7 +34,9 @@ const GOOGLE_PROVIDER = "google";
 // verified, or is Google-only (SECURITY.md §1's enumeration posture,
 // extended to the new endpoints) — the caller never sees a different
 // outcome to probe with.
-const GENERIC_CHECK_EMAIL_MESSAGE = { message: "If an account is eligible, an email has been sent." };
+const GENERIC_CHECK_EMAIL_MESSAGE = {
+  message: "If an account is eligible, an email has been sent.",
+};
 const GENERIC_ACCOUNT_CREATED_MESSAGE = { message: "Check your email to verify your account." };
 const GENERIC_PASSWORD_RESET_DONE_MESSAGE = { message: "Your password has been updated." };
 
@@ -42,7 +47,10 @@ const GENERIC_PASSWORD_RESET_DONE_MESSAGE = { message: "Your password has been u
 // nothing about which account it belonged to (entropy + rate-limiting are
 // the real defense against token-guessing, not response vagueness).
 const INVALID_OR_EXPIRED_TOKEN = () =>
-  new BadRequestException({ error: "InvalidOrExpiredToken", message: "This link is invalid or has expired" });
+  new BadRequestException({
+    error: "InvalidOrExpiredToken",
+    message: "This link is invalid or has expired",
+  });
 
 // A real argon2id hash of a fixed, non-secret placeholder — never a valid
 // user's hash, computed once per process and reused. Verifying against
@@ -63,7 +71,10 @@ const INVALID_CREDENTIALS = () =>
 // here the attacker also supplies the code itself, so a uniform message
 // leaks nothing beyond "that guess was wrong."
 const INVALID_OTP = () =>
-  new BadRequestException({ error: "InvalidOrExpiredCode", message: "This code is invalid or has expired" });
+  new BadRequestException({
+    error: "InvalidOrExpiredCode",
+    message: "This code is invalid or has expired",
+  });
 
 // A code is meant to be typed within a minute or two of arriving, so 5 wrong
 // tries is already generous relative to a 6-digit (1-in-1,000,000) space —
@@ -131,11 +142,15 @@ export class AuthService {
     }
 
     const existingAccount = await this.prisma.oAuthAccount.findUnique({
-      where: { provider_providerAccountId: { provider: GOOGLE_PROVIDER, providerAccountId: profile.sub } },
+      where: {
+        provider_providerAccountId: { provider: GOOGLE_PROVIDER, providerAccountId: profile.sub },
+      },
       include: { user: true },
     });
 
-    const user = existingAccount ? existingAccount.user : await this.findOrCreateUserForGoogle(profile);
+    const user = existingAccount
+      ? existingAccount.user
+      : await this.findOrCreateUserForGoogle(profile);
 
     // Same generic posture as password login (DECISIONS.md ADR-032) — a
     // disabled account must not behave differently via Google than via
@@ -147,7 +162,9 @@ export class AuthService {
       // same Google account would otherwise race a plain create against
       // the @@unique([provider, providerAccountId]) constraint.
       await this.prisma.oAuthAccount.upsert({
-        where: { provider_providerAccountId: { provider: GOOGLE_PROVIDER, providerAccountId: profile.sub } },
+        where: {
+          provider_providerAccountId: { provider: GOOGLE_PROVIDER, providerAccountId: profile.sub },
+        },
         create: { userId: user.id, provider: GOOGLE_PROVIDER, providerAccountId: profile.sub },
         update: {},
       });
@@ -331,7 +348,12 @@ export class AuthService {
     if (user && user.status === UserStatus.ACTIVE && user.emailVerifiedAt === null) {
       const ttlHours = this.config.get("EMAIL_VERIFICATION_TOKEN_TTL_HOURS", { infer: true });
       const plaintextToken = await this.prisma.$transaction((tx) =>
-        this.issueAccountActionToken(tx, user.id, AccountActionTokenPurpose.EMAIL_VERIFICATION, ttlHours),
+        this.issueAccountActionToken(
+          tx,
+          user.id,
+          AccountActionTokenPurpose.EMAIL_VERIFICATION,
+          ttlHours,
+        ),
       );
       await this.notifications.sendVerificationEmail(user.id, plaintextToken);
     }
@@ -349,7 +371,12 @@ export class AuthService {
     if (user && user.status === UserStatus.ACTIVE && user.passwordHash !== null) {
       const ttlHours = this.config.get("PASSWORD_RESET_TOKEN_TTL_HOURS", { infer: true });
       const plaintextToken = await this.prisma.$transaction((tx) =>
-        this.issueAccountActionToken(tx, user.id, AccountActionTokenPurpose.PASSWORD_RESET, ttlHours),
+        this.issueAccountActionToken(
+          tx,
+          user.id,
+          AccountActionTokenPurpose.PASSWORD_RESET,
+          ttlHours,
+        ),
       );
       await this.notifications.sendPasswordResetEmail(user.id, plaintextToken);
     }
@@ -361,7 +388,10 @@ export class AuthService {
     // Token consumed (and rejected) before the expensive hash — an invalid/
     // expired token is an honest, specific error regardless of the
     // submitted password, so there's nothing to lose by checking it first.
-    const userId = await this.consumeAccountActionToken(input.token, AccountActionTokenPurpose.PASSWORD_RESET);
+    const userId = await this.consumeAccountActionToken(
+      input.token,
+      AccountActionTokenPurpose.PASSWORD_RESET,
+    );
     if (!userId) throw INVALID_OR_EXPIRED_TOKEN();
 
     const passwordHash = await this.passwords.hash(input.password);
@@ -425,7 +455,9 @@ export class AuthService {
       // reply would itself confirm the email is a real, active account.
       if (!recentlyIssued) {
         const ttlMinutes = this.config.get("LOGIN_OTP_TTL_MINUTES", { infer: true });
-        const code = await this.prisma.$transaction((tx) => this.issueLoginOtp(tx, user.id, ttlMinutes));
+        const code = await this.prisma.$transaction((tx) =>
+          this.issueLoginOtp(tx, user.id, ttlMinutes),
+        );
         await this.notifications.sendLoginOtpEmail(user.id, code);
       }
     }
@@ -452,7 +484,10 @@ export class AuthService {
         data: { attempts: { increment: 1 } },
       });
       if (updated.attempts >= LOGIN_OTP_MAX_ATTEMPTS) {
-        await this.prisma.loginOtp.update({ where: { id: otp.id }, data: { consumedAt: new Date() } });
+        await this.prisma.loginOtp.update({
+          where: { id: otp.id },
+          data: { consumedAt: new Date() },
+        });
       }
       throw INVALID_OTP();
     }
@@ -475,7 +510,10 @@ export class AuthService {
     // in the very response that just set it.
     const effectiveUser =
       user.emailVerifiedAt === null
-        ? await this.prisma.user.update({ where: { id: user.id }, data: { emailVerifiedAt: new Date() } })
+        ? await this.prisma.user.update({
+            where: { id: user.id },
+            data: { emailVerifiedAt: new Date() },
+          })
         : user;
 
     return this.issueSession(effectiveUser, context);
@@ -494,7 +532,10 @@ export class AuthService {
     const codeHash = hashLoginOtpCode(code);
     const expiresAt = new Date(Date.now() + ttlMinutes * 60 * 1000);
 
-    await tx.loginOtp.updateMany({ where: { userId, consumedAt: null }, data: { consumedAt: new Date() } });
+    await tx.loginOtp.updateMany({
+      where: { userId, consumedAt: null },
+      data: { consumedAt: new Date() },
+    });
     await tx.loginOtp.create({ data: { userId, codeHash, expiresAt } });
 
     return code;

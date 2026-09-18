@@ -42,7 +42,9 @@ export const taskResponseSchema = z.object({
   customer: taskUserRefSchema.nullable(),
   order: z.object({ id: z.string(), orderNumber: z.string() }).nullable(),
   orderItem: z.object({ id: z.string(), productNameSnapshot: z.string() }).nullable(),
-  variant: z.object({ id: z.string(), articleNumber: z.number().int(), productName: z.string() }).nullable(),
+  variant: z
+    .object({ id: z.string(), articleNumber: z.number().int(), productName: z.string() })
+    .nullable(),
 });
 export type TaskResponse = z.infer<typeof taskResponseSchema>;
 

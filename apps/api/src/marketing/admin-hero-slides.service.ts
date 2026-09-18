@@ -1,7 +1,10 @@
 import { BadRequestException, Inject, Injectable, NotFoundException } from "@nestjs/common";
 import { PrismaService } from "../database/prisma.service.ts";
 import { AuditService } from "../audit/audit.service.ts";
-import { IMAGE_STORAGE_PROVIDER, type ImageStorageProvider } from "../images/image-storage.provider.ts";
+import {
+  IMAGE_STORAGE_PROVIDER,
+  type ImageStorageProvider,
+} from "../images/image-storage.provider.ts";
 import { mapAdminHeroSlide } from "./mappers/hero-slide.mapper.ts";
 import type { AdminHeroSlideResponse } from "./dto/responses.ts";
 import type { HeroSlideCtaInput, UpdateHeroSlideInput } from "./dto/hero-slide-cta.dto.ts";
@@ -88,7 +91,11 @@ export class AdminHeroSlidesService {
   // listed once — same reasoning as admin-products.service.ts's own
   // reorderImages (a partial/unknown list would leave positions the client
   // and server disagree about).
-  async reorder(slideIds: string[], actorUserId: string, ipAddress?: string): Promise<AdminHeroSlideResponse[]> {
+  async reorder(
+    slideIds: string[],
+    actorUserId: string,
+    ipAddress?: string,
+  ): Promise<AdminHeroSlideResponse[]> {
     const existing = await this.prisma.heroSlide.findMany({ select: { id: true } });
     const existingIds = existing.map((slide) => slide.id);
     const isExactlyTheCurrentSet =

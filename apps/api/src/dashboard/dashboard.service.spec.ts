@@ -38,7 +38,9 @@ function makePrismaMock(overrides: Record<string, unknown> = {}) {
 }
 
 function makeInventoryMock(lowStockCount = 0) {
-  return { countLowStock: vi.fn().mockResolvedValue(lowStockCount) } as unknown as InventoryService & {
+  return {
+    countLowStock: vi.fn().mockResolvedValue(lowStockCount),
+  } as unknown as InventoryService & {
     countLowStock: ReturnType<typeof vi.fn>;
   };
 }
@@ -79,7 +81,10 @@ describe("DashboardService.getOverview", () => {
     const { prisma } = makePrismaMock();
     const service = new DashboardService(prisma, makeInventoryMock());
 
-    const result = await service.getOverview("2026-01-01T00:00:00.000Z", "2026-01-31T00:00:00.000Z");
+    const result = await service.getOverview(
+      "2026-01-01T00:00:00.000Z",
+      "2026-01-31T00:00:00.000Z",
+    );
 
     expect(result.revenue.grossMinor).toBe(0);
     expect(result.revenue.refundsMinor).toBe(0);
@@ -93,7 +98,10 @@ describe("DashboardService.getOverview", () => {
     refundAggregate.mockResolvedValue({ _sum: { amountMinor: 10_000 } });
     const service = new DashboardService(prisma, makeInventoryMock());
 
-    const result = await service.getOverview("2026-01-01T00:00:00.000Z", "2026-01-31T00:00:00.000Z");
+    const result = await service.getOverview(
+      "2026-01-01T00:00:00.000Z",
+      "2026-01-31T00:00:00.000Z",
+    );
 
     expect(result.revenue.grossMinor).toBe(100_000);
     expect(result.revenue.refundsMinor).toBe(10_000);
@@ -103,8 +111,15 @@ describe("DashboardService.getOverview", () => {
   });
 
   it("maps order/payment/refund byStatus breakdowns and totals", async () => {
-    const { prisma, orderGroupBy, orderCount, paymentGroupBy, paymentCount, refundGroupBy, refundCount } =
-      makePrismaMock();
+    const {
+      prisma,
+      orderGroupBy,
+      orderCount,
+      paymentGroupBy,
+      paymentCount,
+      refundGroupBy,
+      refundCount,
+    } = makePrismaMock();
     orderGroupBy.mockResolvedValue([
       { status: "CONFIRMED", _count: 4 },
       { status: "CANCELED", _count: 1 },
@@ -112,11 +127,16 @@ describe("DashboardService.getOverview", () => {
     orderCount.mockResolvedValue(5);
     paymentGroupBy.mockResolvedValue([{ status: "PAID", _count: 4 }]);
     paymentCount.mockResolvedValue(4);
-    refundGroupBy.mockResolvedValue([{ status: "SUCCEEDED", _count: 2, _sum: { amountMinor: 5000 } }]);
+    refundGroupBy.mockResolvedValue([
+      { status: "SUCCEEDED", _count: 2, _sum: { amountMinor: 5000 } },
+    ]);
     refundCount.mockResolvedValue(2);
     const service = new DashboardService(prisma, makeInventoryMock());
 
-    const result = await service.getOverview("2026-01-01T00:00:00.000Z", "2026-01-31T00:00:00.000Z");
+    const result = await service.getOverview(
+      "2026-01-01T00:00:00.000Z",
+      "2026-01-31T00:00:00.000Z",
+    );
 
     expect(result.orders).toEqual({
       totalInPeriod: 5,
@@ -137,7 +157,10 @@ describe("DashboardService.getOverview", () => {
     userCount.mockResolvedValueOnce(10).mockResolvedValueOnce(2);
     const service = new DashboardService(prisma, makeInventoryMock());
 
-    const result = await service.getOverview("2026-01-01T00:00:00.000Z", "2026-01-31T00:00:00.000Z");
+    const result = await service.getOverview(
+      "2026-01-01T00:00:00.000Z",
+      "2026-01-31T00:00:00.000Z",
+    );
 
     expect(result.customers).toEqual({ totalRegistered: 10, newInPeriod: 2 });
     for (const call of userCount.mock.calls) {
@@ -154,9 +177,16 @@ describe("DashboardService.getOverview", () => {
     refundCount.mockResolvedValueOnce(2).mockResolvedValueOnce(1); // totalInPeriod, then failed
     const service = new DashboardService(prisma, makeInventoryMock(7));
 
-    const result = await service.getOverview("2026-01-01T00:00:00.000Z", "2026-01-31T00:00:00.000Z");
+    const result = await service.getOverview(
+      "2026-01-01T00:00:00.000Z",
+      "2026-01-31T00:00:00.000Z",
+    );
 
-    expect(result.alerts).toEqual({ lowStockCount: 7, disputedPaymentsCount: 1, failedRefundsCount: 1 });
+    expect(result.alerts).toEqual({
+      lowStockCount: 7,
+      disputedPaymentsCount: 1,
+      failedRefundsCount: 1,
+    });
     expect(result.inventory).toEqual({ lowStockCount: 7 });
 
     const disputedCall = paymentCount.mock.calls[1]?.[0];

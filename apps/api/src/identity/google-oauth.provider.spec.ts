@@ -3,7 +3,11 @@ import { ServiceUnavailableException } from "@nestjs/common";
 import { GoogleOAuthClient, PendingOAuthProvider } from "./google-oauth.provider.ts";
 
 describe("GoogleOAuthClient", () => {
-  const client = new GoogleOAuthClient("client-id", "client-secret", "https://api.example.com/auth/google/callback");
+  const client = new GoogleOAuthClient(
+    "client-id",
+    "client-secret",
+    "https://api.example.com/auth/google/callback",
+  );
 
   describe("createAuthorizationRequest", () => {
     it("builds a Google authorization URL with PKCE S256 and a random state, both returned alongside it", () => {
@@ -13,7 +17,9 @@ describe("GoogleOAuthClient", () => {
       const url = new URL(first.url);
       expect(url.origin + url.pathname).toBe("https://accounts.google.com/o/oauth2/v2/auth");
       expect(url.searchParams.get("client_id")).toBe("client-id");
-      expect(url.searchParams.get("redirect_uri")).toBe("https://api.example.com/auth/google/callback");
+      expect(url.searchParams.get("redirect_uri")).toBe(
+        "https://api.example.com/auth/google/callback",
+      );
       expect(url.searchParams.get("response_type")).toBe("code");
       expect(url.searchParams.get("scope")).toBe("openid email profile");
       expect(url.searchParams.get("code_challenge_method")).toBe("S256");
@@ -93,7 +99,9 @@ describe("GoogleOAuthClient", () => {
     it("throws when the token exchange itself fails", async () => {
       fetchMock.mockResolvedValueOnce({ ok: false, status: 400 });
 
-      await expect(client.exchangeCodeForProfile("bad-code", "verifier")).rejects.toThrow(/token exchange failed/);
+      await expect(client.exchangeCodeForProfile("bad-code", "verifier")).rejects.toThrow(
+        /token exchange failed/,
+      );
     });
 
     it("throws when the userinfo fetch fails", async () => {
@@ -101,7 +109,9 @@ describe("GoogleOAuthClient", () => {
         .mockResolvedValueOnce({ ok: true, json: async () => ({ access_token: "at-1" }) })
         .mockResolvedValueOnce({ ok: false, status: 401 });
 
-      await expect(client.exchangeCodeForProfile("code", "verifier")).rejects.toThrow(/userinfo fetch failed/);
+      await expect(client.exchangeCodeForProfile("code", "verifier")).rejects.toThrow(
+        /userinfo fetch failed/,
+      );
     });
   });
 });

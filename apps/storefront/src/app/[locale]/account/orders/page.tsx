@@ -65,13 +65,18 @@ export default async function AccountOrdersPage({
               totalPages={totalPages}
               makeHref={(targetPage) =>
                 getPathname({
-                  href: { pathname: "/account/orders", query: targetPage > 1 ? { page: targetPage } : {} },
+                  href: {
+                    pathname: "/account/orders",
+                    query: targetPage > 1 ? { page: targetPage } : {},
+                  },
                   locale,
                 })
               }
               previousLabel={tPagination("previousPage")}
               nextLabel={tPagination("nextPage")}
-              pageLabel={(current, total) => tPagination("pageLabel", { page: current, totalPages: total })}
+              pageLabel={(current, total) =>
+                tPagination("pageLabel", { page: current, totalPages: total })
+              }
             />
           ) : null}
         </>

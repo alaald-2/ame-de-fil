@@ -57,13 +57,21 @@ export function ProductStatusAction({ productId, status }: ProductStatusActionPr
           {errorKind === "conflict" ? t("statusConflictError") : t("genericError")}
         </Alert>
       ) : null}
-      <Button variant={next === "ARCHIVED" ? "secondary" : "primary"} onClick={handleClick} disabled={isSubmitting}>
+      <Button
+        variant={next === "ARCHIVED" ? "secondary" : "primary"}
+        onClick={handleClick}
+        disabled={isSubmitting}
+      >
         {isSubmitting ? (
           <>
             <Spinner className="h-4 w-4" /> {t("working")}
           </>
         ) : next === "PUBLISHED" ? (
-          status === "ARCHIVED" ? t("republish") : t("publish")
+          status === "ARCHIVED" ? (
+            t("republish")
+          ) : (
+            t("publish")
+          )
         ) : (
           t("archive")
         )}

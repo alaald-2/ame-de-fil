@@ -50,7 +50,10 @@ const NOT_IN_EXPECTED_STATE = (from: readonly OrderStatus[], to: OrderStatus) =>
 const ORDER_NOT_FOUND = () =>
   new NotFoundException({ error: "OrderNotFound", message: "Order not found" });
 
-const REFUND_ELIGIBLE_PAYMENT_STATUSES = [PaymentStatus.PAID, PaymentStatus.PARTIALLY_REFUNDED] as const;
+const REFUND_ELIGIBLE_PAYMENT_STATUSES = [
+  PaymentStatus.PAID,
+  PaymentStatus.PARTIALLY_REFUNDED,
+] as const;
 
 // An order past this point never auto-restocks on a full refund (approved
 // design) — the physical item's condition post-shipment is unknown, so
@@ -106,7 +109,9 @@ export class AdminOrdersService {
   ) {
     const where: Prisma.OrderWhereInput = {
       ...(paymentStatus ? { payments: { some: { status: paymentStatus } } } : {}),
-      ...(refundStatus ? { payments: { some: { refunds: { some: { status: refundStatus } } } } } : {}),
+      ...(refundStatus
+        ? { payments: { some: { refunds: { some: { status: refundStatus } } } } }
+        : {}),
       ...(q ? { OR: await this.buildOrderSearchOr(q) } : {}),
     };
 
@@ -407,7 +412,8 @@ export class AdminOrdersService {
         // constraint error.
         const winner = await this.checkRefundIdempotency(key, requestHash, now);
         if (winner?.phase === "final") return winner.response;
-        if (winner?.phase === "pending") return this.continueRefund(winner.refundId, key, now, ipAddress);
+        if (winner?.phase === "pending")
+          return this.continueRefund(winner.refundId, key, now, ipAddress);
       }
       throw error;
     }
@@ -493,7 +499,8 @@ export class AdminOrdersService {
       await this.prisma.idempotencyKey.delete({ where: { key } }).catch(() => undefined);
       throw new UnprocessableEntityException({
         error: "RefundFailed",
-        message: error instanceof Error ? error.message : "The payment provider rejected the refund",
+        message:
+          error instanceof Error ? error.message : "The payment provider rejected the refund",
       });
     }
 
@@ -563,7 +570,9 @@ export class AdminOrdersService {
         select: { id: true, amountMinor: true, initiatedByUserId: true, paymentId: true },
       });
 
-      await tx.$queryRaw(Prisma.sql`SELECT "id" FROM "Payment" WHERE "id" = ${refund.paymentId} FOR UPDATE`);
+      await tx.$queryRaw(
+        Prisma.sql`SELECT "id" FROM "Payment" WHERE "id" = ${refund.paymentId} FOR UPDATE`,
+      );
 
       const alreadyApplied = await tx.auditLog.findFirst({
         where: { entityType: "Refund", entityId: refund.id },
@@ -582,7 +591,9 @@ export class AdminOrdersService {
       });
       const totalSucceeded = succeededAgg._sum.amountMinor ?? 0;
       const isFullRefund = totalSucceeded >= payment.amountMinor;
-      const newPaymentStatus = isFullRefund ? PaymentStatus.REFUNDED : PaymentStatus.PARTIALLY_REFUNDED;
+      const newPaymentStatus = isFullRefund
+        ? PaymentStatus.REFUNDED
+        : PaymentStatus.PARTIALLY_REFUNDED;
 
       await tx.payment.updateMany({
         where: {
@@ -661,7 +672,11 @@ export class AdminOrdersService {
           entityType: "Refund",
           entityId: refund.id,
           before: { paymentStatus: payment.status, orderStatus: order.status },
-          after: { paymentStatus: newPaymentStatus, orderStatus: newOrderStatus, amountMinor: refund.amountMinor },
+          after: {
+            paymentStatus: newPaymentStatus,
+            orderStatus: newOrderStatus,
+            amountMinor: refund.amountMinor,
+          },
           ipAddress,
         },
         tx,
@@ -686,7 +701,10 @@ export class AdminOrdersService {
     }
   }
 
-  private async finalizeRefundIdempotency(key: string, response: RefundOrderResponse): Promise<void> {
+  private async finalizeRefundIdempotency(
+    key: string,
+    response: RefundOrderResponse,
+  ): Promise<void> {
     const snapshot: RefundIdempotencySnapshot = { phase: "final", response };
     await this.prisma.idempotencyKey.update({
       where: { key },
@@ -798,7 +816,9 @@ export class AdminOrdersService {
         items: {
           select: {
             quantity: true,
-            variant: { select: { weightGrams: true, lengthMm: true, widthMm: true, heightMm: true } },
+            variant: {
+              select: { weightGrams: true, lengthMm: true, widthMm: true, heightMm: true },
+            },
           },
         },
       },

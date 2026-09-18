@@ -1,5 +1,5 @@
 import { Injectable } from "@nestjs/common";
-import type { RateLimitHit, RateLimitStore } from "./rate-limit-store.js";
+import type { RateLimitHit, RateLimitStore } from "./rate-limit-store.ts";
 
 // Correct for a single process; a multi-instance deployment needs the
 // Valkey-backed store instead (see rate-limit-store.ts) so limits are shared

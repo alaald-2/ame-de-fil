@@ -173,7 +173,10 @@ export function CollectionsGallery({ tiles, label }: CollectionsGalleryProps) {
     >
       <div
         ref={trackRef}
-        className={cn("flex w-max gap-6 px-4 will-change-transform sm:gap-8 sm:px-6 lg:px-8", isDragging && "cursor-grabbing")}
+        className={cn(
+          "flex w-max gap-6 px-4 will-change-transform sm:gap-8 sm:px-6 lg:px-8",
+          isDragging && "cursor-grabbing",
+        )}
         style={{ touchAction: "pan-y" }}
         onPointerDown={handlePointerDown}
         onPointerMove={handlePointerMove}

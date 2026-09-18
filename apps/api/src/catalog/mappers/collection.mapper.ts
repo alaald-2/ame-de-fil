@@ -45,7 +45,10 @@ export function mapCollection(
   // any single item here.
   const images = collection.products
     .map(({ product }) => [...product.images].sort((a, b) => a.position - b.position)[0])
-    .filter((image): image is (typeof collection.products)[number]["product"]["images"][number] => image !== undefined)
+    .filter(
+      (image): image is (typeof collection.products)[number]["product"]["images"][number] =>
+        image !== undefined,
+    )
     .slice(0, COLLECTION_GALLERY_IMAGE_LIMIT)
     .map((image) => ({
       url: image.url,

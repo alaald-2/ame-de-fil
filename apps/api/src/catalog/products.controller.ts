@@ -5,13 +5,9 @@ import { ZodValidationPipe } from "../common/pipes/zod-validation.pipe.ts";
 import { ApiErrorResponses } from "../common/api-error-responses.ts";
 import { ApiZodParam, ApiZodQuery, toOpenApiSchema } from "../common/zod-openapi.ts";
 import { ProductsService } from "./products.service.ts";
-import { listProductsQuerySchema, type ListProductsQuery } from "./dto/list-products.query.ts";
-import {
-  localeQuerySchema,
-  slugParamSchema,
-  type LocaleQuery,
-  type SlugParam,
-} from "./dto/common.schemas.ts";
+import { listProductsQuerySchema, type ListProductsQuery } from "./dto/list-products-query.dto.ts";
+import { localeQuerySchema, type LocaleQuery } from "../common/dto/locale-query.schema.ts";
+import { slugParamSchema, type SlugParam } from "./dto/common.schemas.ts";
 import { listProductsResponseSchema, productResponseSchema } from "./dto/responses.ts";
 
 // Read-only, public (@Public — no session required to browse the storefront).

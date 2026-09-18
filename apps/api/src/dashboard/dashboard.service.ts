@@ -79,9 +79,17 @@ export class DashboardService {
       // the record was made), grouped by *current* status — "what happened
       // to the orders/payments/refunds created this period," not "which
       // records reached each status during this period."
-      this.prisma.order.groupBy({ by: ["status"], where: { createdAt: periodWhere }, _count: true }),
+      this.prisma.order.groupBy({
+        by: ["status"],
+        where: { createdAt: periodWhere },
+        _count: true,
+      }),
       this.prisma.order.count({ where: { createdAt: periodWhere } }),
-      this.prisma.payment.groupBy({ by: ["status"], where: { createdAt: periodWhere }, _count: true }),
+      this.prisma.payment.groupBy({
+        by: ["status"],
+        where: { createdAt: periodWhere },
+        _count: true,
+      }),
       this.prisma.payment.count({ where: { createdAt: periodWhere } }),
       this.prisma.refund.groupBy({
         by: ["status"],
@@ -120,7 +128,8 @@ export class DashboardService {
         netMinor: grossMinor - refundsMinor,
         currency: Currency.SEK,
         confirmedOrderCount,
-        averageOrderValueMinor: confirmedOrderCount > 0 ? Math.round(grossMinor / confirmedOrderCount) : null,
+        averageOrderValueMinor:
+          confirmedOrderCount > 0 ? Math.round(grossMinor / confirmedOrderCount) : null,
       },
       orders: {
         totalInPeriod: ordersTotalInPeriod,

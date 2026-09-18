@@ -1,7 +1,12 @@
 import { Module } from "@nestjs/common";
 import { ConfigService } from "@nestjs/config";
 import type { Env } from "@ame-de-fil/config";
-import { EMAIL_PROVIDER, PendingEmailProvider, SmtpEmailProvider, type EmailProvider } from "./email-provider.ts";
+import {
+  EMAIL_PROVIDER,
+  PendingEmailProvider,
+  SmtpEmailProvider,
+  type EmailProvider,
+} from "./email-provider.ts";
 import { NotificationsService } from "./notifications.service.ts";
 
 // Notification dispatch — transactional email (ARCHITECTURE.md §3/§5,

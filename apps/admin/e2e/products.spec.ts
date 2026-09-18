@@ -16,7 +16,9 @@ import AxeBuilder from "@axe-core/playwright";
 // least one real row), nothing guarantees a product exists in every
 // environment this suite runs against — the row-navigation assertion below
 // tolerates zero rows rather than assuming seed/fixture data.
-test("products list renders, and a row (if any exist) navigates to a real detail page", async ({ page }) => {
+test("products list renders, and a row (if any exist) navigates to a real detail page", async ({
+  page,
+}) => {
   await page.goto("/products");
   await expect(page.getByRole("heading", { name: "Produkter", level: 1 })).toBeVisible();
 

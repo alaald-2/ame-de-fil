@@ -145,7 +145,9 @@ describe("POST /admin/categories — authorization", () => {
     const booted = await bootApp(async () => null);
     app = booted.app;
 
-    const response = await supertest(app.getHttpServer()).post("/admin/categories").send(VALID_BODY);
+    const response = await supertest(app.getHttpServer())
+      .post("/admin/categories")
+      .send(VALID_BODY);
 
     expect(response.status).toBe(401);
     expect(booted.create).not.toHaveBeenCalled();

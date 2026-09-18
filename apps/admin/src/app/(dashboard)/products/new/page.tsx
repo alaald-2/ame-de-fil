@@ -28,7 +28,11 @@ export default async function NewProductPage() {
     return (
       <div>
         <Heading level={1}>{tCreate("heading")}</Heading>
-        <ErrorState className="mt-6" title={t("forbiddenTitle")} description={t("forbiddenDescription")} />
+        <ErrorState
+          className="mt-6"
+          title={t("forbiddenTitle")}
+          description={t("forbiddenDescription")}
+        />
       </div>
     );
   }
@@ -58,7 +62,11 @@ export default async function NewProductPage() {
       <Text tone="muted" className="mt-2 max-w-2xl">
         {tCreate("intro")}
       </Text>
-      <CreateProductForm categories={categories} collections={collections} taxClasses={taxClasses} />
+      <CreateProductForm
+        categories={categories}
+        collections={collections}
+        taxClasses={taxClasses}
+      />
     </div>
   );
 }

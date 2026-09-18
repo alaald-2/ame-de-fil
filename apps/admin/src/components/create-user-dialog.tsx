@@ -3,7 +3,17 @@
 import { useState, type FormEvent } from "react";
 import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
-import { Button, Alert, Dialog, DialogTrigger, DialogContent, FormField, Input, Spinner, Label } from "@ame-de-fil/ui";
+import {
+  Button,
+  Alert,
+  Dialog,
+  DialogTrigger,
+  DialogContent,
+  FormField,
+  Input,
+  Spinner,
+  Label,
+} from "@ame-de-fil/ui";
 import { api } from "../lib/api-client";
 import { readCsrfCookie } from "../lib/csrf";
 
@@ -24,7 +34,8 @@ interface CreateUserDialogProps {
   assignableRoles: AssignableRole[];
 }
 
-type CreateErrorKind = "emailExists" | "exceedsOwnGrant" | "roleNotFound" | "rateLimited" | "generic" | null;
+type CreateErrorKind =
+  "emailExists" | "exceedsOwnGrant" | "roleNotFound" | "rateLimited" | "generic" | null;
 
 // Password is always server-generated (approved design, admin-users.service.ts)
 // and returned exactly once in this response — never persisted or logged
@@ -112,7 +123,11 @@ export function CreateUserDialog({ assignableRoles }: CreateUserDialogProps) {
       <DialogTrigger asChild>
         <Button>{t("action")}</Button>
       </DialogTrigger>
-      <DialogContent title={t("dialogTitle")} description={t("dialogDescription")} closeLabel={t("close")}>
+      <DialogContent
+        title={t("dialogTitle")}
+        description={t("dialogDescription")}
+        closeLabel={t("close")}
+      >
         {created ? (
           <div className="flex flex-col gap-4">
             <Alert tone="success">{t("createdMessage", { email: created.email })}</Alert>
@@ -192,7 +207,10 @@ export function CreateUserDialog({ assignableRoles }: CreateUserDialogProps) {
                 </legend>
                 <div className="mt-1.5 flex flex-col gap-2">
                   {assignableRoles.map((role) => (
-                    <label key={role.id} className="flex items-center gap-2 text-sm text-neutral-800">
+                    <label
+                      key={role.id}
+                      className="flex items-center gap-2 text-sm text-neutral-800"
+                    >
                       <input
                         type="checkbox"
                         className="h-4 w-4 rounded-sm border-neutral-300 text-accent-600 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent-500"

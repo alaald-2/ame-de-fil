@@ -101,7 +101,10 @@ describe("NotificationsService.sendOrderConfirmation", () => {
       },
     });
     expect(emailProvider.send).toHaveBeenCalledWith(
-      expect.objectContaining({ to: "customer@example.com", subject: expect.stringContaining("AF-2026-000123") }),
+      expect.objectContaining({
+        to: "customer@example.com",
+        subject: expect.stringContaining("AF-2026-000123"),
+      }),
     );
     expect(prisma.notification.update).toHaveBeenCalledWith({
       where: { id: "notif-1" },
@@ -110,11 +113,17 @@ describe("NotificationsService.sendOrderConfirmation", () => {
   });
 
   it("resolves the recipient from the account email when there's no guest email", async () => {
-    prisma.order.findUnique.mockResolvedValue({ ...ORDER, guestEmail: null, user: { email: "user@example.com" } });
+    prisma.order.findUnique.mockResolvedValue({
+      ...ORDER,
+      guestEmail: null,
+      user: { email: "user@example.com" },
+    });
 
     await service.sendOrderConfirmation("order-1");
 
-    expect(emailProvider.send).toHaveBeenCalledWith(expect.objectContaining({ to: "user@example.com" }));
+    expect(emailProvider.send).toHaveBeenCalledWith(
+      expect.objectContaining({ to: "user@example.com" }),
+    );
   });
 
   it("never throws when sending fails, and marks the Notification FAILED instead", async () => {
@@ -185,7 +194,10 @@ describe("NotificationsService.sendShippingNotification", () => {
       },
     });
     expect(emailProvider.send).toHaveBeenCalledWith(
-      expect.objectContaining({ to: "customer@example.com", html: expect.stringContaining("ABC123") }),
+      expect.objectContaining({
+        to: "customer@example.com",
+        html: expect.stringContaining("ABC123"),
+      }),
     );
     expect(prisma.notification.update).toHaveBeenCalledWith({
       where: { id: "notif-1" },
@@ -199,7 +211,9 @@ describe("NotificationsService.sendShippingNotification", () => {
     await service.sendShippingNotification("order-1");
 
     expect(prisma.notification.create).toHaveBeenCalledWith(
-      expect.objectContaining({ data: expect.objectContaining({ payload: expect.objectContaining({ shipmentId: null }) }) }),
+      expect.objectContaining({
+        data: expect.objectContaining({ payload: expect.objectContaining({ shipmentId: null }) }),
+      }),
     );
     expect(emailProvider.send).toHaveBeenCalled();
   });
@@ -219,7 +233,9 @@ describe("NotificationsService.sendShippingNotification", () => {
 function makeUserMock(overrides: Record<string, unknown> = {}) {
   return {
     user: {
-      findUnique: vi.fn().mockResolvedValue({ email: "customer@example.com", locale: Locale.sv_SE }),
+      findUnique: vi
+        .fn()
+        .mockResolvedValue({ email: "customer@example.com", locale: Locale.sv_SE }),
     },
     notification: {
       findFirst: vi.fn().mockResolvedValue(null),
@@ -246,12 +262,19 @@ describe("NotificationsService.sendVerificationEmail", () => {
     await service.sendVerificationEmail("user-1", "plaintext-token-value");
 
     expect(prisma.notification.create).toHaveBeenCalledWith({
-      data: { userId: "user-1", type: "email-verification", payload: { userId: "user-1" }, status: NotificationStatus.PENDING },
+      data: {
+        userId: "user-1",
+        type: "email-verification",
+        payload: { userId: "user-1" },
+        status: NotificationStatus.PENDING,
+      },
     });
     expect(emailProvider.send).toHaveBeenCalledWith(
       expect.objectContaining({
         to: "customer@example.com",
-        html: expect.stringContaining("https://shop.example.com/verify-email?token=plaintext-token-value"),
+        html: expect.stringContaining(
+          "https://shop.example.com/verify-email?token=plaintext-token-value",
+        ),
       }),
     );
     expect(prisma.notification.update).toHaveBeenCalledWith({
@@ -307,12 +330,19 @@ describe("NotificationsService.sendPasswordResetEmail", () => {
     await service.sendPasswordResetEmail("user-1", "plaintext-token-value");
 
     expect(prisma.notification.create).toHaveBeenCalledWith({
-      data: { userId: "user-1", type: "password-reset", payload: { userId: "user-1" }, status: NotificationStatus.PENDING },
+      data: {
+        userId: "user-1",
+        type: "password-reset",
+        payload: { userId: "user-1" },
+        status: NotificationStatus.PENDING,
+      },
     });
     expect(emailProvider.send).toHaveBeenCalledWith(
       expect.objectContaining({
         to: "customer@example.com",
-        html: expect.stringContaining("https://shop.example.com/reset-password?token=plaintext-token-value"),
+        html: expect.stringContaining(
+          "https://shop.example.com/reset-password?token=plaintext-token-value",
+        ),
       }),
     );
     expect(prisma.notification.update).toHaveBeenCalledWith({
@@ -335,10 +365,18 @@ describe("NotificationsService.sendLoginOtpEmail", () => {
     await service.sendLoginOtpEmail("user-1", "042017");
 
     expect(prisma.notification.create).toHaveBeenCalledWith({
-      data: { userId: "user-1", type: "login-otp", payload: { userId: "user-1" }, status: NotificationStatus.PENDING },
+      data: {
+        userId: "user-1",
+        type: "login-otp",
+        payload: { userId: "user-1" },
+        status: NotificationStatus.PENDING,
+      },
     });
     expect(emailProvider.send).toHaveBeenCalledWith(
-      expect.objectContaining({ to: "customer@example.com", html: expect.stringContaining("042017") }),
+      expect.objectContaining({
+        to: "customer@example.com",
+        html: expect.stringContaining("042017"),
+      }),
     );
     expect(prisma.notification.update).toHaveBeenCalledWith({
       where: { id: "notif-1" },

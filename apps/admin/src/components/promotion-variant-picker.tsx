@@ -125,7 +125,9 @@ export function PromotionVariantPicker({
                         onChange={() => toggle(variant.variantId)}
                       />
                       {variant.articleNumber}
-                      {variant.sku ? <span className="text-neutral-600"> · {variant.sku}</span> : null}
+                      {variant.sku ? (
+                        <span className="text-neutral-600"> · {variant.sku}</span>
+                      ) : null}
                     </span>
                     <span className="tabular-nums text-neutral-600">
                       {checked && percentage > 0 ? (

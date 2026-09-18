@@ -3,7 +3,17 @@
 import { useState } from "react";
 import { useTranslations } from "next-intl";
 import { useRouter } from "next/navigation";
-import { Card, Text, Badge, Button, Alert, Spinner, Dialog, DialogTrigger, DialogContent } from "@ame-de-fil/ui";
+import {
+  Card,
+  Text,
+  Badge,
+  Button,
+  Alert,
+  Spinner,
+  Dialog,
+  DialogTrigger,
+  DialogContent,
+} from "@ame-de-fil/ui";
 import type { AddressResponse } from "@ame-de-fil/types";
 import { Link } from "../i18n/navigation";
 import { api } from "../lib/api-client";
@@ -26,40 +36,50 @@ export function AddressCard({ address }: { address: AddressResponse }) {
     setHasError(false);
     setIsDeleting(true);
 
-    const { error } = await api.DELETE("/api/v1/addresses/{addressId}", {
-      params: { path: { addressId: address.id } },
-      headers: { "x-csrf-token": readCsrfCookie() },
-    });
+    try {
+      const { error } = await api.DELETE("/api/v1/addresses/{addressId}", {
+        params: { path: { addressId: address.id } },
+        headers: { "x-csrf-token": readCsrfCookie() },
+      });
 
-    setIsDeleting(false);
+      if (error) {
+        setHasError(true);
+        return;
+      }
 
-    if (error) {
+      setIsDeleteOpen(false);
+      router.refresh();
+    } catch {
+      // A rejected fetch (offline, unreachable API) isn't the typed
+      // {data,error} shape above — without this, isDeleting never resets.
       setHasError(true);
-      return;
+    } finally {
+      setIsDeleting(false);
     }
-
-    setIsDeleteOpen(false);
-    router.refresh();
   }
 
   async function handleSetDefault() {
     setHasError(false);
     setIsSettingDefault(true);
 
-    const { error } = await api.PATCH("/api/v1/addresses/{addressId}", {
-      params: { path: { addressId: address.id } },
-      headers: { "x-csrf-token": readCsrfCookie() },
-      body: { isDefault: true },
-    });
+    try {
+      const { error } = await api.PATCH("/api/v1/addresses/{addressId}", {
+        params: { path: { addressId: address.id } },
+        headers: { "x-csrf-token": readCsrfCookie() },
+        body: { isDefault: true },
+      });
 
-    setIsSettingDefault(false);
+      if (error) {
+        setHasError(true);
+        return;
+      }
 
-    if (error) {
+      router.refresh();
+    } catch {
       setHasError(true);
-      return;
+    } finally {
+      setIsSettingDefault(false);
     }
-
-    router.refresh();
   }
 
   return (
@@ -72,7 +92,11 @@ export function AddressCard({ address }: { address: AddressResponse }) {
 
       <div className="flex items-start justify-between gap-4">
         <div>
-          {address.label ? <Text size="sm" tone="muted">{address.label}</Text> : null}
+          {address.label ? (
+            <Text size="sm" tone="muted">
+              {address.label}
+            </Text>
+          ) : null}
           <Text className="mt-1">{address.name}</Text>
           <Text tone="muted" className="mt-1">
             {address.line1}
@@ -98,7 +122,12 @@ export function AddressCard({ address }: { address: AddressResponse }) {
           {t("edit")}
         </Link>
         {!address.isDefault ? (
-          <Button type="button" variant="ghost" onClick={handleSetDefault} disabled={isSettingDefault}>
+          <Button
+            type="button"
+            variant="ghost"
+            onClick={handleSetDefault}
+            disabled={isSettingDefault}
+          >
             {isSettingDefault ? <Spinner className="h-4 w-4" /> : null} {t("setAsDefaultAction")}
           </Button>
         ) : null}

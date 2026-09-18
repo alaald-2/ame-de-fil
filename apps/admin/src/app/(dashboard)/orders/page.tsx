@@ -1,5 +1,13 @@
 import { getTranslations, getLocale } from "next-intl/server";
-import { Heading, Text, Link, Pagination, SearchField, EmptyState, ErrorState } from "@ame-de-fil/ui";
+import {
+  Heading,
+  Text,
+  Link,
+  Pagination,
+  SearchField,
+  EmptyState,
+  ErrorState,
+} from "@ame-de-fil/ui";
 import { requireSession } from "../../../lib/dal";
 import { getServerApiClient } from "../../../lib/server-api";
 import { OrdersTable } from "../../../components/orders-table";
@@ -20,7 +28,12 @@ type PaymentStatusFilter =
 type RefundStatusFilter = "PENDING" | "SUCCEEDED" | "FAILED";
 
 interface OrdersPageProps {
-  searchParams: Promise<{ page?: string; paymentStatus?: string; refundStatus?: string; q?: string }>;
+  searchParams: Promise<{
+    page?: string;
+    paymentStatus?: string;
+    refundStatus?: string;
+    q?: string;
+  }>;
 }
 
 // Real GET /admin/orders data (orders.view-gated server-side) — mirrors
@@ -51,7 +64,9 @@ export default async function OrdersPage({ searchParams }: OrdersPageProps) {
   const client = await getServerApiClient();
 
   const { data, error, response } = await client.GET("/api/v1/admin/orders", {
-    params: { query: { page, pageSize: PAGE_SIZE, paymentStatus, refundStatus, q: q || undefined } },
+    params: {
+      query: { page, pageSize: PAGE_SIZE, paymentStatus, refundStatus, q: q || undefined },
+    },
   });
 
   if (error) {

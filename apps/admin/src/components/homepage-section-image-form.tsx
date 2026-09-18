@@ -19,6 +19,7 @@ import {
 } from "@ame-de-fil/ui";
 import { api } from "../lib/api-client";
 import { readCsrfCookie } from "../lib/csrf";
+import { ALLOWED_IMAGE_TYPES, MAX_IMAGE_BYTES } from "../lib/image-upload";
 import { ImageEditor, type ImageEditorHandle } from "./image-editor";
 
 export interface HomepageSectionImageFormProps {
@@ -33,7 +34,12 @@ export interface HomepageSectionImageFormProps {
 // list: no reorder, no CTA fields (that copy is UI content, next-intl), no
 // add/remove-from-a-set, just "replace this one image" or "clear it back
 // to the storefront's placeholder."
-export function HomepageSectionImageForm({ slug, label, imageUrl, canManage }: HomepageSectionImageFormProps) {
+export function HomepageSectionImageForm({
+  slug,
+  label,
+  imageUrl,
+  canManage,
+}: HomepageSectionImageFormProps) {
   const t = useTranslations("Content.homepageImages");
   const router = useRouter();
   const [isRemoveDialogOpen, setIsRemoveDialogOpen] = useState(false);
@@ -64,7 +70,12 @@ export function HomepageSectionImageForm({ slug, label, imageUrl, canManage }: H
         </Text>
         <div className="overflow-hidden rounded-sm border border-neutral-200">
           {imageUrl ? (
-            <img src={imageUrl} alt="" className="aspect-[4/5] w-full object-cover" loading="lazy" />
+            <img
+              src={imageUrl}
+              alt=""
+              className="aspect-[4/5] w-full object-cover"
+              loading="lazy"
+            />
           ) : (
             <PlaceholderImage className="aspect-[4/5] w-full" />
           )}
@@ -87,7 +98,12 @@ export function HomepageSectionImageForm({ slug, label, imageUrl, canManage }: H
                     closeLabel={t("close")}
                   >
                     <div className="mt-6 flex justify-end gap-3">
-                      <Button type="button" variant="danger" onClick={handleRemove} disabled={isRemoving}>
+                      <Button
+                        type="button"
+                        variant="danger"
+                        onClick={handleRemove}
+                        disabled={isRemoving}
+                      >
                         {isRemoving ? <Spinner className="h-4 w-4" /> : null} {t("removeButton")}
                       </Button>
                     </div>
@@ -102,18 +118,22 @@ export function HomepageSectionImageForm({ slug, label, imageUrl, canManage }: H
   );
 }
 
-// Mirrors admin-homepage-sections.service.ts's own upload validation exactly.
-const ALLOWED_IMAGE_TYPES = new Set(["image/jpeg", "image/png", "image/webp"]);
-const MAX_IMAGE_BYTES = 5 * 1024 * 1024;
-
-function UploadImageDialog({ slug, hasImage }: { slug: "story" | "made-to-order"; hasImage: boolean }) {
+function UploadImageDialog({
+  slug,
+  hasImage,
+}: {
+  slug: "story" | "made-to-order";
+  hasImage: boolean;
+}) {
   const t = useTranslations("Content.homepageImages");
   const router = useRouter();
   const [isOpen, setIsOpen] = useState(false);
   const [file, setFile] = useState<File | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isDraggingOver, setIsDraggingOver] = useState(false);
-  const [errorKind, setErrorKind] = useState<"missingFile" | "invalidFile" | "generic" | null>(null);
+  const [errorKind, setErrorKind] = useState<"missingFile" | "invalidFile" | "generic" | null>(
+    null,
+  );
   const editorRef = useRef<ImageEditorHandle>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -185,11 +205,20 @@ function UploadImageDialog({ slug, hasImage }: { slug: "story" | "made-to-order"
       <DialogTrigger asChild>
         <Button variant="secondary">{hasImage ? t("replaceButton") : t("uploadButton")}</Button>
       </DialogTrigger>
-      <DialogContent title={t("dialogTitle")} description={t("hint")} closeLabel={t("close")} className="max-w-3xl">
+      <DialogContent
+        title={t("dialogTitle")}
+        description={t("hint")}
+        closeLabel={t("close")}
+        className="max-w-3xl"
+      >
         <form onSubmit={handleSubmit}>
           <div className="flex flex-col gap-4">
-            {errorKind === "missingFile" ? <Alert tone="danger">{t("missingFileError")}</Alert> : null}
-            {errorKind === "invalidFile" ? <Alert tone="danger">{t("invalidFileError")}</Alert> : null}
+            {errorKind === "missingFile" ? (
+              <Alert tone="danger">{t("missingFileError")}</Alert>
+            ) : null}
+            {errorKind === "invalidFile" ? (
+              <Alert tone="danger">{t("invalidFileError")}</Alert>
+            ) : null}
             {errorKind === "generic" ? <Alert tone="danger">{t("genericError")}</Alert> : null}
             {!file ? (
               <FormField label={t("fileLabel")} required>
@@ -226,8 +255,18 @@ function UploadImageDialog({ slug, hasImage }: { slug: "story" | "made-to-order"
               </FormField>
             ) : (
               <>
-                <ImageEditor key={file.name + file.lastModified} ref={editorRef} file={file} defaultAspect="4:5" />
-                <Button type="button" variant="ghost" className="w-fit" onClick={() => setFile(null)}>
+                <ImageEditor
+                  key={file.name + file.lastModified}
+                  ref={editorRef}
+                  file={file}
+                  defaultAspect="4:5"
+                />
+                <Button
+                  type="button"
+                  variant="ghost"
+                  className="w-fit"
+                  onClick={() => setFile(null)}
+                >
                   {t("chooseDifferentFile")}
                 </Button>
               </>

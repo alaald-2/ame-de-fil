@@ -1,4 +1,9 @@
-import { ConflictException, ForbiddenException, Injectable, NotFoundException } from "@nestjs/common";
+import {
+  ConflictException,
+  ForbiddenException,
+  Injectable,
+  NotFoundException,
+} from "@nestjs/common";
 import { Prisma, UserStatus } from "@ame-de-fil/database";
 import { PrismaService } from "../database/prisma.service.ts";
 import { AuditService } from "../audit/audit.service.ts";
@@ -12,13 +17,19 @@ import {
   mapAdminUserDetail,
   mapAdminUserListItem,
 } from "./mappers/admin-user.mapper.ts";
-import { isSelfTarget, permissionsAreSubsetOfActor, ROLE_MANAGEMENT_GATE_PERMISSION } from "./rbac-guard.ts";
+import {
+  isSelfTarget,
+  permissionsAreSubsetOfActor,
+  ROLE_MANAGEMENT_GATE_PERMISSION,
+} from "./rbac-guard.ts";
 import { generateInitialPassword } from "./generate-password.ts";
 import type { CreateUserInput } from "./dto/create-user.dto.ts";
 import type { AdminUserDetailResponse, CreateUserResponse } from "./dto/admin-user-responses.ts";
 
-const USER_NOT_FOUND = () => new NotFoundException({ error: "UserNotFound", message: "User not found" });
-const ROLE_NOT_FOUND = () => new NotFoundException({ error: "RoleNotFound", message: "Role not found" });
+const USER_NOT_FOUND = () =>
+  new NotFoundException({ error: "UserNotFound", message: "User not found" });
+const ROLE_NOT_FOUND = () =>
+  new NotFoundException({ error: "RoleNotFound", message: "Role not found" });
 
 const CANNOT_MODIFY_SELF = (message: string) =>
   new ForbiddenException({ error: "CannotModifySelf", message });
@@ -134,7 +145,11 @@ export class AdminUsersService {
       initialRoleIds.length > 0
         ? await this.prisma.role.findMany({
             where: { id: { in: initialRoleIds } },
-            select: { id: true, name: true, permissions: { select: { permission: { select: { key: true } } } } },
+            select: {
+              id: true,
+              name: true,
+              permissions: { select: { permission: { select: { key: true } } } },
+            },
           })
         : [];
     if (roles.length !== new Set(initialRoleIds).size) throw ROLE_NOT_FOUND();
@@ -192,15 +207,25 @@ export class AdminUsersService {
       };
     } catch (error) {
       if (isUniqueConstraintViolation(error, "User", "email")) {
-        throw new ConflictException({ error: "EmailAlreadyExists", message: "A user with this email already exists" });
+        throw new ConflictException({
+          error: "EmailAlreadyExists",
+          message: "A user with this email already exists",
+        });
       }
       throw error;
     }
   }
 
-  async activate(targetUserId: string, actorUserId: string, ipAddress?: string): Promise<AdminUserDetailResponse> {
+  async activate(
+    targetUserId: string,
+    actorUserId: string,
+    ipAddress?: string,
+  ): Promise<AdminUserDetailResponse> {
     await this.prisma.$transaction(async (tx) => {
-      const target = await tx.user.findUnique({ where: { id: targetUserId }, select: { id: true, status: true } });
+      const target = await tx.user.findUnique({
+        where: { id: targetUserId },
+        select: { id: true, status: true },
+      });
       if (!target) throw USER_NOT_FOUND();
 
       const updated = await tx.user.updateMany({
@@ -208,7 +233,10 @@ export class AdminUsersService {
         data: { status: UserStatus.ACTIVE },
       });
       if (updated.count === 0) {
-        throw new ConflictException({ error: "UserNotDisabled", message: "This user is not currently deactivated" });
+        throw new ConflictException({
+          error: "UserNotDisabled",
+          message: "This user is not currently deactivated",
+        });
       }
 
       await this.audit.record(
@@ -236,7 +264,11 @@ export class AdminUsersService {
   // concurrent deactivations (or a deactivation racing a role removal)
   // from both concluding "someone else still holds it" and jointly
   // leaving zero ACTIVE `users.manage_roles` holders.
-  async deactivate(targetUserId: string, actorUserId: string, ipAddress?: string): Promise<AdminUserDetailResponse> {
+  async deactivate(
+    targetUserId: string,
+    actorUserId: string,
+    ipAddress?: string,
+  ): Promise<AdminUserDetailResponse> {
     if (isSelfTarget(actorUserId, targetUserId)) {
       throw CANNOT_MODIFY_SELF("You cannot deactivate your own account");
     }
@@ -249,13 +281,21 @@ export class AdminUsersService {
         select: {
           id: true,
           status: true,
-          roles: { select: { role: { select: { permissions: { select: { permission: { select: { key: true } } } } } } } },
+          roles: {
+            select: {
+              role: {
+                select: { permissions: { select: { permission: { select: { key: true } } } } },
+              },
+            },
+          },
         },
       });
       if (!target) throw USER_NOT_FOUND();
 
       const targetHoldsGate = target.roles.some((userRole) =>
-        userRole.role.permissions.some((rp) => rp.permission.key === ROLE_MANAGEMENT_GATE_PERMISSION),
+        userRole.role.permissions.some(
+          (rp) => rp.permission.key === ROLE_MANAGEMENT_GATE_PERMISSION,
+        ),
       );
       if (targetHoldsGate && target.status === UserStatus.ACTIVE) {
         const others = await this.countOtherActiveRoleManagers(tx, targetUserId);
@@ -267,7 +307,10 @@ export class AdminUsersService {
         data: { status: UserStatus.DISABLED },
       });
       if (updated.count === 0) {
-        throw new ConflictException({ error: "UserAlreadyInactive", message: "This user is already deactivated" });
+        throw new ConflictException({
+          error: "UserAlreadyInactive",
+          message: "This user is already deactivated",
+        });
       }
 
       await this.sessions.revokeAllSessionsForUser(targetUserId, tx);
@@ -309,7 +352,11 @@ export class AdminUsersService {
 
     const role = await this.prisma.role.findUnique({
       where: { id: roleId },
-      select: { id: true, name: true, permissions: { select: { permission: { select: { key: true } } } } },
+      select: {
+        id: true,
+        name: true,
+        permissions: { select: { permission: { select: { key: true } } } },
+      },
     });
     if (!role) throw ROLE_NOT_FOUND();
 
@@ -317,14 +364,20 @@ export class AdminUsersService {
     if (!permissionsAreSubsetOfActor(roleKeys, actor.permissions)) throw EXCEEDS_OWN_GRANT();
 
     await this.prisma.$transaction(async (tx) => {
-      const target = await tx.user.findUnique({ where: { id: targetUserId }, select: { id: true } });
+      const target = await tx.user.findUnique({
+        where: { id: targetUserId },
+        select: { id: true },
+      });
       if (!target) throw USER_NOT_FOUND();
 
       try {
         await tx.userRole.create({ data: { userId: targetUserId, roleId } });
       } catch (error) {
         if (isUniqueConstraintViolation(error, "UserRole", "roleId")) {
-          throw new ConflictException({ error: "RoleAlreadyAssigned", message: "This user already holds that role" });
+          throw new ConflictException({
+            error: "RoleAlreadyAssigned",
+            message: "This user already holds that role",
+          });
         }
         throw error;
       }
@@ -363,23 +416,38 @@ export class AdminUsersService {
     await this.prisma.$transaction(async (tx) => {
       await this.lockRoleManagementGate(tx);
 
-      const target = await tx.user.findUnique({ where: { id: targetUserId }, select: { id: true, status: true } });
+      const target = await tx.user.findUnique({
+        where: { id: targetUserId },
+        select: { id: true, status: true },
+      });
       if (!target) throw USER_NOT_FOUND();
 
       const role = await tx.role.findUnique({
         where: { id: roleId },
-        select: { id: true, name: true, permissions: { select: { permission: { select: { key: true } } } } },
+        select: {
+          id: true,
+          name: true,
+          permissions: { select: { permission: { select: { key: true } } } },
+        },
       });
       if (!role) throw ROLE_NOT_FOUND();
 
-      const removingGrantsGate = role.permissions.some((rp) => rp.permission.key === ROLE_MANAGEMENT_GATE_PERMISSION);
+      const removingGrantsGate = role.permissions.some(
+        (rp) => rp.permission.key === ROLE_MANAGEMENT_GATE_PERMISSION,
+      );
       if (removingGrantsGate && target.status === UserStatus.ACTIVE) {
         const remainingRoles = await tx.userRole.findMany({
           where: { userId: targetUserId, roleId: { not: roleId } },
-          select: { role: { select: { permissions: { select: { permission: { select: { key: true } } } } } } },
+          select: {
+            role: {
+              select: { permissions: { select: { permission: { select: { key: true } } } } },
+            },
+          },
         });
         const stillHoldsGateElsewhere = remainingRoles.some((userRole) =>
-          userRole.role.permissions.some((rp) => rp.permission.key === ROLE_MANAGEMENT_GATE_PERMISSION),
+          userRole.role.permissions.some(
+            (rp) => rp.permission.key === ROLE_MANAGEMENT_GATE_PERMISSION,
+          ),
         );
         if (!stillHoldsGateElsewhere) {
           const others = await this.countOtherActiveRoleManagers(tx, targetUserId);
@@ -389,7 +457,10 @@ export class AdminUsersService {
 
       const deleted = await tx.userRole.deleteMany({ where: { userId: targetUserId, roleId } });
       if (deleted.count === 0) {
-        throw new ConflictException({ error: "RoleNotAssigned", message: "This user does not hold that role" });
+        throw new ConflictException({
+          error: "RoleNotAssigned",
+          message: "This user does not hold that role",
+        });
       }
 
       await this.audit.record(
@@ -409,7 +480,10 @@ export class AdminUsersService {
   }
 
   private async fetchDetailOrThrow(id: string): Promise<AdminUserDetailResponse> {
-    const user = await this.prisma.user.findUnique({ where: { id }, select: ADMIN_USER_DETAIL_SELECT });
+    const user = await this.prisma.user.findUnique({
+      where: { id },
+      select: ADMIN_USER_DETAIL_SELECT,
+    });
     if (!user) throw USER_NOT_FOUND();
 
     const activeSessionCount = await this.prisma.session.count({
@@ -427,7 +501,13 @@ export class AdminUsersService {
       where: {
         id: { not: excludeUserId },
         status: UserStatus.ACTIVE,
-        roles: { some: { role: { permissions: { some: { permission: { key: ROLE_MANAGEMENT_GATE_PERMISSION } } } } } },
+        roles: {
+          some: {
+            role: {
+              permissions: { some: { permission: { key: ROLE_MANAGEMENT_GATE_PERMISSION } } },
+            },
+          },
+        },
       },
     });
   }

@@ -12,6 +12,7 @@ import {
   Text,
 } from "@ame-de-fil/ui";
 import { userStatusTone } from "../lib/user-status";
+import { formatDate } from "../lib/format-date";
 
 export interface AdminUserListItem {
   id: string;
@@ -29,9 +30,6 @@ interface AdminUsersTableProps {
   locale: string;
 }
 
-function formatDate(iso: string, locale: string): string {
-  return new Intl.DateTimeFormat(locale, { dateStyle: "medium" }).format(new Date(iso));
-}
 
 function fullName(user: AdminUserListItem): string | null {
   return [user.firstName, user.lastName].filter(Boolean).join(" ") || null;
@@ -86,7 +84,9 @@ export function AdminUsersTable({ users, locale }: AdminUsersTableProps) {
                 <RolesCell roles={user.roles} />
               </TableCell>
               <TableCell>{formatDate(user.createdAt, locale)}</TableCell>
-              <TableCell>{user.lastLoginAt ? formatDate(user.lastLoginAt, locale) : t("never")}</TableCell>
+              <TableCell>
+                {user.lastLoginAt ? formatDate(user.lastLoginAt, locale) : t("never")}
+              </TableCell>
             </TableRow>
           ))}
         </TableBody>
@@ -122,7 +122,9 @@ export function AdminUsersTable({ users, locale }: AdminUsersTableProps) {
                   <Text size="sm" tone="muted">
                     {t("columnLastActive")}
                   </Text>
-                  <Text size="sm">{user.lastLoginAt ? formatDate(user.lastLoginAt, locale) : t("never")}</Text>
+                  <Text size="sm">
+                    {user.lastLoginAt ? formatDate(user.lastLoginAt, locale) : t("never")}
+                  </Text>
                 </div>
               </div>
             </Link>

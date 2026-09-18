@@ -102,9 +102,7 @@ export function HeaderSearch({
         className={cn(
           "absolute top-full z-30 mt-4 w-[min(85vw,22rem)] rounded-sm border border-neutral-200 bg-neutral-50 p-5 transition-all duration-200 ease-out-slow",
           align === "left" ? "left-0 origin-top-left" : "right-0 origin-top-right",
-          isOpen
-            ? "translate-y-0 opacity-100"
-            : "pointer-events-none -translate-y-1 opacity-0",
+          isOpen ? "translate-y-0 opacity-100" : "pointer-events-none -translate-y-1 opacity-0",
         )}
       >
         {/* An underline field, not a boxed input — the generic-SaaS look this

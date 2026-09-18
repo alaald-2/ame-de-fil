@@ -7,10 +7,7 @@ import { z } from "zod";
 // normalizes both to "not configured" before the min-length check runs, so
 // a genuinely blank placeholder boots cleanly instead of hard-failing.
 function optionalSecret() {
-  return z.preprocess(
-    (value) => (value === "" ? undefined : value),
-    z.string().min(1).optional(),
-  );
+  return z.preprocess((value) => (value === "" ? undefined : value), z.string().min(1).optional());
 }
 
 // Structural defaults only (ports, TTLs, log level) — never a secret or a

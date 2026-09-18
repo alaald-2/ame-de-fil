@@ -5,16 +5,12 @@ import { ZodValidationPipe } from "../common/pipes/zod-validation.pipe.ts";
 import { ApiErrorResponses } from "../common/api-error-responses.ts";
 import { ApiZodParam, ApiZodQuery, toOpenApiSchema } from "../common/zod-openapi.ts";
 import { CollectionsService } from "./collections.service.ts";
-import {
-  localeQuerySchema,
-  slugParamSchema,
-  type LocaleQuery,
-  type SlugParam,
-} from "./dto/common.schemas.ts";
+import { localeQuerySchema, type LocaleQuery } from "../common/dto/locale-query.schema.ts";
+import { slugParamSchema, type SlugParam } from "./dto/common.schemas.ts";
 import {
   detailWithProductsQuerySchema,
   type DetailWithProductsQuery,
-} from "./dto/list-collection-query.ts";
+} from "./dto/detail-with-products-query.dto.ts";
 import { collectionResponseSchema, collectionWithProductsResponseSchema } from "./dto/responses.ts";
 import { z } from "zod";
 

@@ -16,7 +16,9 @@ import AxeBuilder from "@axe-core/playwright";
 // suite runs against (same rationale as products.spec.ts's own tolerance),
 // unlike Customers/Users where the signed-in admin's own account guarantees
 // a row.
-test("content renders real data, and the tabs navigate between Categories and Collections", async ({ page }) => {
+test("content renders real data, and the tabs navigate between Categories and Collections", async ({
+  page,
+}) => {
   await page.goto("/content");
   await expect(page.getByRole("heading", { name: "Innehåll", level: 1 })).toBeVisible();
   const categoryHeader = page.getByRole("columnheader", { name: "Namn" });
@@ -43,7 +45,9 @@ test("pagination query param renders a consistent page (including a deliberately
   await expect(page.getByText("Inga kollektioner ännu")).toBeVisible();
 });
 
-test("mobile viewport shows stacked records instead of the desktop table on both tabs", async ({ page }) => {
+test("mobile viewport shows stacked records instead of the desktop table on both tabs", async ({
+  page,
+}) => {
   await page.setViewportSize({ width: 390, height: 844 });
 
   await page.goto("/content");

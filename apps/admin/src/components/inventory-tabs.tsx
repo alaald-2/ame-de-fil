@@ -20,7 +20,10 @@ export function InventoryTabs() {
   ] as const;
 
   return (
-    <nav aria-label={t("tabsLabel")} className="-mx-1 flex items-center gap-4 overflow-x-auto border-b border-neutral-200 px-1">
+    <nav
+      aria-label={t("tabsLabel")}
+      className="-mx-1 flex items-center gap-4 overflow-x-auto border-b border-neutral-200 px-1"
+    >
       {tabs.map((tab) => (
         <NavLink
           key={tab.href}
@@ -38,7 +41,10 @@ export function InventoryTabs() {
       {/* Same "more to scroll" hint as SidebarNav — see that file's own
           comment for the full rationale. Mobile-only: at typical desktop
           widths these four tabs already fit without scrolling. */}
-      <span aria-hidden="true" className="sticky right-0 ml-1 shrink-0 pr-1 pb-3 text-neutral-500 md:hidden">
+      <span
+        aria-hidden="true"
+        className="sticky right-0 ml-1 shrink-0 pr-1 pb-3 text-neutral-500 md:hidden"
+      >
         &rsaquo;
       </span>
     </nav>

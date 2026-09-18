@@ -2,9 +2,9 @@ import { timingSafeEqual } from "node:crypto";
 import { Injectable, type CanActivate, type ExecutionContext } from "@nestjs/common";
 import { Reflector } from "@nestjs/core";
 import type { Request } from "express";
-import { IS_PUBLIC_KEY } from "../decorators/public.decorator.js";
-import { OPTIONAL_AUTH_KEY } from "../decorators/optional-auth.decorator.js";
-import { SKIP_CSRF_KEY } from "./skip-csrf.decorator.js";
+import { IS_PUBLIC_KEY } from "../decorators/public.decorator.ts";
+import { OPTIONAL_AUTH_KEY } from "../decorators/optional-auth.decorator.ts";
+import { SKIP_CSRF_KEY } from "./skip-csrf.decorator.ts";
 
 const CSRF_HEADER = "x-csrf-token";
 const SAFE_METHODS = new Set(["GET", "HEAD", "OPTIONS"]);

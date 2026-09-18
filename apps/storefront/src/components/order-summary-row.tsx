@@ -27,13 +27,17 @@ export function OrderSummaryRow({ order, locale }: { order: MyOrderListItem; loc
       <div>
         <Text>{order.orderNumber}</Text>
         <Text size="sm" tone="muted" className="mt-1">
-          {new Intl.DateTimeFormat(locale, { dateStyle: "medium" }).format(new Date(order.createdAt))}
+          {new Intl.DateTimeFormat(locale, { dateStyle: "medium" }).format(
+            new Date(order.createdAt),
+          )}
           {" · "}
           {t("itemCount", { count: order.itemCount })}
         </Text>
       </div>
       <div className="flex flex-col items-end gap-1.5">
-        <Badge tone={orderStatusTone(order.status)}>{t(`status.${orderStatusLabelKey(order.status)}`)}</Badge>
+        <Badge tone={orderStatusTone(order.status)}>
+          {t(`status.${orderStatusLabelKey(order.status)}`)}
+        </Badge>
         <Text size="sm">{formatMoney(order.total.amountMinor, locale)}</Text>
       </div>
     </Link>

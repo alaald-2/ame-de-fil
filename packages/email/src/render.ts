@@ -1,7 +1,10 @@
 import { createElement } from "react";
 import { render } from "@react-email/render";
 import { OrderConfirmationEmail, type OrderConfirmationEmailProps } from "./order-confirmation.ts";
-import { ShippingNotificationEmail, type ShippingNotificationEmailProps } from "./shipping-notification.ts";
+import {
+  ShippingNotificationEmail,
+  type ShippingNotificationEmailProps,
+} from "./shipping-notification.ts";
 import { EmailVerificationEmail, type EmailVerificationEmailProps } from "./email-verification.ts";
 import { PasswordResetEmail, type PasswordResetEmailProps } from "./password-reset.ts";
 import { LoginOtpEmail, type LoginOtpEmailProps } from "./login-otp.ts";
@@ -32,7 +35,9 @@ const SUBJECTS = {
   },
 } as const;
 
-export async function renderOrderConfirmationEmail(props: OrderConfirmationEmailProps): Promise<RenderedEmail> {
+export async function renderOrderConfirmationEmail(
+  props: OrderConfirmationEmailProps,
+): Promise<RenderedEmail> {
   const element = createElement(OrderConfirmationEmail, props);
   const [html, text] = await Promise.all([render(element), render(element, { plainText: true })]);
   return { subject: SUBJECTS[props.locale].orderConfirmation(props.orderNumber), html, text };
@@ -46,13 +51,17 @@ export async function renderShippingNotificationEmail(
   return { subject: SUBJECTS[props.locale].shippingNotification(props.orderNumber), html, text };
 }
 
-export async function renderEmailVerificationEmail(props: EmailVerificationEmailProps): Promise<RenderedEmail> {
+export async function renderEmailVerificationEmail(
+  props: EmailVerificationEmailProps,
+): Promise<RenderedEmail> {
   const element = createElement(EmailVerificationEmail, props);
   const [html, text] = await Promise.all([render(element), render(element, { plainText: true })]);
   return { subject: SUBJECTS[props.locale].emailVerification(), html, text };
 }
 
-export async function renderPasswordResetEmail(props: PasswordResetEmailProps): Promise<RenderedEmail> {
+export async function renderPasswordResetEmail(
+  props: PasswordResetEmailProps,
+): Promise<RenderedEmail> {
   const element = createElement(PasswordResetEmail, props);
   const [html, text] = await Promise.all([render(element), render(element, { plainText: true })]);
   return { subject: SUBJECTS[props.locale].passwordReset(), html, text };

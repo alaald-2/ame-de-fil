@@ -1,7 +1,7 @@
 import { Injectable, type CanActivate, type ExecutionContext } from "@nestjs/common";
 import { Reflector } from "@nestjs/core";
 import type { Request } from "express";
-import { REQUIRED_PERMISSIONS_KEY } from "../decorators/require-permissions.decorator.js";
+import { REQUIRED_PERMISSIONS_KEY } from "../decorators/require-permissions.decorator.ts";
 
 // Runs after SessionAuthGuard. A route with no @RequirePermissions is
 // reachable by any authenticated user; one that declares permissions

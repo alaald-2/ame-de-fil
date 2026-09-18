@@ -9,7 +9,9 @@ const ACTOR_USER_ID = "user-1";
 
 function makeImageStorageMock(): ImageStorageProvider {
   return {
-    upload: vi.fn().mockResolvedValue({ url: "https://res.cloudinary.com/x/hero.jpg", publicId: "hero-1" }),
+    upload: vi
+      .fn()
+      .mockResolvedValue({ url: "https://res.cloudinary.com/x/hero.jpg", publicId: "hero-1" }),
     delete: vi.fn().mockResolvedValue(undefined),
   };
 }
@@ -17,12 +19,16 @@ function makeImageStorageMock(): ImageStorageProvider {
 function makeTxMock() {
   return {
     heroSlide: {
-      create: vi.fn().mockImplementation(({ data }: { data: Record<string, unknown> }) =>
-        Promise.resolve({ id: "slide-1", ...data }),
-      ),
-      update: vi.fn().mockImplementation(({ where, data }: { where: { id: string }; data: unknown }) =>
-        Promise.resolve({ id: where.id, ...(data as object) }),
-      ),
+      create: vi
+        .fn()
+        .mockImplementation(({ data }: { data: Record<string, unknown> }) =>
+          Promise.resolve({ id: "slide-1", ...data }),
+        ),
+      update: vi
+        .fn()
+        .mockImplementation(({ where, data }: { where: { id: string }; data: unknown }) =>
+          Promise.resolve({ id: where.id, ...(data as object) }),
+        ),
       delete: vi.fn().mockResolvedValue({}),
       findMany: vi.fn().mockResolvedValue([]),
     },
@@ -30,7 +36,10 @@ function makeTxMock() {
   };
 }
 
-function makePrismaMock(tx: ReturnType<typeof makeTxMock>, overrides: Partial<Record<string, unknown>> = {}) {
+function makePrismaMock(
+  tx: ReturnType<typeof makeTxMock>,
+  overrides: Partial<Record<string, unknown>> = {},
+) {
   return {
     heroSlide: {
       aggregate: vi.fn().mockResolvedValue({ _max: { position: null } }),
@@ -103,7 +112,11 @@ describe("AdminHeroSlidesService.reorder", () => {
     const prisma = makePrismaMock(tx, {
       findMany: vi.fn().mockResolvedValue([{ id: "a" }, { id: "b" }]),
     });
-    const service = new AdminHeroSlidesService(prisma, new AuditService(prisma), makeImageStorageMock());
+    const service = new AdminHeroSlidesService(
+      prisma,
+      new AuditService(prisma),
+      makeImageStorageMock(),
+    );
 
     await expect(service.reorder(["a"], ACTOR_USER_ID)).rejects.toThrow(BadRequestException);
     expect(tx.heroSlide.update).not.toHaveBeenCalled();
@@ -114,7 +127,11 @@ describe("AdminHeroSlidesService.reorder", () => {
     const prisma = makePrismaMock(tx, {
       findMany: vi.fn().mockResolvedValue([{ id: "a" }, { id: "b" }]),
     });
-    const service = new AdminHeroSlidesService(prisma, new AuditService(prisma), makeImageStorageMock());
+    const service = new AdminHeroSlidesService(
+      prisma,
+      new AuditService(prisma),
+      makeImageStorageMock(),
+    );
 
     await service.reorder(["b", "a"], ACTOR_USER_ID);
 
@@ -127,7 +144,11 @@ describe("AdminHeroSlidesService.update", () => {
   it("404s when the slide doesn't exist", async () => {
     const tx = makeTxMock();
     const prisma = makePrismaMock(tx);
-    const service = new AdminHeroSlidesService(prisma, new AuditService(prisma), makeImageStorageMock());
+    const service = new AdminHeroSlidesService(
+      prisma,
+      new AuditService(prisma),
+      makeImageStorageMock(),
+    );
 
     await expect(service.update("missing", { isActive: false }, ACTOR_USER_ID)).rejects.toThrow(
       NotFoundException,
@@ -145,11 +166,18 @@ describe("AdminHeroSlidesService.update", () => {
         isActive: true,
       }),
     });
-    const service = new AdminHeroSlidesService(prisma, new AuditService(prisma), makeImageStorageMock());
+    const service = new AdminHeroSlidesService(
+      prisma,
+      new AuditService(prisma),
+      makeImageStorageMock(),
+    );
 
     await service.update("slide-1", { isActive: false }, ACTOR_USER_ID);
 
-    expect(tx.heroSlide.update).toHaveBeenCalledWith({ where: { id: "slide-1" }, data: { isActive: false } });
+    expect(tx.heroSlide.update).toHaveBeenCalledWith({
+      where: { id: "slide-1" },
+      data: { isActive: false },
+    });
   });
 });
 

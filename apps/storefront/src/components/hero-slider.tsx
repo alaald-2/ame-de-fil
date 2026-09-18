@@ -121,7 +121,8 @@ export function HeroSlider({ slides }: HeroSliderProps) {
       <div
         className={cn(
           "flex h-full",
-          !isDragging && "transition-transform duration-500 ease-out-slow motion-reduce:transition-none",
+          !isDragging &&
+            "transition-transform duration-500 ease-out-slow motion-reduce:transition-none",
         )}
         style={{
           transform: `translateX(calc(${-index * 100}% + ${dragOffsetPx}px))`,
@@ -180,7 +181,9 @@ export function HeroSlider({ slides }: HeroSliderProps) {
                 aria-current={slideIndex === index}
                 className={cn(
                   "h-1.5 rounded-full transition-all duration-300 ease-out-slow focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent-500",
-                  slideIndex === index ? "w-6 bg-neutral-50" : "w-1.5 bg-neutral-50/60 hover:bg-neutral-50/80",
+                  slideIndex === index
+                    ? "w-6 bg-neutral-50"
+                    : "w-1.5 bg-neutral-50/60 hover:bg-neutral-50/80",
                 )}
               >
                 <VisuallyHidden>{t("goToSlide", { number: slideIndex + 1 })}</VisuallyHidden>

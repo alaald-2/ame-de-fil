@@ -13,7 +13,11 @@ import { SessionService } from "./session.service.ts";
 import { PasswordService } from "./password.service.ts";
 import { NotificationsService } from "../notifications/notifications.service.ts";
 import { PendingEmailProvider } from "../notifications/email-provider.ts";
-import { startTestDatabase, stopTestDatabase, type TestDatabase } from "../test/testcontainers-postgres.ts";
+import {
+  startTestDatabase,
+  stopTestDatabase,
+  type TestDatabase,
+} from "../test/testcontainers-postgres.ts";
 import { seedUserWithPermissions } from "../test/fixtures.ts";
 
 function fakeConfig(ttlHours = 168): ConfigService<Env, true> {
@@ -32,7 +36,13 @@ describe("AuthService — real Postgres", () => {
   beforeAll(async () => {
     db = await startTestDatabase();
     sessions = new SessionService(db.prisma, fakeConfig());
-    auth = new AuthService(db.prisma, new PasswordService(), sessions, fakeNotifications(db), fakeConfig());
+    auth = new AuthService(
+      db.prisma,
+      new PasswordService(),
+      sessions,
+      fakeNotifications(db),
+      fakeConfig(),
+    );
   }, 120_000);
 
   afterAll(async () => {
@@ -58,7 +68,9 @@ describe("AuthService — real Postgres", () => {
   it("rejects a wrong password against a real hash, creating no Session row", async () => {
     const fixture = await seedUserWithPermissions(db.prisma, ["orders.fulfill"]);
 
-    await expect(auth.login({ email: fixture.email, password: "wrong-password" }, {})).rejects.toThrow();
+    await expect(
+      auth.login({ email: fixture.email, password: "wrong-password" }, {}),
+    ).rejects.toThrow();
 
     const sessionCount = await db.prisma.session.count({ where: { userId: fixture.userId } });
     expect(sessionCount).toBe(0);
@@ -71,9 +83,13 @@ describe("AuthService — real Postgres", () => {
   });
 
   it("rejects a DISABLED account, creating no Session row", async () => {
-    const fixture = await seedUserWithPermissions(db.prisma, ["orders.fulfill"], { status: "DISABLED" });
+    const fixture = await seedUserWithPermissions(db.prisma, ["orders.fulfill"], {
+      status: "DISABLED",
+    });
 
-    await expect(auth.login({ email: fixture.email, password: fixture.password }, {})).rejects.toThrow();
+    await expect(
+      auth.login({ email: fixture.email, password: fixture.password }, {}),
+    ).rejects.toThrow();
 
     const sessionCount = await db.prisma.session.count({ where: { userId: fixture.userId } });
     expect(sessionCount).toBe(0);
@@ -117,7 +133,13 @@ describe("AuthService.loginWithGoogle — real Postgres", () => {
   beforeAll(async () => {
     db = await startTestDatabase();
     sessions = new SessionService(db.prisma, fakeConfig());
-    auth = new AuthService(db.prisma, new PasswordService(), sessions, fakeNotifications(db), fakeConfig());
+    auth = new AuthService(
+      db.prisma,
+      new PasswordService(),
+      sessions,
+      fakeNotifications(db),
+      fakeConfig(),
+    );
   }, 120_000);
 
   afterAll(async () => {
@@ -220,7 +242,9 @@ describe("AuthService.loginWithGoogle — real Postgres", () => {
   });
 
   it("rejects sign-in for a real DISABLED account reached via Google", async () => {
-    const fixture = await seedUserWithPermissions(db.prisma, ["orders.fulfill"], { status: "DISABLED" });
+    const fixture = await seedUserWithPermissions(db.prisma, ["orders.fulfill"], {
+      status: "DISABLED",
+    });
     const profile = googleProfile({ email: fixture.email });
 
     await expect(auth.loginWithGoogle(profile, {})).rejects.toThrow();

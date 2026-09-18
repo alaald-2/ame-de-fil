@@ -26,6 +26,8 @@ export class HomepageSectionsService {
   async list(locale: AppLocale): Promise<HomepageSectionResponse[]> {
     const rows = await this.prisma.homepageSection.findMany();
     const byKey = new Map(rows.map((row) => [row.key, row]));
-    return ALL_KEYS.map((key) => mapPublicHomepageSection(byKey.get(key) ?? { key, imageUrl: null }, locale));
+    return ALL_KEYS.map((key) =>
+      mapPublicHomepageSection(byKey.get(key) ?? { key, imageUrl: null }, locale),
+    );
   }
 }

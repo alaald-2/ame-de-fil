@@ -9,14 +9,11 @@ import { DeleteProductAction } from "../../../../components/delete-product-actio
 import { ProductDetailsForm } from "../../../../components/product-details-form";
 import { ProductVariantsForm } from "../../../../components/product-variants-form";
 import { ProductImagesForm } from "../../../../components/product-images-form";
+import { formatDateTime } from "../../../../lib/format-date";
 import type { AdminLocale } from "../../../../i18n/config";
 
 interface ProductDetailPageProps {
   params: Promise<{ id: string }>;
-}
-
-function formatDateTime(iso: string, locale: string): string {
-  return new Intl.DateTimeFormat(locale, { dateStyle: "medium", timeStyle: "short" }).format(new Date(iso));
 }
 
 // Real GET /admin/products/:id data (products.view-gated server-side) —
@@ -34,7 +31,11 @@ export default async function ProductDetailPage({ params }: ProductDetailPagePro
   const client = await getServerApiClient();
   const permissions = session.user.permissions;
 
-  const { data: product, error, response } = await client.GET("/api/v1/admin/products/{id}", {
+  const {
+    data: product,
+    error,
+    response,
+  } = await client.GET("/api/v1/admin/products/{id}", {
     params: { path: { id } },
   });
 
@@ -44,7 +45,9 @@ export default async function ProductDetailPage({ params }: ProductDetailPagePro
       <ErrorState
         className="mt-6"
         title={response.status === 403 ? t("forbiddenTitle") : td("detailErrorTitle")}
-        description={response.status === 403 ? t("forbiddenDescription") : td("detailErrorDescription")}
+        description={
+          response.status === 403 ? t("forbiddenDescription") : td("detailErrorDescription")
+        }
       />
     );
   }
@@ -63,12 +66,14 @@ export default async function ProductDetailPage({ params }: ProductDetailPagePro
       ])
     : [null, null, null];
 
-  const categories = categoriesResult && !categoriesResult.error
-    ? categoriesResult.data.map((c) => ({ id: c.id, name: c.name }))
-    : [];
-  const collections = collectionsResult && !collectionsResult.error
-    ? collectionsResult.data.map((c) => ({ id: c.id, name: c.name }))
-    : [];
+  const categories =
+    categoriesResult && !categoriesResult.error
+      ? categoriesResult.data.map((c) => ({ id: c.id, name: c.name }))
+      : [];
+  const collections =
+    collectionsResult && !collectionsResult.error
+      ? collectionsResult.data.map((c) => ({ id: c.id, name: c.name }))
+      : [];
   const taxClasses = taxClassesResult && !taxClassesResult.error ? taxClassesResult.data : [];
 
   const displayName =
@@ -88,7 +93,9 @@ export default async function ProductDetailPage({ params }: ProductDetailPagePro
           <Badge tone={productStatusTone(product.status)}>{t(`status.${product.status}`)}</Badge>
         </div>
         <div className="flex items-center gap-3">
-          {canUpdate ? <ProductStatusAction productId={product.id} status={product.status} /> : null}
+          {canUpdate ? (
+            <ProductStatusAction productId={product.id} status={product.status} />
+          ) : null}
           {canDelete ? <DeleteProductAction productId={product.id} /> : null}
         </div>
       </div>

@@ -42,7 +42,9 @@ export function VerifyEmailPanel() {
   async function runVerification(currentToken: string) {
     setState("verifying");
     try {
-      const { error } = await api.POST("/api/v1/auth/verify-email", { body: { token: currentToken } });
+      const { error } = await api.POST("/api/v1/auth/verify-email", {
+        body: { token: currentToken },
+      });
       setState(error ? "invalid" : "success");
     } catch {
       // Distinct from "invalid": the request never reached the API at all

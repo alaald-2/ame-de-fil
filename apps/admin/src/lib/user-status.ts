@@ -1,4 +1,4 @@
-import type { BadgeTone } from "./order-status";
+import type { BadgeTone } from "@ame-de-fil/ui";
 
 // Only two real values exist on User.status (ACTIVE/DISABLED) — mirrors
 // CustomersTable's own inline ternary, pulled out here since Administration

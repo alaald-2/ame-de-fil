@@ -15,7 +15,10 @@ const validInput: CreateTaxonomyInput = {
 
 function makeTxMock() {
   return {
-    category: { create: vi.fn().mockResolvedValue({ id: "cat-1" }), delete: vi.fn().mockResolvedValue({}) },
+    category: {
+      create: vi.fn().mockResolvedValue({ id: "cat-1" }),
+      delete: vi.fn().mockResolvedValue({}),
+    },
     categoryTranslation: {
       createMany: vi.fn().mockResolvedValue({ count: 1 }),
       upsert: vi.fn().mockResolvedValue({}),
@@ -36,7 +39,14 @@ function makeAdminCategoryRow(overrides: Partial<Record<string, unknown>> = {}) 
     createdAt: new Date("2026-01-01T00:00:00.000Z"),
     updatedAt: new Date("2026-01-02T00:00:00.000Z"),
     translations: [
-      { locale: "sv_SE", name: "Halsdukar", slug: "halsdukar", description: null, metaTitle: null, metaDescription: null },
+      {
+        locale: "sv_SE",
+        name: "Halsdukar",
+        slug: "halsdukar",
+        description: null,
+        metaTitle: null,
+        metaDescription: null,
+      },
     ],
     _count: { products: 0 },
     ...overrides,
@@ -109,8 +119,22 @@ describe("AdminCategoriesService.list/getOne", () => {
   it("getOne returns every locale's translation content, not resolved to one", async () => {
     const row = makeAdminCategoryRow({
       translations: [
-        { locale: "sv_SE", name: "Halsdukar", slug: "halsdukar", description: null, metaTitle: null, metaDescription: null },
-        { locale: "en", name: "Scarves", slug: "scarves", description: null, metaTitle: null, metaDescription: null },
+        {
+          locale: "sv_SE",
+          name: "Halsdukar",
+          slug: "halsdukar",
+          description: null,
+          metaTitle: null,
+          metaDescription: null,
+        },
+        {
+          locale: "en",
+          name: "Scarves",
+          slug: "scarves",
+          description: null,
+          metaTitle: null,
+          metaDescription: null,
+        },
       ],
     });
     const prisma = {
@@ -146,7 +170,9 @@ describe("AdminCategoriesService.update", () => {
           .mockResolvedValueOnce({ id: "cat-1" })
           .mockResolvedValueOnce(makeAdminCategoryRow()),
       },
-      $transaction: vi.fn().mockImplementation((callback: (tx: unknown) => unknown) => callback(tx)),
+      $transaction: vi
+        .fn()
+        .mockImplementation((callback: (tx: unknown) => unknown) => callback(tx)),
     } as unknown as PrismaService;
     const service = new AdminCategoriesService(prisma, new AuditService(prisma));
 
@@ -175,7 +201,9 @@ describe("AdminCategoriesService.update", () => {
     );
     const prisma = {
       category: { findUnique: vi.fn().mockResolvedValueOnce({ id: "cat-1" }) },
-      $transaction: vi.fn().mockImplementation((callback: (tx: unknown) => unknown) => callback(tx)),
+      $transaction: vi
+        .fn()
+        .mockImplementation((callback: (tx: unknown) => unknown) => callback(tx)),
     } as unknown as PrismaService;
     const service = new AdminCategoriesService(prisma, new AuditService(prisma));
 
@@ -218,7 +246,9 @@ describe("AdminCategoriesService.remove", () => {
       category: {
         findUnique: vi.fn().mockResolvedValue({ id: "cat-1", _count: { products: 0 } }),
       },
-      $transaction: vi.fn().mockImplementation((callback: (tx: unknown) => unknown) => callback(tx)),
+      $transaction: vi
+        .fn()
+        .mockImplementation((callback: (tx: unknown) => unknown) => callback(tx)),
     } as unknown as PrismaService;
     const service = new AdminCategoriesService(prisma, new AuditService(prisma));
 

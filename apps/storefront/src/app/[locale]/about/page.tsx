@@ -34,7 +34,8 @@ export default async function AboutPage({ params }: { params: Promise<LocalePara
   const { data: homepageSections } = await api.GET("/api/v1/homepage-sections", {
     params: { query: { locale } },
   });
-  const storyImageUrl = homepageSections?.find((section) => section.key === "story")?.imageUrl ?? null;
+  const storyImageUrl =
+    homepageSections?.find((section) => section.key === "story")?.imageUrl ?? null;
 
   return (
     <Container className="py-16">

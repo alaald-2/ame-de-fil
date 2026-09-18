@@ -1,4 +1,4 @@
-import type { BadgeTone } from "./order-status";
+import type { BadgeTone } from "@ame-de-fil/ui";
 
 // Pure status -> tone mapping, no i18n — mirrors order-status.ts's own
 // convention (the visible label comes from the caller's translator, via

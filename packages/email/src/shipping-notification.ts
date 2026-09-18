@@ -1,4 +1,14 @@
-import { Body, Container, Head, Heading, Hr, Html, Link, Preview, Text } from "@react-email/components";
+import {
+  Body,
+  Container,
+  Head,
+  Heading,
+  Hr,
+  Html,
+  Link,
+  Preview,
+  Text,
+} from "@react-email/components";
 import { h } from "./h.ts";
 import type { EmailLocale } from "./order-confirmation.ts";
 
@@ -34,11 +44,15 @@ const COPY = {
 export function ShippingNotificationEmail(props: ShippingNotificationEmailProps) {
   const t = COPY[props.locale];
 
-  const carrierText = props.carrierName ? h(Text, null, `${t.carrier}: ${props.carrierName}`) : null;
+  const carrierText = props.carrierName
+    ? h(Text, null, `${t.carrier}: ${props.carrierName}`)
+    : null;
   const trackingNumberText = props.trackingNumber
     ? h(Text, null, `${t.trackingNumber}: ${props.trackingNumber}`)
     : null;
-  const trackingLink = props.trackingUrl ? h(Link, { href: props.trackingUrl }, t.trackingLink) : null;
+  const trackingLink = props.trackingUrl
+    ? h(Link, { href: props.trackingUrl }, t.trackingLink)
+    : null;
 
   return h(
     Html,

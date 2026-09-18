@@ -38,9 +38,17 @@ export default async function HeroSlidesPage() {
           <ContentTabs permissions={permissions} />
         </div>
         {errorResponse.status === 403 ? (
-          <ErrorState className="mt-6" title={t("forbiddenTitle")} description={t("forbiddenDescription")} />
+          <ErrorState
+            className="mt-6"
+            title={t("forbiddenTitle")}
+            description={t("forbiddenDescription")}
+          />
         ) : (
-          <ErrorState className="mt-6" title={t("errorTitle")} description={t("errorDescription")} />
+          <ErrorState
+            className="mt-6"
+            title={t("errorTitle")}
+            description={t("errorDescription")}
+          />
         )}
       </div>
     );

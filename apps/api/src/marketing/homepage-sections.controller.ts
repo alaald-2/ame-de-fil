@@ -18,7 +18,10 @@ export class HomepageSectionsController {
   constructor(private readonly homepageSections: HomepageSectionsService) {}
 
   @Get()
-  @ApiOperation({ summary: "Get the site's four named content sections (hero, story, made-to-order, announcement)" })
+  @ApiOperation({
+    summary:
+      "Get the site's four named content sections (hero, story, made-to-order, announcement)",
+  })
   @ApiZodQuery(localeQuerySchema)
   @ApiOkResponse({ schema: toOpenApiSchema(listHomepageSectionsResponseSchema) })
   @ApiErrorResponses(400)

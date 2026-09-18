@@ -11,10 +11,20 @@ import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { randomUUID } from "node:crypto";
 import type { ConfigService } from "@nestjs/config";
 import type { Env } from "@ame-de-fil/config";
-import { Currency, Locale, NotificationStatus, OrderStatus, ShipmentStatus } from "@ame-de-fil/database";
+import {
+  Currency,
+  Locale,
+  NotificationStatus,
+  OrderStatus,
+  ShipmentStatus,
+} from "@ame-de-fil/database";
 import { NotificationsService } from "./notifications.service.ts";
 import { PendingEmailProvider } from "./email-provider.ts";
-import { startTestDatabase, stopTestDatabase, type TestDatabase } from "../test/testcontainers-postgres.ts";
+import {
+  startTestDatabase,
+  stopTestDatabase,
+  type TestDatabase,
+} from "../test/testcontainers-postgres.ts";
 import { seedShopFixture, type ShopFixture } from "../test/fixtures.ts";
 
 function fakeConfig(): ConfigService<Env, true> {

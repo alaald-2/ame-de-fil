@@ -42,7 +42,11 @@ export const ADMIN_USER_DETAIL_SELECT = {
   roles: {
     select: {
       role: {
-        select: { id: true, name: true, permissions: { select: { permission: { select: { key: true } } } } },
+        select: {
+          id: true,
+          name: true,
+          permissions: { select: { permission: { select: { key: true } } } },
+        },
       },
     },
   },

@@ -352,7 +352,14 @@ function mmToCm(mm: number): number {
 }
 
 function toShippingQuote(
-  method: { id: string; code: string; nameSv: string; nameEn: string; minDeliveryDays: number; maxDeliveryDays: number },
+  method: {
+    id: string;
+    code: string;
+    nameSv: string;
+    nameEn: string;
+    minDeliveryDays: number;
+    maxDeliveryDays: number;
+  },
   product: ShipmondoProductConfig,
   priceMinor: number,
 ): ShippingQuote {

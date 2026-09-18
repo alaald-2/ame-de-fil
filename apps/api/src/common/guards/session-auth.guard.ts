@@ -8,9 +8,9 @@ import { ConfigService } from "@nestjs/config";
 import { Reflector } from "@nestjs/core";
 import type { Request } from "express";
 import type { Env } from "@ame-de-fil/config";
-import { SessionService } from "../../identity/session.service.js";
-import { IS_PUBLIC_KEY } from "../decorators/public.decorator.js";
-import { OPTIONAL_AUTH_KEY } from "../decorators/optional-auth.decorator.js";
+import { SessionService } from "../../identity/session.service.ts";
+import { IS_PUBLIC_KEY } from "../decorators/public.decorator.ts";
+import { OPTIONAL_AUTH_KEY } from "../decorators/optional-auth.decorator.ts";
 
 // Default-deny: every route requires a valid session unless explicitly
 // marked @Public() or @OptionalAuth() (SECURITY.md §2). Runs before

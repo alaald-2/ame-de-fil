@@ -5,7 +5,11 @@
 // exactly the kind of thing a mocked Prisma client can't actually verify.
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
 import { randomUUID } from "node:crypto";
-import { BadRequestException, ConflictException, UnprocessableEntityException } from "@nestjs/common";
+import {
+  BadRequestException,
+  ConflictException,
+  UnprocessableEntityException,
+} from "@nestjs/common";
 import type { ConfigService } from "@nestjs/config";
 import type { Env } from "@ame-de-fil/config";
 import { Currency, Locale, OrderStatus, PaymentStatus, ShipmentStatus } from "@ame-de-fil/database";
@@ -14,12 +18,12 @@ import { NotificationsService } from "../notifications/notifications.service.ts"
 import { PendingEmailProvider } from "../notifications/email-provider.ts";
 import { ManualShippingProvider } from "../shipping/shipping-provider.ts";
 import { AuditService } from "../audit/audit.service.ts";
-import type {
-  PaymentProvider,
-  RefundInput,
-  RefundResult,
-} from "../payments/payment-provider.ts";
-import { startTestDatabase, stopTestDatabase, type TestDatabase } from "../test/testcontainers-postgres.ts";
+import type { PaymentProvider, RefundInput, RefundResult } from "../payments/payment-provider.ts";
+import {
+  startTestDatabase,
+  stopTestDatabase,
+  type TestDatabase,
+} from "../test/testcontainers-postgres.ts";
 import {
   seedShopFixture,
   seedUserWithPermissions,
@@ -49,7 +53,9 @@ class ControllableFakePaymentProvider implements PaymentProvider {
   }
 
   verifyWebhookSignature(): never {
-    throw new Error("not used by AdminOrdersService — refund tests never call verifyWebhookSignature");
+    throw new Error(
+      "not used by AdminOrdersService — refund tests never call verifyWebhookSignature",
+    );
   }
 
   async refund(input: RefundInput): Promise<RefundResult> {
@@ -83,7 +89,8 @@ describe("AdminOrdersService — real Postgres", () => {
     db = await startTestDatabase();
     shop = await seedShopFixture(db.prisma);
     variant = await seedVariant(db.prisma, shop.taxClassId);
-    actorUserId = (await seedUserWithPermissions(db.prisma, ["orders.fulfill", "orders.refund"])).userId;
+    actorUserId = (await seedUserWithPermissions(db.prisma, ["orders.fulfill", "orders.refund"]))
+      .userId;
     // PendingEmailProvider — no real SMTP container in this harness
     // (TESTING.md §3); NotificationsService never throws, so this can't
     // affect any assertion below about order/shipment state.
@@ -213,7 +220,11 @@ describe("AdminOrdersService — real Postgres", () => {
     let order = await db.prisma.order.findUniqueOrThrow({ where: { id: orderId } });
     expect(order.status).toBe(OrderStatus.READY_TO_SHIP);
 
-    await service.markShipped(orderId, { carrierName: "PostNord", trackingNumber: "ABC123" }, actorUserId);
+    await service.markShipped(
+      orderId,
+      { carrierName: "PostNord", trackingNumber: "ABC123" },
+      actorUserId,
+    );
     order = await db.prisma.order.findUniqueOrThrow({ where: { id: orderId } });
     expect(order.status).toBe(OrderStatus.SHIPPED);
 
@@ -374,7 +385,11 @@ describe("AdminOrdersService — real Postgres", () => {
 
       const result = await service.getOrderDetail(orderId);
 
-      expect(result.customer).toEqual({ userId: null, email: "real-guest@example.com", name: null });
+      expect(result.customer).toEqual({
+        userId: null,
+        email: "real-guest@example.com",
+        name: null,
+      });
     });
   });
 
@@ -388,7 +403,12 @@ describe("AdminOrdersService — real Postgres", () => {
       const payment = await paymentFor(orderId);
 
       await expect(
-        service.issueRefund(orderId, { amountMinor: payment.amountMinor + 1 }, randomUUID(), actorUserId),
+        service.issueRefund(
+          orderId,
+          { amountMinor: payment.amountMinor + 1 },
+          randomUUID(),
+          actorUserId,
+        ),
       ).rejects.toThrow(BadRequestException);
 
       expect(paymentProvider.calls).toHaveLength(0);
@@ -399,9 +419,9 @@ describe("AdminOrdersService — real Postgres", () => {
     it("rejects a refund on a payment that is not PAID or PARTIALLY_REFUNDED", async () => {
       const orderId = await seedOrderWithDetails({ paymentStatus: PaymentStatus.PENDING });
 
-      await expect(service.issueRefund(orderId, { amountMinor: 1000 }, randomUUID(), actorUserId)).rejects.toThrow(
-        BadRequestException,
-      );
+      await expect(
+        service.issueRefund(orderId, { amountMinor: 1000 }, randomUUID(), actorUserId),
+      ).rejects.toThrow(BadRequestException);
       expect(paymentProvider.calls).toHaveLength(0);
     });
 
@@ -423,7 +443,9 @@ describe("AdminOrdersService — real Postgres", () => {
       expect(response.paymentStatus).toBe(PaymentStatus.PARTIALLY_REFUNDED);
       expect(response.orderStatus).toBe(OrderStatus.PARTIALLY_REFUNDED);
 
-      const updatedPayment = await db.prisma.payment.findUniqueOrThrow({ where: { id: payment.id } });
+      const updatedPayment = await db.prisma.payment.findUniqueOrThrow({
+        where: { id: payment.id },
+      });
       expect(updatedPayment.status).toBe(PaymentStatus.PARTIALLY_REFUNDED);
       const updatedOrder = await db.prisma.order.findUniqueOrThrow({ where: { id: orderId } });
       expect(updatedOrder.status).toBe(OrderStatus.PARTIALLY_REFUNDED);
@@ -447,7 +469,12 @@ describe("AdminOrdersService — real Postgres", () => {
         where: { id: variant.inventoryItemId },
       });
 
-      const response = await service.issueRefund(orderId, { amountMinor: payment.amountMinor }, randomUUID(), actorUserId);
+      const response = await service.issueRefund(
+        orderId,
+        { amountMinor: payment.amountMinor },
+        randomUUID(),
+        actorUserId,
+      );
 
       expect(response.status).toBe("SUCCEEDED");
       expect(response.paymentStatus).toBe(PaymentStatus.REFUNDED);
@@ -473,7 +500,12 @@ describe("AdminOrdersService — real Postgres", () => {
         where: { id: variant.inventoryItemId },
       });
 
-      const response = await service.issueRefund(orderId, { amountMinor: payment.amountMinor }, randomUUID(), actorUserId);
+      const response = await service.issueRefund(
+        orderId,
+        { amountMinor: payment.amountMinor },
+        randomUUID(),
+        actorUserId,
+      );
 
       expect(response.paymentStatus).toBe(PaymentStatus.REFUNDED);
       const inventoryAfter = await db.prisma.inventoryItem.findUniqueOrThrow({
@@ -491,11 +523,15 @@ describe("AdminOrdersService — real Postgres", () => {
         service.issueRefund(orderId, { amountMinor: 1000 }, randomUUID(), actorUserId),
       ).rejects.toThrow(UnprocessableEntityException);
 
-      const updatedPayment = await db.prisma.payment.findUniqueOrThrow({ where: { id: payment.id } });
+      const updatedPayment = await db.prisma.payment.findUniqueOrThrow({
+        where: { id: payment.id },
+      });
       expect(updatedPayment.status).toBe(PaymentStatus.PAID); // unchanged
       const refund = await db.prisma.refund.findFirstOrThrow({ where: { paymentId: payment.id } });
       expect(refund.status).toBe("FAILED");
-      const auditEntry = await db.prisma.auditLog.findFirst({ where: { entityType: "Refund", entityId: refund.id } });
+      const auditEntry = await db.prisma.auditLog.findFirst({
+        where: { entityType: "Refund", entityId: refund.id },
+      });
       expect(auditEntry).toBeNull(); // a failed refund never gets Order/Payment/audit effects applied
 
       // The failed reservation's amount must not remain counted against
@@ -514,8 +550,18 @@ describe("AdminOrdersService — real Postgres", () => {
       const orderId = await seedOrderWithDetails({});
       const key = randomUUID();
 
-      const first = await service.issueRefund(orderId, { amountMinor: 1000, reason: "r1" }, key, actorUserId);
-      const second = await service.issueRefund(orderId, { amountMinor: 1000, reason: "r1" }, key, actorUserId);
+      const first = await service.issueRefund(
+        orderId,
+        { amountMinor: 1000, reason: "r1" },
+        key,
+        actorUserId,
+      );
+      const second = await service.issueRefund(
+        orderId,
+        { amountMinor: 1000, reason: "r1" },
+        key,
+        actorUserId,
+      );
 
       expect(second).toEqual(first);
       expect(paymentProvider.calls).toHaveLength(1);
@@ -552,7 +598,12 @@ describe("AdminOrdersService — real Postgres", () => {
         },
       });
 
-      const response = await service.issueRefund(orderId, { amountMinor: 1000 }, randomUUID(), actorUserId);
+      const response = await service.issueRefund(
+        orderId,
+        { amountMinor: 1000 },
+        randomUUID(),
+        actorUserId,
+      );
 
       // The orphaned refund's effects were applied as a side effect of this
       // new call's reconciliation step, before its own reservation was made.
@@ -561,7 +612,9 @@ describe("AdminOrdersService — real Postgres", () => {
       });
       expect(healedAudit).not.toBeNull();
 
-      const updatedPayment = await db.prisma.payment.findUniqueOrThrow({ where: { id: payment.id } });
+      const updatedPayment = await db.prisma.payment.findUniqueOrThrow({
+        where: { id: payment.id },
+      });
       expect(updatedPayment.status).toBe(PaymentStatus.PARTIALLY_REFUNDED); // 4000 + 1000 < total
       expect(response.status).toBe("SUCCEEDED");
     });
@@ -620,7 +673,9 @@ describe("AdminOrdersService — real Postgres", () => {
 
       expect(results.every((r) => r.status === "SUCCEEDED")).toBe(true);
 
-      const updatedPayment = await db.prisma.payment.findUniqueOrThrow({ where: { id: payment.id } });
+      const updatedPayment = await db.prisma.payment.findUniqueOrThrow({
+        where: { id: payment.id },
+      });
       expect(updatedPayment.status).toBe(PaymentStatus.REFUNDED);
       const updatedOrder = await db.prisma.order.findUniqueOrThrow({ where: { id: orderId } });
       expect(updatedOrder.status).toBe(OrderStatus.REFUNDED);

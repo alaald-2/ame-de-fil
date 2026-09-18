@@ -1,7 +1,16 @@
 import { Controller, Get, HttpCode, HttpStatus, ServiceUnavailableException } from "@nestjs/common";
-import { ApiOperation, ApiResponse, ApiTags } from "@nestjs/swagger";
-import { Public } from "../common/decorators/public.decorator.js";
-import { HealthService } from "./health.service.js";
+import { ApiOkResponse, ApiOperation, ApiTags } from "@nestjs/swagger";
+import { z } from "zod";
+import { Public } from "../common/decorators/public.decorator.ts";
+import { ApiErrorResponses } from "../common/api-error-responses.ts";
+import { toOpenApiSchema } from "../common/zod-openapi.ts";
+import { HealthService } from "./health.service.ts";
+
+const healthResponseSchema = z.object({
+  status: z.literal("ok"),
+  checks: z.object({ database: z.literal("up") }),
+  timestamp: z.iso.datetime(),
+});
 
 // Unversioned and unauthenticated by design (DEPLOYMENT.md §5) — a load
 // balancer/orchestrator probe must not need a session or the /api/v1 prefix.
@@ -14,8 +23,8 @@ export class HealthController {
   @Get()
   @HttpCode(HttpStatus.OK)
   @ApiOperation({ summary: "Liveness/readiness probe" })
-  @ApiResponse({ status: 200, description: "Service is healthy" })
-  @ApiResponse({ status: 503, description: "A dependency (e.g. the database) is unreachable" })
+  @ApiOkResponse({ description: "Service is healthy", schema: toOpenApiSchema(healthResponseSchema) })
+  @ApiErrorResponses(503)
   async check() {
     const result = await this.health.check();
     if (result.status === "degraded") {

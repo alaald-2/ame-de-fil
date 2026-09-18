@@ -27,9 +27,9 @@ function makeAdapterP2002(modelName: string, table: string, index: string) {
 describe("isUniqueConstraintViolation", () => {
   describe("classic meta.target shape (backward compatibility)", () => {
     it("matches when the array target includes the field", () => {
-      expect(isUniqueConstraintViolation(makeClassicP2002(["orderNumber"]), "Order", "orderNumber")).toBe(
-        true,
-      );
+      expect(
+        isUniqueConstraintViolation(makeClassicP2002(["orderNumber"]), "Order", "orderNumber"),
+      ).toBe(true);
     });
 
     it("does not match a different field in an array target", () => {

@@ -40,5 +40,4 @@ export function buildRefundIdempotencyKey(orderId: string, clientKey: string): s
 // its id, and therefore its Stripe idempotency key) instead of creating a
 // second reservation.
 export type RefundIdempotencySnapshot =
-  | { phase: "pending"; refundId: string }
-  | { phase: "final"; response: RefundOrderResponse };
+  { phase: "pending"; refundId: string } | { phase: "final"; response: RefundOrderResponse };

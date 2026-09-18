@@ -29,7 +29,12 @@ interface AddToCartButtonProps {
 // account-menu.tsx), reused here rather than reaching for Radix Dialog
 // (which is a *modal* primitive — wrong semantics for a non-blocking
 // confirmation) or a new popover dependency.
-export function AddToCartButton({ variantId, available, productName, image }: AddToCartButtonProps) {
+export function AddToCartButton({
+  variantId,
+  available,
+  productName,
+  image,
+}: AddToCartButtonProps) {
   const t = useTranslations("Cart");
   const tCommon = useTranslations("Common");
   const { addItem, cart } = useCart();

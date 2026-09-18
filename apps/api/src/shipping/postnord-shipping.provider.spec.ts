@@ -111,7 +111,9 @@ describe("PostNordShippingProvider.listAvailableMethods / getQuote", () => {
   it("getQuote returns null for a ShippingMethod row this provider doesn't recognize", async () => {
     const provider = new PostNordShippingProvider(makeConfigMock(), makePrismaMock());
     const tx = {
-      shippingMethod: { findUnique: vi.fn().mockResolvedValue({ ...METHOD_ROW, code: "STANDARD" }) },
+      shippingMethod: {
+        findUnique: vi.fn().mockResolvedValue({ ...METHOD_ROW, code: "STANDARD" }),
+      },
     } as unknown as Prisma.TransactionClient;
 
     expect(await provider.getQuote(tx, "method-1")).toBeNull();
@@ -121,7 +123,9 @@ describe("PostNordShippingProvider.listAvailableMethods / getQuote", () => {
     const prisma = makePrismaMock();
     const provider = new PostNordShippingProvider(makeConfigMock(), prisma);
     const txFindUnique = vi.fn().mockResolvedValue(METHOD_ROW);
-    const tx = { shippingMethod: { findUnique: txFindUnique } } as unknown as Prisma.TransactionClient;
+    const tx = {
+      shippingMethod: { findUnique: txFindUnique },
+    } as unknown as Prisma.TransactionClient;
 
     const quote = await provider.getQuote(tx, "method-1");
 
@@ -167,7 +171,12 @@ describe("PostNordShippingProvider pickup points — POSTNORD_SERVICE_POINTS_RET
             {
               servicePointId: "sp-123",
               name: "ICA Nära Storgatan",
-              visitingAddress: { streetName: "Storgatan", streetNumber: "1", postalCode: "11122", city: "Stockholm" },
+              visitingAddress: {
+                streetName: "Storgatan",
+                streetNumber: "1",
+                postalCode: "11122",
+                city: "Stockholm",
+              },
             },
           ],
         },
@@ -181,7 +190,13 @@ describe("PostNordShippingProvider pickup points — POSTNORD_SERVICE_POINTS_RET
     const points = await provider.listPickupPoints("method-1", "11122");
 
     expect(points).toEqual([
-      { id: "sp-123", name: "ICA Nära Storgatan", address: "Storgatan 1", postalCode: "11122", city: "Stockholm" },
+      {
+        id: "sp-123",
+        name: "ICA Nära Storgatan",
+        address: "Storgatan 1",
+        postalCode: "11122",
+        city: "Stockholm",
+      },
     ]);
     const [url] = fetchMock.mock.calls[0] as [URL];
     expect(url.toString()).toContain("/rest/businesslocation/v5/servicepoints/nearest/byaddress");
@@ -230,11 +245,18 @@ describe("PostNordShippingProvider.createShipment", () => {
 
   it("returns null for a ShippingMethod row this provider doesn't recognize", async () => {
     const prisma = makePrismaMock({
-      shippingMethod: { findUnique: vi.fn().mockResolvedValue({ ...METHOD_ROW, code: "STANDARD" }) },
+      shippingMethod: {
+        findUnique: vi.fn().mockResolvedValue({ ...METHOD_ROW, code: "STANDARD" }),
+      },
     });
     const provider = new PostNordShippingProvider(makeConfigMock(), prisma);
 
-    const result = await provider.createShipment("method-1", SHIPMENT_DESTINATION, PARCEL, "AF-TEST-1");
+    const result = await provider.createShipment(
+      "method-1",
+      SHIPMENT_DESTINATION,
+      PARCEL,
+      "AF-TEST-1",
+    );
 
     expect(result).toBeNull();
     expect(fetchMock).not.toHaveBeenCalled();
@@ -246,7 +268,12 @@ describe("PostNordShippingProvider.createShipment", () => {
     });
     const provider = new PostNordShippingProvider(makeConfigMock(), prisma);
 
-    const result = await provider.createShipment("missing", SHIPMENT_DESTINATION, PARCEL, "AF-TEST-1");
+    const result = await provider.createShipment(
+      "missing",
+      SHIPMENT_DESTINATION,
+      PARCEL,
+      "AF-TEST-1",
+    );
 
     expect(result).toBeNull();
     expect(fetchMock).not.toHaveBeenCalled();
@@ -282,7 +309,12 @@ describe("PostNordShippingProvider.createShipment", () => {
       makePrismaMock(),
     );
 
-    const result = await provider.createShipment("method-1", SHIPMENT_DESTINATION, PARCEL, "AF-TEST-1");
+    const result = await provider.createShipment(
+      "method-1",
+      SHIPMENT_DESTINATION,
+      PARCEL,
+      "AF-TEST-1",
+    );
 
     expect(result).toEqual({
       carrierName: "PostNord",
@@ -304,14 +336,24 @@ describe("PostNordShippingProvider.createShipment", () => {
       partyIdentification: { partyId: "12345678", partyIdType: "160" },
       party: {
         nameIdentification: { name: "Âme de Fil" },
-        address: { streets: ["Segevångsgatan 5B"], postalCode: "212 27", city: "Malmö", countryCode: "SE" },
+        address: {
+          streets: ["Segevångsgatan 5B"],
+          postalCode: "212 27",
+          city: "Malmö",
+          countryCode: "SE",
+        },
       },
     });
     expect(body.shipment[0].parties.deliveryParty).toMatchObject({
       partyIdentification: { partyId: "sp-123", partyIdType: "156" },
       party: {
         nameIdentification: { name: "Test Testsson" },
-        address: { streets: ["Avenyn 1"], postalCode: "411 36", city: "Göteborg", countryCode: "SE" },
+        address: {
+          streets: ["Avenyn 1"],
+          postalCode: "411 36",
+          city: "Göteborg",
+          countryCode: "SE",
+        },
       },
     });
   });
@@ -333,7 +375,12 @@ describe("PostNordShippingProvider.createShipment", () => {
     });
     const provider = new PostNordShippingProvider(makeConfigMock(), makePrismaMock());
 
-    const result = await provider.createShipment("method-1", SHIPMENT_DESTINATION, PARCEL, "AF-TEST-1");
+    const result = await provider.createShipment(
+      "method-1",
+      SHIPMENT_DESTINATION,
+      PARCEL,
+      "AF-TEST-1",
+    );
 
     expect(result).toEqual({
       carrierName: "PostNord",

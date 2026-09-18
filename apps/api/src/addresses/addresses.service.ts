@@ -49,7 +49,10 @@ export class AddressesService {
 
     const address = await this.prisma.$transaction(async (tx) => {
       if (shouldBeDefault) {
-        await tx.address.updateMany({ where: { userId, isDefault: true }, data: { isDefault: false } });
+        await tx.address.updateMany({
+          where: { userId, isDefault: true },
+          data: { isDefault: false },
+        });
       }
       return tx.address.create({
         data: {
@@ -85,7 +88,10 @@ export class AddressesService {
 
     const address = await this.prisma.$transaction(async (tx) => {
       if (input.isDefault === true) {
-        await tx.address.updateMany({ where: { userId, isDefault: true }, data: { isDefault: false } });
+        await tx.address.updateMany({
+          where: { userId, isDefault: true },
+          data: { isDefault: false },
+        });
       }
       return tx.address.update({
         where: { id: addressId },

@@ -10,7 +10,13 @@ import { useCart } from "./cart-provider";
 // CloseIcon/MagnifyingGlassIcon in the mobile drawer's header row.
 function BagIcon({ className }: { className?: string }) {
   return (
-    <svg viewBox="0 0 15 15" fill="none" xmlns="http://www.w3.org/2000/svg" className={className} aria-hidden="true">
+    <svg
+      viewBox="0 0 15 15"
+      fill="none"
+      xmlns="http://www.w3.org/2000/svg"
+      className={className}
+      aria-hidden="true"
+    >
       <path
         d="M4.5 4V3.25C4.5 2.007 5.507 1 6.75 1H8.25C9.493 1 10.5 2.007 10.5 3.25V4M2.75 4H12.25L11.7 12.6C11.646 13.427 10.96 14.07 10.13 14.07H4.87C4.04 14.07 3.354 13.427 3.3 12.6L2.75 4Z"
         stroke="currentColor"
@@ -26,7 +32,13 @@ function BagIcon({ className }: { className?: string }) {
 // desktop-style header row (default, unchanged) and an icon+badge form for
 // the full-screen mobile drawer header (site-nav.tsx's MobileNav), which
 // has no room next to the close/logo/search icons for a text label.
-export function CartLink({ label, variant = "text" }: { label: string; variant?: "text" | "icon" }) {
+export function CartLink({
+  label,
+  variant = "text",
+}: {
+  label: string;
+  variant?: "text" | "icon";
+}) {
   const { cart } = useCart();
 
   if (variant === "icon") {
@@ -44,7 +56,9 @@ export function CartLink({ label, variant = "text" }: { label: string; variant?:
             {cart.itemCount}
           </span>
         ) : null}
-        <VisuallyHidden>{cart.itemCount > 0 ? `${label} (${cart.itemCount})` : label}</VisuallyHidden>
+        <VisuallyHidden>
+          {cart.itemCount > 0 ? `${label} (${cart.itemCount})` : label}
+        </VisuallyHidden>
       </Link>
     );
   }

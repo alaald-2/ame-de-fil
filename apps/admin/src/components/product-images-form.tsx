@@ -37,6 +37,7 @@ import {
 } from "@ame-de-fil/ui";
 import { api } from "../lib/api-client";
 import { readCsrfCookie } from "../lib/csrf";
+import { ALLOWED_IMAGE_TYPES, MAX_IMAGE_BYTES } from "../lib/image-upload";
 import { ImageEditor, type ImageEditorHandle } from "./image-editor";
 
 interface ProductImage {
@@ -126,7 +127,10 @@ export function ProductImagesForm({ productId, images }: ProductImagesFormProps)
         </Text>
       ) : (
         <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
-          <SortableContext items={orderedImages.map((image) => image.id)} strategy={rectSortingStrategy}>
+          <SortableContext
+            items={orderedImages.map((image) => image.id)}
+            strategy={rectSortingStrategy}
+          >
             <div
               className="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-4"
               aria-busy={isSavingOrder}
@@ -226,12 +230,20 @@ function SortableImageCard({ productId, image }: { productId: string; image: Pro
           {saveErrorKind ? <Alert tone="danger">{t("genericError")}</Alert> : null}
           <FormField label={t("altTextSvLabel")}>
             {(fieldProps) => (
-              <Input {...fieldProps} value={altTextSv} onChange={(e) => setAltTextSv(e.target.value)} />
+              <Input
+                {...fieldProps}
+                value={altTextSv}
+                onChange={(e) => setAltTextSv(e.target.value)}
+              />
             )}
           </FormField>
           <FormField label={t("altTextEnLabel")}>
             {(fieldProps) => (
-              <Input {...fieldProps} value={altTextEn} onChange={(e) => setAltTextEn(e.target.value)} />
+              <Input
+                {...fieldProps}
+                value={altTextEn}
+                onChange={(e) => setAltTextEn(e.target.value)}
+              />
             )}
           </FormField>
           <div className="flex items-center justify-between gap-2">
@@ -252,7 +264,12 @@ function SortableImageCard({ productId, image }: { productId: string; image: Pro
               >
                 {deleteErrorKind ? <Alert tone="danger">{t("genericError")}</Alert> : null}
                 <div className="mt-6 flex justify-end gap-3">
-                  <Button type="button" variant="danger" onClick={handleDelete} disabled={isDeleting}>
+                  <Button
+                    type="button"
+                    variant="danger"
+                    onClick={handleDelete}
+                    disabled={isDeleting}
+                  >
                     {isDeleting ? <Spinner className="h-4 w-4" /> : null} {t("deleteButton")}
                   </Button>
                 </div>
@@ -264,14 +281,6 @@ function SortableImageCard({ productId, image }: { productId: string; image: Pro
     </Card>
   );
 }
-
-// Mirrors admin-products.service.ts's own upload validation exactly (same
-// pair create-product-form.tsx already keeps for its own file input) — a
-// frontend-only nicety so a dropped/selected file that's already known to
-// fail is never even handed to the editor; the backend still enforces this
-// regardless.
-const ALLOWED_IMAGE_TYPES = new Set(["image/jpeg", "image/png", "image/webp"]);
-const MAX_IMAGE_BYTES = 5 * 1024 * 1024;
 
 function UploadImageDialog({ productId }: { productId: string }) {
   const t = useTranslations("Products.detail.images");
@@ -289,7 +298,9 @@ function UploadImageDialog({ productId }: { productId: string }) {
   const [altTextEn, setAltTextEn] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isDraggingOver, setIsDraggingOver] = useState(false);
-  const [errorKind, setErrorKind] = useState<"missingFile" | "invalidFile" | "generic" | null>(null);
+  const [errorKind, setErrorKind] = useState<"missingFile" | "invalidFile" | "generic" | null>(
+    null,
+  );
   const editorRef = useRef<ImageEditorHandle>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -401,8 +412,12 @@ function UploadImageDialog({ productId }: { productId: string }) {
       >
         <form onSubmit={handleSubmit}>
           <div className="flex flex-col gap-4">
-            {errorKind === "missingFile" ? <Alert tone="danger">{t("missingFileError")}</Alert> : null}
-            {errorKind === "invalidFile" ? <Alert tone="danger">{t("invalidFileError")}</Alert> : null}
+            {errorKind === "missingFile" ? (
+              <Alert tone="danger">{t("missingFileError")}</Alert>
+            ) : null}
+            {errorKind === "invalidFile" ? (
+              <Alert tone="danger">{t("invalidFileError")}</Alert>
+            ) : null}
             {errorKind === "generic" ? <Alert tone="danger">{t("genericError")}</Alert> : null}
             {!currentFile ? (
               <FormField label={t("fileLabel")} required>
@@ -456,19 +471,32 @@ function UploadImageDialog({ productId }: { productId: string }) {
                   file={currentFile}
                   defaultAspect="3:4"
                 />
-                <Button type="button" variant="ghost" className="w-fit" onClick={() => setQueue([])}>
+                <Button
+                  type="button"
+                  variant="ghost"
+                  className="w-fit"
+                  onClick={() => setQueue([])}
+                >
                   {t("chooseDifferentFile")}
                 </Button>
               </>
             )}
             <FormField label={t("altTextSvLabel")}>
               {(fieldProps) => (
-                <Input {...fieldProps} value={altTextSv} onChange={(e) => setAltTextSv(e.target.value)} />
+                <Input
+                  {...fieldProps}
+                  value={altTextSv}
+                  onChange={(e) => setAltTextSv(e.target.value)}
+                />
               )}
             </FormField>
             <FormField label={t("altTextEnLabel")}>
               {(fieldProps) => (
-                <Input {...fieldProps} value={altTextEn} onChange={(e) => setAltTextEn(e.target.value)} />
+                <Input
+                  {...fieldProps}
+                  value={altTextEn}
+                  onChange={(e) => setAltTextEn(e.target.value)}
+                />
               )}
             </FormField>
           </div>

@@ -113,7 +113,9 @@ export function AdjustStockDialog({ variantId, productName, sku, onHand }: Adjus
               )}
             </FormField>
             <fieldset>
-              <legend className="font-sans text-sm font-medium text-neutral-800">{t("typeLabel")}</legend>
+              <legend className="font-sans text-sm font-medium text-neutral-800">
+                {t("typeLabel")}
+              </legend>
               <div className="mt-1.5 flex gap-4">
                 <label className="flex items-center gap-2 text-sm text-neutral-800">
                   <input

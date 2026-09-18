@@ -3,7 +3,17 @@
 import { useState, type FormEvent } from "react";
 import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
-import { Button, Alert, Dialog, DialogTrigger, DialogContent, FormField, Input, Textarea, Spinner } from "@ame-de-fil/ui";
+import {
+  Button,
+  Alert,
+  Dialog,
+  DialogTrigger,
+  DialogContent,
+  FormField,
+  Input,
+  Textarea,
+  Spinner,
+} from "@ame-de-fil/ui";
 import { api } from "../lib/api-client";
 import { readCsrfCookie } from "../lib/csrf";
 import { slugify } from "../lib/slugify";
@@ -17,7 +27,13 @@ interface TranslationDraft {
   metaDescription: string;
 }
 
-const EMPTY_DRAFT: TranslationDraft = { name: "", slug: "", description: "", metaTitle: "", metaDescription: "" };
+const EMPTY_DRAFT: TranslationDraft = {
+  name: "",
+  slug: "",
+  description: "",
+  metaTitle: "",
+  metaDescription: "",
+};
 
 interface CreateTaxonomyDialogProps {
   kind: "categories" | "collections";
@@ -121,11 +137,17 @@ export function CreateTaxonomyDialog({ kind }: CreateTaxonomyDialogProps) {
       <DialogTrigger asChild>
         <Button>{t("submit")}</Button>
       </DialogTrigger>
-      <DialogContent title={t("dialogTitle")} description={t("dialogDescription")} closeLabel={t("close")}>
+      <DialogContent
+        title={t("dialogTitle")}
+        description={t("dialogDescription")}
+        closeLabel={t("close")}
+      >
         <form onSubmit={handleSubmit}>
           <div className="flex flex-col gap-6">
             {errorKind ? (
-              <Alert tone="danger">{errorKind === "duplicateSlug" ? t("duplicateSlugError") : t("genericError")}</Alert>
+              <Alert tone="danger">
+                {errorKind === "duplicateSlug" ? t("duplicateSlugError") : t("genericError")}
+              </Alert>
             ) : null}
 
             {(["sv-SE", "en"] as const).map((locale) => (
@@ -144,7 +166,11 @@ export function CreateTaxonomyDialog({ kind }: CreateTaxonomyDialogProps) {
                       />
                     )}
                   </FormField>
-                  <FormField label={t("slugLabel")} required={locale === "sv-SE"} hint={t("slugHint")}>
+                  <FormField
+                    label={t("slugLabel")}
+                    required={locale === "sv-SE"}
+                    hint={t("slugHint")}
+                  >
                     {(fieldProps) => (
                       <Input
                         {...fieldProps}

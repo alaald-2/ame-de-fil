@@ -33,11 +33,7 @@ export interface PaymentRecord {
 // it never drives an Order/Payment state transition, only records which
 // underlying method (card/klarna/swish) a payment actually used.
 export type VerifiedWebhookOutcome =
-  | "succeeded"
-  | "failed"
-  | "canceled"
-  | "paymentMethodRecorded"
-  | "irrelevant";
+  "succeeded" | "failed" | "canceled" | "paymentMethodRecorded" | "irrelevant";
 
 export interface VerifiedWebhookEvent {
   providerEventId: string;

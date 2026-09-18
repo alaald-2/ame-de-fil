@@ -1,7 +1,10 @@
 import type { Prisma } from "@ame-de-fil/database";
 import type { Locale as AppLocale } from "@ame-de-fil/validation";
 import { resolveTranslation } from "../catalog/mappers/translation.mapper.ts";
-import { resolveEffectivePrice, type ActivePromotionSummary } from "../promotions/effective-price.ts";
+import {
+  resolveEffectivePrice,
+  type ActivePromotionSummary,
+} from "../promotions/effective-price.ts";
 import { priceLine, type PricedLine } from "./pricing.ts";
 
 // A richer include than cart's own CART_INCLUDE (mappers/cart.mapper.ts) —
@@ -93,4 +96,3 @@ export function buildOrderItemSnapshot(
     ...priceLine(effective.effectivePriceMinor, item.quantity, taxRatePercent),
   };
 }
-

@@ -63,7 +63,9 @@ export function RefundDialog({ orderId, defaultAmountMinor }: RefundDialogProps)
 
     if (error) {
       if (response.status === 400) {
-        setErrorKind(error.error === "NoRefundablePayment" ? "noRefundablePayment" : "exceedsRemaining");
+        setErrorKind(
+          error.error === "NoRefundablePayment" ? "noRefundablePayment" : "exceedsRemaining",
+        );
       } else {
         setErrorKind("generic");
       }
@@ -90,7 +92,11 @@ export function RefundDialog({ orderId, defaultAmountMinor }: RefundDialogProps)
       <DialogTrigger asChild>
         <Button variant="secondary">{t("action")}</Button>
       </DialogTrigger>
-      <DialogContent title={t("dialogTitle")} description={t("dialogDescription")} closeLabel={t("close")}>
+      <DialogContent
+        title={t("dialogTitle")}
+        description={t("dialogDescription")}
+        closeLabel={t("close")}
+      >
         <form onSubmit={handleSubmit}>
           <div className="flex flex-col gap-4">
             {errorKind ? (
@@ -117,7 +123,11 @@ export function RefundDialog({ orderId, defaultAmountMinor }: RefundDialogProps)
             </FormField>
             <FormField label={t("reasonLabel")}>
               {(fieldProps) => (
-                <Textarea {...fieldProps} value={reason} onChange={(e) => setReason(e.target.value)} />
+                <Textarea
+                  {...fieldProps}
+                  value={reason}
+                  onChange={(e) => setReason(e.target.value)}
+                />
               )}
             </FormField>
           </div>

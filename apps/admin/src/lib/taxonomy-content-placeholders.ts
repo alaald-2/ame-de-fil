@@ -5,7 +5,10 @@
 // same fields, just different example names.
 export const TAXONOMY_CONTENT_PLACEHOLDERS: Record<
   "categories" | "collections",
-  Record<"sv-SE" | "en", { name: string; description: string; metaTitle: string; metaDescription: string }>
+  Record<
+    "sv-SE" | "en",
+    { name: string; description: string; metaTitle: string; metaDescription: string }
+  >
 > = {
   categories: {
     "sv-SE": {

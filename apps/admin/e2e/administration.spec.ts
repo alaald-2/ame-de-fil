@@ -15,7 +15,9 @@ import AxeBuilder from "@axe-core/playwright";
 // (that suite's actions are at least reversible in effect if not in
 // record). Mutation flows were verified manually against the live stack
 // instead — see the chat transcript for that pass's results.
-test("administration renders real data, and the tabs navigate between Users and Audit log", async ({ page }) => {
+test("administration renders real data, and the tabs navigate between Users and Audit log", async ({
+  page,
+}) => {
   await page.goto("/administration");
   await expect(page.getByRole("heading", { name: "Administration", level: 1 })).toBeVisible();
   await expect(page.getByRole("columnheader", { name: "E-post" })).toBeVisible();
@@ -29,7 +31,9 @@ test("administration renders real data, and the tabs navigate between Users and 
   await expect(page).toHaveURL(/\/administration$/);
 });
 
-test("a user row navigates to a detail page with roles, permissions, and account info", async ({ page }) => {
+test("a user row navigates to a detail page with roles, permissions, and account info", async ({
+  page,
+}) => {
   await page.goto("/administration");
   const rowLink = page.getByRole("link", { name: /^Visa /i }).first();
   await expect(rowLink).toBeVisible();
@@ -51,7 +55,9 @@ test("pagination query param renders a consistent page (including a deliberately
   await expect(page.getByText("Inga personalanvändare ännu")).toBeVisible();
 });
 
-test("mobile viewport shows stacked records instead of the desktop table on both tabs", async ({ page }) => {
+test("mobile viewport shows stacked records instead of the desktop table on both tabs", async ({
+  page,
+}) => {
   await page.setViewportSize({ width: 390, height: 844 });
 
   await page.goto("/administration");
@@ -73,7 +79,10 @@ test("administration sections and user detail have no axe violations at desktop 
   expect(usersMobile.violations).toEqual([]);
 
   await page.setViewportSize({ width: 1280, height: 900 });
-  await page.getByRole("link", { name: /^Visa /i }).first().click();
+  await page
+    .getByRole("link", { name: /^Visa /i })
+    .first()
+    .click();
   await expect(page.getByRole("heading", { name: "Roller" })).toBeVisible();
   const detailDesktop = await new AxeBuilder({ page }).analyze();
   expect(detailDesktop.violations).toEqual([]);

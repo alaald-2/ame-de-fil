@@ -18,7 +18,11 @@ import { PINO_REDACT_PATHS, pinoRedactCensor } from "./pino-redact.ts";
 class CapturingStream extends Writable {
   private chunks: Buffer[] = [];
 
-  override _write(chunk: Buffer, _encoding: string, callback: (error?: Error | null) => void): void {
+  override _write(
+    chunk: Buffer,
+    _encoding: string,
+    callback: (error?: Error | null) => void,
+  ): void {
     this.chunks.push(chunk);
     callback();
   }

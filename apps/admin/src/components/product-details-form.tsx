@@ -255,7 +255,10 @@ export function ProductDetailsForm({
               </legend>
               <div className="mt-2 flex flex-col gap-2">
                 {categories.map((category) => (
-                  <label key={category.id} className="flex items-center gap-2 text-sm text-neutral-800">
+                  <label
+                    key={category.id}
+                    className="flex items-center gap-2 text-sm text-neutral-800"
+                  >
                     <input
                       type="checkbox"
                       className="h-4 w-4 rounded-sm border-neutral-300 text-accent-600 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent-500"
@@ -275,12 +278,17 @@ export function ProductDetailsForm({
               </legend>
               <div className="mt-2 flex flex-col gap-2">
                 {collections.map((collection) => (
-                  <label key={collection.id} className="flex items-center gap-2 text-sm text-neutral-800">
+                  <label
+                    key={collection.id}
+                    className="flex items-center gap-2 text-sm text-neutral-800"
+                  >
                     <input
                       type="checkbox"
                       className="h-4 w-4 rounded-sm border-neutral-300 text-accent-600 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent-500"
                       checked={collectionIds.includes(collection.id)}
-                      onChange={() => setCollectionIds((current) => toggleId(current, collection.id))}
+                      onChange={() =>
+                        setCollectionIds((current) => toggleId(current, collection.id))
+                      }
                     />
                     {collection.name}
                   </label>

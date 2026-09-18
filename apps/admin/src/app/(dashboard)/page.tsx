@@ -1,15 +1,12 @@
 import { getTranslations, getLocale } from "next-intl/server";
-import { Heading, Text, Alert, Card, Link, ErrorState } from "@ame-de-fil/ui";
+import { Heading, Text, Alert, Card, Link, ErrorState, type BadgeTone } from "@ame-de-fil/ui";
 import { requireSession } from "../../lib/dal";
 import { getServerApiClient } from "../../lib/server-api";
 import { formatMoney } from "../../lib/format-money";
-import { orderStatusTone, paymentStatusTone, refundStatusTone, type BadgeTone } from "../../lib/order-status";
+import { formatDate } from "../../lib/format-date";
+import { orderStatusTone, paymentStatusTone, refundStatusTone } from "../../lib/order-status";
 import { DashboardDateRangeForm } from "../../components/dashboard-date-range-form";
 import type { AdminLocale } from "../../i18n/config";
-
-function formatDate(iso: string, locale: string): string {
-  return new Intl.DateTimeFormat(locale, { dateStyle: "medium" }).format(new Date(iso));
-}
 
 interface StatProps {
   label: string;
@@ -129,27 +126,25 @@ export default async function DashboardPage({ searchParams }: DashboardPageProps
   // built: drill-down list endpoints for any alert").
   const alertLinkClassName = "text-danger underline underline-offset-4 hover:no-underline";
   const alertNodes = [
-    data.alerts.lowStockCount > 0
-      ? (
-          <Link key="lowStock" href="/inventory/low-stock" className={alertLinkClassName}>
-            {t("alerts.lowStock", { count: data.alerts.lowStockCount })}
-          </Link>
-        )
-      : null,
-    data.alerts.disputedPaymentsCount > 0
-      ? (
-          <Link key="disputedPayments" href="/orders?paymentStatus=DISPUTED" className={alertLinkClassName}>
-            {t("alerts.disputedPayments", { count: data.alerts.disputedPaymentsCount })}
-          </Link>
-        )
-      : null,
-    data.alerts.failedRefundsCount > 0
-      ? (
-          <Link key="failedRefunds" href="/orders?refundStatus=FAILED" className={alertLinkClassName}>
-            {t("alerts.failedRefunds", { count: data.alerts.failedRefundsCount })}
-          </Link>
-        )
-      : null,
+    data.alerts.lowStockCount > 0 ? (
+      <Link key="lowStock" href="/inventory/low-stock" className={alertLinkClassName}>
+        {t("alerts.lowStock", { count: data.alerts.lowStockCount })}
+      </Link>
+    ) : null,
+    data.alerts.disputedPaymentsCount > 0 ? (
+      <Link
+        key="disputedPayments"
+        href="/orders?paymentStatus=DISPUTED"
+        className={alertLinkClassName}
+      >
+        {t("alerts.disputedPayments", { count: data.alerts.disputedPaymentsCount })}
+      </Link>
+    ) : null,
+    data.alerts.failedRefundsCount > 0 ? (
+      <Link key="failedRefunds" href="/orders?refundStatus=FAILED" className={alertLinkClassName}>
+        {t("alerts.failedRefunds", { count: data.alerts.failedRefundsCount })}
+      </Link>
+    ) : null,
   ].filter((node): node is NonNullable<typeof node> => node !== null);
 
   const ordersByStatus: BreakdownItem[] = [...data.orders.byStatus]
@@ -158,7 +153,11 @@ export default async function DashboardPage({ searchParams }: DashboardPageProps
 
   const paymentsByStatus: BreakdownItem[] = [...data.payments.byStatus]
     .sort((a, b) => b.count - a.count)
-    .map((row) => ({ label: tp(row.status), count: row.count, tone: paymentStatusTone(row.status) }));
+    .map((row) => ({
+      label: tp(row.status),
+      count: row.count,
+      tone: paymentStatusTone(row.status),
+    }));
 
   const refundsByStatus: BreakdownItem[] = [...data.refunds.byStatus]
     .sort((a, b) => b.count - a.count)
@@ -178,7 +177,11 @@ export default async function DashboardPage({ searchParams }: DashboardPageProps
           to: formatDate(data.period.to, locale),
         })}
       </Text>
-      <DashboardDateRangeForm key={`${data.period.from}-${data.period.to}`} from={data.period.from} to={data.period.to} />
+      <DashboardDateRangeForm
+        key={`${data.period.from}-${data.period.to}`}
+        from={data.period.from}
+        to={data.period.to}
+      />
 
       {alertNodes.length > 0 ? (
         <Alert tone="danger" className="mt-6">
@@ -206,7 +209,10 @@ export default async function DashboardPage({ searchParams }: DashboardPageProps
             value={formatMoney(data.revenue.netMinor, locale as AdminLocale)}
           />
           <div className="mt-6 grid grid-cols-2 gap-6 border-t border-neutral-200 pt-6 sm:grid-cols-4">
-            <Stat label={t("revenue.gross")} value={formatMoney(data.revenue.grossMinor, locale as AdminLocale)} />
+            <Stat
+              label={t("revenue.gross")}
+              value={formatMoney(data.revenue.grossMinor, locale as AdminLocale)}
+            />
             <Stat
               label={t("revenue.refunds")}
               value={formatMoney(data.revenue.refundsMinor, locale as AdminLocale)}
@@ -219,7 +225,10 @@ export default async function DashboardPage({ searchParams }: DashboardPageProps
                   : formatMoney(data.revenue.averageOrderValueMinor, locale as AdminLocale)
               }
             />
-            <Stat label={t("revenue.confirmedOrders")} value={String(data.revenue.confirmedOrderCount)} />
+            <Stat
+              label={t("revenue.confirmedOrders")}
+              value={String(data.revenue.confirmedOrderCount)}
+            />
           </div>
         </Card>
       </div>
@@ -265,7 +274,10 @@ export default async function DashboardPage({ searchParams }: DashboardPageProps
             {t("customers.title")}
           </Heading>
           <div className="grid grid-cols-2 gap-6">
-            <Stat label={t("customers.totalRegistered")} value={String(data.customers.totalRegistered)} />
+            <Stat
+              label={t("customers.totalRegistered")}
+              value={String(data.customers.totalRegistered)}
+            />
             <Stat label={t("customers.newInPeriod")} value={String(data.customers.newInPeriod)} />
           </div>
         </Card>

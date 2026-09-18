@@ -3,7 +3,18 @@
 import { useId, useState, type FormEvent } from "react";
 import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
-import { Button, Alert, Dialog, DialogTrigger, DialogContent, FormField, Input, Textarea, Label, Spinner } from "@ame-de-fil/ui";
+import {
+  Button,
+  Alert,
+  Dialog,
+  DialogTrigger,
+  DialogContent,
+  FormField,
+  Input,
+  Textarea,
+  Label,
+  Spinner,
+} from "@ame-de-fil/ui";
 import { api } from "../lib/api-client";
 import { readCsrfCookie } from "../lib/csrf";
 import type { AssigneeOption } from "./task-row-actions";
@@ -103,7 +114,11 @@ export function CreateTaskDialog({ assignees }: CreateTaskDialogProps) {
       <DialogTrigger asChild>
         <Button>{t("createTask")}</Button>
       </DialogTrigger>
-      <DialogContent title={t("createDialogTitle")} description={t("createDialogDescription")} closeLabel={t("close")}>
+      <DialogContent
+        title={t("createDialogTitle")}
+        description={t("createDialogDescription")}
+        closeLabel={t("close")}
+      >
         <form onSubmit={handleSubmit}>
           <div className="flex flex-col gap-4">
             {errorKind ? <Alert tone="danger">{t("createGenericError")}</Alert> : null}
@@ -127,15 +142,30 @@ export function CreateTaskDialog({ assignees }: CreateTaskDialogProps) {
             </FormField>
 
             <FormField label={t("titleLabel")} required>
-              {(fieldProps) => <Input {...fieldProps} value={title} onChange={(e) => setTitle(e.target.value)} />}
+              {(fieldProps) => (
+                <Input {...fieldProps} value={title} onChange={(e) => setTitle(e.target.value)} />
+              )}
             </FormField>
 
             <FormField label={t("notesLabel")}>
-              {(fieldProps) => <Textarea {...fieldProps} value={notes} onChange={(e) => setNotes(e.target.value)} />}
+              {(fieldProps) => (
+                <Textarea
+                  {...fieldProps}
+                  value={notes}
+                  onChange={(e) => setNotes(e.target.value)}
+                />
+              )}
             </FormField>
 
             <FormField label={t("dueDateLabel")}>
-              {(fieldProps) => <Input {...fieldProps} type="date" value={dueDate} onChange={(e) => setDueDate(e.target.value)} />}
+              {(fieldProps) => (
+                <Input
+                  {...fieldProps}
+                  type="date"
+                  value={dueDate}
+                  onChange={(e) => setDueDate(e.target.value)}
+                />
+              )}
             </FormField>
 
             <div>

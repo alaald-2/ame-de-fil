@@ -8,6 +8,8 @@ import { ApiErrorResponses } from "../common/api-error-responses.ts";
 import type { AuthContext } from "../common/types/auth-context.ts";
 import { AuditService } from "../audit/audit.service.ts";
 import { ReservationExpiryService } from "./reservation-expiry.service.ts";
+import { toOpenApiSchema } from "../common/zod-openapi.ts";
+import { expireReservationsResponseSchema } from "./dto/responses.ts";
 
 // ReservationExpiryScheduler (reservation-expiry.scheduler.ts) already
 // sweeps automatically — this endpoint is the manual/ops-triggered
@@ -36,15 +38,7 @@ export class AdminCheckoutController {
   @ApiOperation({
     summary: "Release expired stock reservations and cancel their orders (idempotent)",
   })
-  @ApiOkResponse({
-    schema: {
-      type: "object",
-      properties: {
-        releasedReservations: { type: "integer" },
-        canceledOrders: { type: "integer" },
-      },
-    },
-  })
+  @ApiOkResponse({ schema: toOpenApiSchema(expireReservationsResponseSchema) })
   @ApiErrorResponses(401, 403)
   async expireReservations(@CurrentUser() auth: AuthContext, @Req() request: Request) {
     const result = await this.reservationExpiry.releaseExpiredReservations();
@@ -54,7 +48,10 @@ export class AdminCheckoutController {
       action: "checkout.reservations_expired",
       entityType: "ReservationExpirySweep",
       entityId: randomUUID(),
-      after: { releasedReservations: result.releasedReservations, canceledOrders: result.canceledOrders },
+      after: {
+        releasedReservations: result.releasedReservations,
+        canceledOrders: result.canceledOrders,
+      },
       ipAddress: request.ip,
     });
 

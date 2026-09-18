@@ -5,7 +5,9 @@ import AxeBuilder from "@axe-core/playwright";
 // auth.setup.ts) rather than logging in per-test — logging in per-spec was
 // hitting the backend's real login rate limit once more than a couple of
 // specs ran in parallel.
-test("customers list renders real data, and the whole row navigates to detail", async ({ page }) => {
+test("customers list renders real data, and the whole row navigates to detail", async ({
+  page,
+}) => {
   await page.goto("/customers");
   await expect(page.getByRole("heading", { name: "Kunder", level: 1 })).toBeVisible();
   await expect(page.getByText(/registrerade$/)).toBeVisible();
@@ -26,7 +28,10 @@ test("customers list renders real data, and the whole row navigates to detail", 
 
 test("customer detail has no axe violations", async ({ page }) => {
   await page.goto("/customers");
-  await page.getByRole("link", { name: /^Visa /i }).first().click();
+  await page
+    .getByRole("link", { name: /^Visa /i })
+    .first()
+    .click();
   await expect(page.getByRole("heading", { name: "Kontoinformation" })).toBeVisible();
   const results = await new AxeBuilder({ page }).analyze();
   expect(results.violations).toEqual([]);

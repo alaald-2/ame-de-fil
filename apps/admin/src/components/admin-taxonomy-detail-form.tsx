@@ -65,7 +65,13 @@ type SaveErrorKind = "duplicateSlug" | "generic" | null;
 // user-role-manager.tsx's "can't remove a user's last role" pattern,
 // whenever productCount > 0 — a doomed request never round-trips to the
 // server just to learn what the count already tells us here).
-export function AdminTaxonomyDetailForm({ kind, id, translations, productCount, listBasePath }: AdminTaxonomyDetailFormProps) {
+export function AdminTaxonomyDetailForm({
+  kind,
+  id,
+  translations,
+  productCount,
+  listBasePath,
+}: AdminTaxonomyDetailFormProps) {
   const t = useTranslations(`Content.${kind}.detail`);
   const router = useRouter();
 
@@ -158,7 +164,9 @@ export function AdminTaxonomyDetailForm({ kind, id, translations, productCount, 
     <div className="flex flex-col gap-10">
       <form onSubmit={handleSave} className="flex flex-col gap-8">
         {saveErrorKind ? (
-          <Alert tone="danger">{saveErrorKind === "duplicateSlug" ? t("duplicateSlugError") : t("genericError")}</Alert>
+          <Alert tone="danger">
+            {saveErrorKind === "duplicateSlug" ? t("duplicateSlugError") : t("genericError")}
+          </Alert>
         ) : null}
         {saved ? <Alert tone="success">{t("savedMessage")}</Alert> : null}
 
@@ -250,7 +258,12 @@ export function AdminTaxonomyDetailForm({ kind, id, translations, productCount, 
         {productCount > 0 ? (
           <>
             <div className="mt-3">
-              <Button type="button" variant="secondary" disabled title={t("deleteBlockedNotice", { count: productCount })}>
+              <Button
+                type="button"
+                variant="secondary"
+                disabled
+                title={t("deleteBlockedNotice", { count: productCount })}
+              >
                 {t("deleteAction")}
               </Button>
             </div>
@@ -265,7 +278,11 @@ export function AdminTaxonomyDetailForm({ kind, id, translations, productCount, 
                 {t("deleteAction")}
               </Button>
             </DialogTrigger>
-            <DialogContent title={t("deleteConfirmTitle")} description={t("deleteConfirmDescription")} closeLabel={t("close")}>
+            <DialogContent
+              title={t("deleteConfirmTitle")}
+              description={t("deleteConfirmDescription")}
+              closeLabel={t("close")}
+            >
               <div className="flex justify-end gap-3">
                 <Button type="button" variant="danger" onClick={handleDelete} disabled={isDeleting}>
                   {isDeleting ? (

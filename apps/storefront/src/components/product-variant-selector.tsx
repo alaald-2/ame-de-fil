@@ -6,18 +6,9 @@ import { Text, cn } from "@ame-de-fil/ui";
 import { AddToCartButton } from "./add-to-cart-button";
 import { SalePrice } from "./sale-price";
 import type { AppLocale } from "../lib/locale";
+import type { ProductDetailResponse } from "@ame-de-fil/types";
 
-interface Variant {
-  id: string;
-  sku: string | null;
-  articleNumber: number;
-  price: { amountMinor: number };
-  originalPrice: { amountMinor: number } | null;
-  promotion: { percentage: number } | null;
-  options: Array<{ key: string; value: string; label: string }>;
-  available: boolean;
-  productionTimeDays: number | null;
-}
+type Variant = ProductDetailResponse["variants"][number];
 
 interface ProductVariantSelectorProps {
   variants: Variant[];
@@ -27,7 +18,9 @@ interface ProductVariantSelectorProps {
 }
 
 function variantLabel(variant: Variant): string {
-  return variant.options.map((o) => o.label).join(" / ") || variant.sku || `#${variant.articleNumber}`;
+  return (
+    variant.options.map((o) => o.label).join(" / ") || variant.sku || `#${variant.articleNumber}`
+  );
 }
 
 // One shared price + one Add-to-cart action for whichever variant is

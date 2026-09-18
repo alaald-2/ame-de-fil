@@ -7,13 +7,18 @@ describe("permissionsAreSubsetOfActor", () => {
   });
 
   it("returns true when the actor holds every permission the role grants", () => {
-    expect(permissionsAreSubsetOfActor(["orders.view", "orders.refund"], ["orders.view", "orders.refund", "audit.view"])).toBe(
-      true,
-    );
+    expect(
+      permissionsAreSubsetOfActor(
+        ["orders.view", "orders.refund"],
+        ["orders.view", "orders.refund", "audit.view"],
+      ),
+    ).toBe(true);
   });
 
   it("returns false when the actor is missing even one permission the role grants", () => {
-    expect(permissionsAreSubsetOfActor(["orders.view", "orders.refund"], ["orders.view"])).toBe(false);
+    expect(permissionsAreSubsetOfActor(["orders.view", "orders.refund"], ["orders.view"])).toBe(
+      false,
+    );
   });
 
   it("returns false when the actor holds none of the role's permissions", () => {

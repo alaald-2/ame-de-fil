@@ -1,6 +1,5 @@
 import type { MetadataRoute } from "next";
-
-const BASE_URL = process.env.NEXT_PUBLIC_SITE_URL ?? "http://localhost:3001";
+import { SITE_URL as BASE_URL } from "../lib/env";
 
 // SEO.md §8 — cart/checkout/account excluded from crawling.
 export default function robots(): MetadataRoute.Robots {

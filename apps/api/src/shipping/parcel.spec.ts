@@ -13,7 +13,10 @@ describe("computeParcelInfo", () => {
 
   it("falls back to 300g per unit when a variant has no weightGrams set", () => {
     const result = computeParcelInfo([
-      { quantity: 3, variant: { weightGrams: null, lengthMm: null, widthMm: null, heightMm: null } },
+      {
+        quantity: 3,
+        variant: { weightGrams: null, lengthMm: null, widthMm: null, heightMm: null },
+      },
     ]);
 
     expect(result.weightGrams).toBe(900);
@@ -22,7 +25,10 @@ describe("computeParcelInfo", () => {
   it("mixes real and fallback weight across lines", () => {
     const result = computeParcelInfo([
       { quantity: 1, variant: { weightGrams: 500, lengthMm: null, widthMm: null, heightMm: null } },
-      { quantity: 1, variant: { weightGrams: null, lengthMm: null, widthMm: null, heightMm: null } },
+      {
+        quantity: 1,
+        variant: { weightGrams: null, lengthMm: null, widthMm: null, heightMm: null },
+      },
     ]);
 
     expect(result.weightGrams).toBe(800); // 500 + 300 fallback

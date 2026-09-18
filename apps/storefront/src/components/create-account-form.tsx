@@ -2,7 +2,17 @@
 
 import { useState, type FormEvent } from "react";
 import { useTranslations } from "next-intl";
-import { Heading, Text, Alert, Card, FormField, Input, Button, Stack, Spinner } from "@ame-de-fil/ui";
+import {
+  Heading,
+  Text,
+  Alert,
+  Card,
+  FormField,
+  Input,
+  Button,
+  Stack,
+  Spinner,
+} from "@ame-de-fil/ui";
 import { Link } from "../i18n/navigation";
 import { api } from "../lib/api-client";
 

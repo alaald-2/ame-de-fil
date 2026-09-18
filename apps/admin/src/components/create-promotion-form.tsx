@@ -14,7 +14,8 @@ interface CreatePromotionFormProps {
   locale: AdminLocale;
 }
 
-type ErrorKind = "invalidPercentage" | "invalidDateRange" | "unknownVariant" | "conflict" | "generic" | null;
+type ErrorKind =
+  "invalidPercentage" | "invalidDateRange" | "unknownVariant" | "conflict" | "generic" | null;
 
 // One-shot creation, same posture as create-product-form.tsx: no draft-save
 // step, since POST /admin/promotions has no partial-create counterpart.

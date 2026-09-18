@@ -27,9 +27,16 @@ describe("AllExceptionsFilter — sanitizes request.url before logging or return
   it("redacts a sensitive query param from the response body's path field", () => {
     const filter = new AllExceptionsFilter();
     const response = makeResponse();
-    const request = { id: "req-1", method: "GET", url: "/api/v1/auth/google/callback?code=FAKE_SECRET&state=s" };
+    const request = {
+      id: "req-1",
+      method: "GET",
+      url: "/api/v1/auth/google/callback?code=FAKE_SECRET&state=s",
+    };
 
-    filter.catch(new HttpException("bad request", HttpStatus.BAD_REQUEST), makeHost(request, response));
+    filter.catch(
+      new HttpException("bad request", HttpStatus.BAD_REQUEST),
+      makeHost(request, response),
+    );
 
     const body = response.json.mock.calls[0]?.[0];
     expect(body.path).toBe("/api/v1/auth/google/callback?code=[REDACTED]&state=s");
@@ -75,7 +82,10 @@ describe("AllExceptionsFilter — sanitizes request.url before logging or return
     const response = makeResponse();
     const request = { id: "req-4", method: "GET", url: "/api/v1/health" };
 
-    filter.catch(new HttpException("bad request", HttpStatus.BAD_REQUEST), makeHost(request, response));
+    filter.catch(
+      new HttpException("bad request", HttpStatus.BAD_REQUEST),
+      makeHost(request, response),
+    );
 
     const body = response.json.mock.calls[0]?.[0];
     expect(body.path).toBe("/api/v1/health");

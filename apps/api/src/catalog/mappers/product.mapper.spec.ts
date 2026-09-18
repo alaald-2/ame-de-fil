@@ -181,7 +181,9 @@ describe("mapProductVariant", () => {
   });
 
   it("selects the option value label in the requested locale", () => {
-    expect(mapProductVariant(baseVariant, "sv-SE", EMPTY_PROMOTIONS).options[0]?.label).toBe("Rost");
+    expect(mapProductVariant(baseVariant, "sv-SE", EMPTY_PROMOTIONS).options[0]?.label).toBe(
+      "Rost",
+    );
     expect(mapProductVariant(baseVariant, "en", EMPTY_PROMOTIONS).options[0]?.label).toBe("Rust");
   });
 

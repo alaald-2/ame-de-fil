@@ -1,6 +1,7 @@
 import { getTranslations } from "next-intl/server";
 import { Logo } from "@ame-de-fil/ui";
 import { formatMoney } from "../lib/format-money";
+import { formatDate } from "../lib/format-date";
 import type { AdminLocale } from "../i18n/config";
 
 interface ReceiptMoney {
@@ -92,10 +93,6 @@ interface OrderReceiptProps {
     refundedLabel: string;
     paymentStatusLabel: string;
   };
-}
-
-function formatDate(iso: string, locale: string): string {
-  return new Intl.DateTimeFormat(locale, { dateStyle: "medium" }).format(new Date(iso));
 }
 
 // Plain presentational function — always in the DOM (server-rendered),

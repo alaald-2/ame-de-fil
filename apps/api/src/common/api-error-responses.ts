@@ -27,6 +27,7 @@ const STANDARD_DESCRIPTIONS: Record<number, string> = {
   404: "The requested resource does not exist (or, where object-level authorization applies, exists but isn't the caller's)",
   409: "The request conflicts with the resource's current state",
   429: "Rate limit exceeded for this endpoint",
+  503: "A dependency (e.g. the database) is unreachable",
 };
 
 // One shared schema/description reused across every status code documented

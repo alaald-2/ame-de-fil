@@ -3,7 +3,12 @@ import { ProductStatus } from "@ame-de-fil/database";
 import type { Locale as AppLocale } from "@ame-de-fil/validation";
 import { PrismaService } from "../database/prisma.service.ts";
 import { mapCategory, type CategoryResponse } from "./mappers/category.mapper.ts";
-import { mapProduct, PRODUCT_INCLUDE, collectVariantIds, type ProductResponse } from "./mappers/product.mapper.ts";
+import {
+  mapProduct,
+  PRODUCT_INCLUDE,
+  collectVariantIds,
+  type ProductResponse,
+} from "./mappers/product.mapper.ts";
 import { resolveActivePromotionsForVariants } from "../promotions/effective-price.ts";
 
 const DEFAULT_LOCALE: AppLocale = "sv-SE";

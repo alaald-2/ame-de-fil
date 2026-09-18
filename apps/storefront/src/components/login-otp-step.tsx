@@ -92,7 +92,11 @@ export function LoginOtpStep({ email, destination, onChangeEmail }: LoginOtpStep
     <div>
       <Text size="sm" tone="muted" className="mb-6 text-center">
         {t("otpSentTo", { email })}{" "}
-        <button type="button" onClick={onChangeEmail} className="text-neutral-900 underline underline-offset-4">
+        <button
+          type="button"
+          onClick={onChangeEmail}
+          className="text-neutral-900 underline underline-offset-4"
+        >
           {t("changeEmail")}
         </button>
       </Text>
@@ -118,7 +122,11 @@ export function LoginOtpStep({ email, destination, onChangeEmail }: LoginOtpStep
       ) : null}
 
       <div className="mt-6 text-center">
-        <Button variant="secondary" onClick={handleResend} disabled={isResending || cooldownSeconds > 0}>
+        <Button
+          variant="secondary"
+          onClick={handleResend}
+          disabled={isResending || cooldownSeconds > 0}
+        >
           {isResending ? (
             <>
               <Spinner className="h-4 w-4" /> {t("otpSending")}

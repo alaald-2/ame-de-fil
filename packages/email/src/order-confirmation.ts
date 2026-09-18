@@ -1,5 +1,17 @@
 import { Fragment } from "react";
-import { Body, Container, Column, Head, Heading, Hr, Html, Preview, Row, Section, Text } from "@react-email/components";
+import {
+  Body,
+  Container,
+  Column,
+  Head,
+  Heading,
+  Hr,
+  Html,
+  Preview,
+  Row,
+  Section,
+  Text,
+} from "@react-email/components";
 import { h } from "./h.ts";
 
 // No JSX anywhere in this package (DECISIONS.md ADR-031) — plain `h()`
@@ -97,7 +109,12 @@ export function OrderConfirmationEmail(props: OrderConfirmationEmailProps) {
 
   const discountRow =
     props.discountMinor > 0
-      ? h(Row, null, h(Column, null, t.discount), h(Column, { align: "right" }, `-${money(props.discountMinor)}`))
+      ? h(
+          Row,
+          null,
+          h(Column, null, t.discount),
+          h(Column, { align: "right" }, `-${money(props.discountMinor)}`),
+        )
       : null;
 
   const addressLine2 = props.shippingAddress.line2
@@ -127,9 +144,19 @@ export function OrderConfirmationEmail(props: OrderConfirmationEmailProps) {
         ),
         ...itemRows,
         h(Hr, null),
-        h(Row, null, h(Column, null, t.subtotal), h(Column, { align: "right" }, money(props.subtotalMinor))),
+        h(
+          Row,
+          null,
+          h(Column, null, t.subtotal),
+          h(Column, { align: "right" }, money(props.subtotalMinor)),
+        ),
         discountRow,
-        h(Row, null, h(Column, null, t.shipping), h(Column, { align: "right" }, money(props.shippingMinor))),
+        h(
+          Row,
+          null,
+          h(Column, null, t.shipping),
+          h(Column, { align: "right" }, money(props.shippingMinor)),
+        ),
         h(
           Row,
           { style: { fontWeight: "bold" } },

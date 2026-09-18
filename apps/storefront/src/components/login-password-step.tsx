@@ -23,7 +23,12 @@ interface LoginPasswordStepProps {
 // successfully (only checkout is gated on verification — apps/api's
 // EmailVerifiedGuard), so this form never produces an unverified-specific
 // error to react to.
-export function LoginPasswordStep({ email, destination, onChangeEmail, onUseOtpInstead }: LoginPasswordStepProps) {
+export function LoginPasswordStep({
+  email,
+  destination,
+  onChangeEmail,
+  onUseOtpInstead,
+}: LoginPasswordStepProps) {
   const t = useTranslations("Login");
   const router = useRouter();
   const { refresh: refreshCart } = useCart();
@@ -37,7 +42,9 @@ export function LoginPasswordStep({ email, destination, onChangeEmail, onUseOtpI
     setIsSubmitting(true);
 
     try {
-      const { error, response } = await api.POST("/api/v1/auth/login", { body: { email, password } });
+      const { error, response } = await api.POST("/api/v1/auth/login", {
+        body: { email, password },
+      });
 
       if (error) {
         setErrorKind(response.status === 401 ? "invalidCredentials" : "genericError");
@@ -65,7 +72,11 @@ export function LoginPasswordStep({ email, destination, onChangeEmail, onUseOtpI
     <div>
       <Text size="sm" tone="muted" className="mb-6 text-center">
         {email}{" "}
-        <button type="button" onClick={onChangeEmail} className="text-neutral-900 underline underline-offset-4">
+        <button
+          type="button"
+          onClick={onChangeEmail}
+          className="text-neutral-900 underline underline-offset-4"
+        >
           {t("changeEmail")}
         </button>
       </Text>

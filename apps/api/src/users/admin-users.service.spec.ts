@@ -41,7 +41,9 @@ function makePrismaMock(overrides: Record<string, unknown> = {}) {
   const userCreate = vi.fn();
   const userUpdateMany = vi.fn().mockResolvedValue({ count: 1 });
   const roleFindMany = vi.fn().mockResolvedValue([]);
-  const roleFindUnique = vi.fn().mockResolvedValue({ id: "role-1", name: "role-1", permissions: [] });
+  const roleFindUnique = vi
+    .fn()
+    .mockResolvedValue({ id: "role-1", name: "role-1", permissions: [] });
   const userRoleCreate = vi.fn().mockResolvedValue({});
   const userRoleDeleteMany = vi.fn().mockResolvedValue({ count: 1 });
   const userRoleFindMany = vi.fn().mockResolvedValue([]);
@@ -58,22 +60,24 @@ function makePrismaMock(overrides: Record<string, unknown> = {}) {
       updateMany: userUpdateMany,
     },
     role: { findMany: roleFindMany, findUnique: roleFindUnique },
-    userRole: { create: userRoleCreate, deleteMany: userRoleDeleteMany, findMany: userRoleFindMany },
+    userRole: {
+      create: userRoleCreate,
+      deleteMany: userRoleDeleteMany,
+      findMany: userRoleFindMany,
+    },
     session: { count: sessionCount },
     $queryRaw: queryRaw,
     ...overrides,
   };
-  prisma["$transaction"] = vi
-    .fn()
-    .mockImplementation((callback: (tx: unknown) => unknown) =>
-      callback({
-        user: prisma["user"],
-        role: prisma["role"],
-        userRole: prisma["userRole"],
-        session: prisma["session"],
-        $queryRaw: prisma["$queryRaw"],
-      }),
-    );
+  prisma["$transaction"] = vi.fn().mockImplementation((callback: (tx: unknown) => unknown) =>
+    callback({
+      user: prisma["user"],
+      role: prisma["role"],
+      userRole: prisma["userRole"],
+      session: prisma["session"],
+      $queryRaw: prisma["$queryRaw"],
+    }),
+  );
 
   return {
     prisma: prisma as unknown as PrismaService,
@@ -100,7 +104,9 @@ function makePasswordsMock() {
 }
 
 function makeSessionsMock() {
-  return { revokeAllSessionsForUser: vi.fn().mockResolvedValue(undefined) } as unknown as SessionService & {
+  return {
+    revokeAllSessionsForUser: vi.fn().mockResolvedValue(undefined),
+  } as unknown as SessionService & {
     revokeAllSessionsForUser: ReturnType<typeof vi.fn>;
   };
 }
@@ -112,22 +118,34 @@ function makeAuditMock() {
 }
 
 function makeUserRolePkViolation() {
-  return new Prisma.PrismaClientKnownRequestError("duplicate key value violates unique constraint", {
-    code: "P2002",
-    clientVersion: "test",
-    meta: {
-      modelName: "UserRole",
-      driverAdapterError: { cause: { constraint: { index: "UserRole_pkey" }, table: "UserRole" } },
+  return new Prisma.PrismaClientKnownRequestError(
+    "duplicate key value violates unique constraint",
+    {
+      code: "P2002",
+      clientVersion: "test",
+      meta: {
+        modelName: "UserRole",
+        driverAdapterError: {
+          cause: { constraint: { index: "UserRole_pkey" }, table: "UserRole" },
+        },
+      },
     },
-  });
+  );
 }
 
 describe("AdminUsersService.assignRole", () => {
   it("rejects a self-targeted role change without ever looking up the role", async () => {
     const { prisma, roleFindUnique } = makePrismaMock();
-    const service = new AdminUsersService(prisma, makePasswordsMock(), makeSessionsMock(), makeAuditMock());
+    const service = new AdminUsersService(
+      prisma,
+      makePasswordsMock(),
+      makeSessionsMock(),
+      makeAuditMock(),
+    );
 
-    await expect(service.assignRole(ACTOR, "role-1", authFor(ACTOR, []))).rejects.toThrow(ForbiddenException);
+    await expect(service.assignRole(ACTOR, "role-1", authFor(ACTOR, []))).rejects.toThrow(
+      ForbiddenException,
+    );
     expect(roleFindUnique).not.toHaveBeenCalled();
   });
 
@@ -138,7 +156,12 @@ describe("AdminUsersService.assignRole", () => {
       name: "role-1",
       permissions: [{ permission: { key: "orders.refund" } }],
     });
-    const service = new AdminUsersService(prisma, makePasswordsMock(), makeSessionsMock(), makeAuditMock());
+    const service = new AdminUsersService(
+      prisma,
+      makePasswordsMock(),
+      makeSessionsMock(),
+      makeAuditMock(),
+    );
 
     await expect(
       service.assignRole(TARGET, "role-1", authFor(ACTOR, ["orders.view"])),
@@ -148,15 +171,27 @@ describe("AdminUsersService.assignRole", () => {
   it("throws RoleNotFound when the role does not exist", async () => {
     const { prisma, roleFindUnique } = makePrismaMock();
     roleFindUnique.mockResolvedValue(null);
-    const service = new AdminUsersService(prisma, makePasswordsMock(), makeSessionsMock(), makeAuditMock());
+    const service = new AdminUsersService(
+      prisma,
+      makePasswordsMock(),
+      makeSessionsMock(),
+      makeAuditMock(),
+    );
 
-    await expect(service.assignRole(TARGET, "missing-role", authFor(ACTOR, []))).rejects.toThrow(NotFoundException);
+    await expect(service.assignRole(TARGET, "missing-role", authFor(ACTOR, []))).rejects.toThrow(
+      NotFoundException,
+    );
   });
 
   it("throws UserNotFound when the target user does not exist", async () => {
     const { prisma, userFindUnique } = makePrismaMock();
     userFindUnique.mockResolvedValue(null);
-    const service = new AdminUsersService(prisma, makePasswordsMock(), makeSessionsMock(), makeAuditMock());
+    const service = new AdminUsersService(
+      prisma,
+      makePasswordsMock(),
+      makeSessionsMock(),
+      makeAuditMock(),
+    );
 
     await expect(
       service.assignRole(TARGET, "role-1", authFor(ACTOR, ["orders.view"])),
@@ -172,7 +207,12 @@ describe("AdminUsersService.assignRole", () => {
 
     expect(userRoleCreate).toHaveBeenCalledWith({ data: { userId: TARGET, roleId: "role-1" } });
     expect(audit.record).toHaveBeenCalledWith(
-      expect.objectContaining({ actorUserId: ACTOR, action: "user.role_assigned", entityType: "User", entityId: TARGET }),
+      expect.objectContaining({
+        actorUserId: ACTOR,
+        action: "user.role_assigned",
+        entityType: "User",
+        entityId: TARGET,
+      }),
       expect.anything(),
     );
   });
@@ -180,16 +220,28 @@ describe("AdminUsersService.assignRole", () => {
   it("returns RoleAlreadyAssigned (409) on a real UserRole primary-key violation", async () => {
     const { prisma, userRoleCreate } = makePrismaMock();
     userRoleCreate.mockRejectedValue(makeUserRolePkViolation());
-    const service = new AdminUsersService(prisma, makePasswordsMock(), makeSessionsMock(), makeAuditMock());
+    const service = new AdminUsersService(
+      prisma,
+      makePasswordsMock(),
+      makeSessionsMock(),
+      makeAuditMock(),
+    );
 
-    await expect(service.assignRole(TARGET, "role-1", authFor(ACTOR, []))).rejects.toThrow(ConflictException);
+    await expect(service.assignRole(TARGET, "role-1", authFor(ACTOR, []))).rejects.toThrow(
+      ConflictException,
+    );
   });
 });
 
 describe("AdminUsersService.removeRole", () => {
   it("rejects a self-targeted role change", async () => {
     const { prisma } = makePrismaMock();
-    const service = new AdminUsersService(prisma, makePasswordsMock(), makeSessionsMock(), makeAuditMock());
+    const service = new AdminUsersService(
+      prisma,
+      makePasswordsMock(),
+      makeSessionsMock(),
+      makeAuditMock(),
+    );
 
     await expect(service.removeRole(ACTOR, "role-1", ACTOR)).rejects.toThrow(ForbiddenException);
   });
@@ -204,14 +256,25 @@ describe("AdminUsersService.removeRole", () => {
     });
     userCount.mockResolvedValue(0); // no other ACTIVE holder
 
-    const service = new AdminUsersService(prisma, makePasswordsMock(), makeSessionsMock(), makeAuditMock());
+    const service = new AdminUsersService(
+      prisma,
+      makePasswordsMock(),
+      makeSessionsMock(),
+      makeAuditMock(),
+    );
 
     await expect(service.removeRole(TARGET, "role-1", ACTOR)).rejects.toThrow(ConflictException);
   });
 
   it("allows removal when the target still holds the gate permission via another role", async () => {
-    const { prisma, userFindUnique, roleFindUnique, userRoleFindMany, userRoleDeleteMany, userCount } =
-      makePrismaMock();
+    const {
+      prisma,
+      userFindUnique,
+      roleFindUnique,
+      userRoleFindMany,
+      userRoleDeleteMany,
+      userCount,
+    } = makePrismaMock();
     userFindUnique.mockResolvedValueOnce({ id: TARGET, status: UserStatus.ACTIVE });
     roleFindUnique.mockResolvedValue({
       id: "role-1",
@@ -222,15 +285,23 @@ describe("AdminUsersService.removeRole", () => {
       { role: { permissions: [{ permission: { key: "users.manage_roles" } }] } },
     ]);
 
-    const service = new AdminUsersService(prisma, makePasswordsMock(), makeSessionsMock(), makeAuditMock());
+    const service = new AdminUsersService(
+      prisma,
+      makePasswordsMock(),
+      makeSessionsMock(),
+      makeAuditMock(),
+    );
     await service.removeRole(TARGET, "role-1", ACTOR);
 
     expect(userCount).not.toHaveBeenCalled(); // never needed the last-holder count at all
-    expect(userRoleDeleteMany).toHaveBeenCalledWith({ where: { userId: TARGET, roleId: "role-1" } });
+    expect(userRoleDeleteMany).toHaveBeenCalledWith({
+      where: { userId: TARGET, roleId: "role-1" },
+    });
   });
 
   it("allows removal when another ACTIVE user still holds the gate permission", async () => {
-    const { prisma, userFindUnique, roleFindUnique, userCount, userRoleDeleteMany } = makePrismaMock();
+    const { prisma, userFindUnique, roleFindUnique, userCount, userRoleDeleteMany } =
+      makePrismaMock();
     userFindUnique.mockResolvedValueOnce({ id: TARGET, status: UserStatus.ACTIVE });
     roleFindUnique.mockResolvedValue({
       id: "role-1",
@@ -239,7 +310,12 @@ describe("AdminUsersService.removeRole", () => {
     });
     userCount.mockResolvedValue(1);
 
-    const service = new AdminUsersService(prisma, makePasswordsMock(), makeSessionsMock(), makeAuditMock());
+    const service = new AdminUsersService(
+      prisma,
+      makePasswordsMock(),
+      makeSessionsMock(),
+      makeAuditMock(),
+    );
     await service.removeRole(TARGET, "role-1", ACTOR);
 
     expect(userRoleDeleteMany).toHaveBeenCalled();
@@ -248,7 +324,12 @@ describe("AdminUsersService.removeRole", () => {
   it("returns RoleNotAssigned (409) when the guarded delete matches nothing", async () => {
     const { prisma, userRoleDeleteMany } = makePrismaMock();
     userRoleDeleteMany.mockResolvedValue({ count: 0 });
-    const service = new AdminUsersService(prisma, makePasswordsMock(), makeSessionsMock(), makeAuditMock());
+    const service = new AdminUsersService(
+      prisma,
+      makePasswordsMock(),
+      makeSessionsMock(),
+      makeAuditMock(),
+    );
 
     await expect(service.removeRole(TARGET, "role-1", ACTOR)).rejects.toThrow(ConflictException);
   });
@@ -257,7 +338,12 @@ describe("AdminUsersService.removeRole", () => {
 describe("AdminUsersService.deactivate", () => {
   it("rejects self-deactivation", async () => {
     const { prisma } = makePrismaMock();
-    const service = new AdminUsersService(prisma, makePasswordsMock(), makeSessionsMock(), makeAuditMock());
+    const service = new AdminUsersService(
+      prisma,
+      makePasswordsMock(),
+      makeSessionsMock(),
+      makeAuditMock(),
+    );
 
     await expect(service.deactivate(ACTOR, ACTOR)).rejects.toThrow(ForbiddenException);
   });
@@ -270,7 +356,12 @@ describe("AdminUsersService.deactivate", () => {
       roles: [{ role: { permissions: [{ permission: { key: "users.manage_roles" } }] } }],
     });
     userCount.mockResolvedValue(0);
-    const service = new AdminUsersService(prisma, makePasswordsMock(), makeSessionsMock(), makeAuditMock());
+    const service = new AdminUsersService(
+      prisma,
+      makePasswordsMock(),
+      makeSessionsMock(),
+      makeAuditMock(),
+    );
 
     await expect(service.deactivate(TARGET, ACTOR)).rejects.toThrow(ConflictException);
   });
@@ -303,7 +394,12 @@ describe("AdminUsersService.deactivate", () => {
   it("never checks last-admin protection for a target that doesn't hold the gate permission", async () => {
     const { prisma, userFindUnique, userCount } = makePrismaMock();
     userFindUnique.mockResolvedValueOnce({ id: TARGET, status: UserStatus.ACTIVE, roles: [] });
-    const service = new AdminUsersService(prisma, makePasswordsMock(), makeSessionsMock(), makeAuditMock());
+    const service = new AdminUsersService(
+      prisma,
+      makePasswordsMock(),
+      makeSessionsMock(),
+      makeAuditMock(),
+    );
 
     await service.deactivate(TARGET, ACTOR);
 
@@ -314,7 +410,12 @@ describe("AdminUsersService.deactivate", () => {
     const { prisma, userFindUnique, userUpdateMany } = makePrismaMock();
     userFindUnique.mockResolvedValue({ id: TARGET, status: UserStatus.DISABLED, roles: [] });
     userUpdateMany.mockResolvedValue({ count: 0 });
-    const service = new AdminUsersService(prisma, makePasswordsMock(), makeSessionsMock(), makeAuditMock());
+    const service = new AdminUsersService(
+      prisma,
+      makePasswordsMock(),
+      makeSessionsMock(),
+      makeAuditMock(),
+    );
 
     await expect(service.deactivate(TARGET, ACTOR)).rejects.toThrow(ConflictException);
   });
@@ -324,7 +425,12 @@ describe("AdminUsersService.activate", () => {
   it("returns UserNotDisabled (409) when the guarded update matches nothing", async () => {
     const { prisma, userUpdateMany } = makePrismaMock();
     userUpdateMany.mockResolvedValue({ count: 0 });
-    const service = new AdminUsersService(prisma, makePasswordsMock(), makeSessionsMock(), makeAuditMock());
+    const service = new AdminUsersService(
+      prisma,
+      makePasswordsMock(),
+      makeSessionsMock(),
+      makeAuditMock(),
+    );
 
     await expect(service.activate(TARGET, ACTOR)).rejects.toThrow(ConflictException);
   });
@@ -369,10 +475,18 @@ describe("AdminUsersService.createUser", () => {
   it("throws RoleNotFound when an initialRoleId does not resolve to a real role", async () => {
     const { prisma, roleFindMany } = makePrismaMock();
     roleFindMany.mockResolvedValue([]); // requested one id, found zero
-    const service = new AdminUsersService(prisma, makePasswordsMock(), makeSessionsMock(), makeAuditMock());
+    const service = new AdminUsersService(
+      prisma,
+      makePasswordsMock(),
+      makeSessionsMock(),
+      makeAuditMock(),
+    );
 
     await expect(
-      service.createUser({ email: "new@example.com", initialRoleIds: ["missing-role"] }, authFor(ACTOR, [])),
+      service.createUser(
+        { email: "new@example.com", initialRoleIds: ["missing-role"] },
+        authFor(ACTOR, []),
+      ),
     ).rejects.toThrow(NotFoundException);
   });
 
@@ -409,13 +523,21 @@ describe("AdminUsersService.createUser", () => {
       new Prisma.PrismaClientKnownRequestError("duplicate", {
         code: "P2002",
         clientVersion: "test",
-        meta: { modelName: "User", driverAdapterError: { cause: { constraint: { index: "User_email_key" }, table: "User" } } },
+        meta: {
+          modelName: "User",
+          driverAdapterError: { cause: { constraint: { index: "User_email_key" }, table: "User" } },
+        },
       }),
     );
-    const service = new AdminUsersService(prisma, makePasswordsMock(), makeSessionsMock(), makeAuditMock());
-
-    await expect(service.createUser({ email: "dup@example.com" }, authFor(ACTOR, []))).rejects.toThrow(
-      ConflictException,
+    const service = new AdminUsersService(
+      prisma,
+      makePasswordsMock(),
+      makeSessionsMock(),
+      makeAuditMock(),
     );
+
+    await expect(
+      service.createUser({ email: "dup@example.com" }, authFor(ACTOR, [])),
+    ).rejects.toThrow(ConflictException);
   });
 });

@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { useTranslations } from "next-intl";
 import { Button } from "@ame-de-fil/ui";
+import { API_URL } from "../lib/env";
 
 function defaultRange(): { from: string; to: string } {
   const now = new Date();
@@ -16,7 +17,6 @@ function defaultRange(): { from: string; to: string } {
 }
 
 function buildExportHref(fromDate: string, toDate: string): string {
-  const apiUrl = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:3000";
   // Half-open interval on the backend (>= from, < to), same convention as
   // dashboard-date-range-form.tsx — the day *after* the selected end date
   // includes the whole selected end day.
@@ -26,7 +26,7 @@ function buildExportHref(fromDate: string, toDate: string): string {
     from: `${fromDate}T00:00:00.000Z`,
     to: toExclusive.toISOString(),
   });
-  return `${apiUrl}/api/v1/admin/orders/export?${params.toString()}`;
+  return `${API_URL}/api/v1/admin/orders/export?${params.toString()}`;
 }
 
 // GET /admin/orders/export needs no client-side fetch/blob handling — a

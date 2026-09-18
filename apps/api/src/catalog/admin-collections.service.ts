@@ -75,7 +75,11 @@ export class AdminCollectionsService {
     return mapAdminTaxonomy(collection);
   }
 
-  async create(input: CreateTaxonomyInput, actorUserId: string, ipAddress?: string): Promise<{ id: string }> {
+  async create(
+    input: CreateTaxonomyInput,
+    actorUserId: string,
+    ipAddress?: string,
+  ): Promise<{ id: string }> {
     try {
       const collection = await this.prisma.$transaction(async (tx) => {
         const created = await tx.collection.create({ data: {} });
@@ -99,7 +103,11 @@ export class AdminCollectionsService {
             entityType: "Collection",
             entityId: created.id,
             after: {
-              translations: input.translations.map((t) => ({ locale: t.locale, name: t.name, slug: t.slug })),
+              translations: input.translations.map((t) => ({
+                locale: t.locale,
+                name: t.name,
+                slug: t.slug,
+              })),
             },
             ipAddress,
           },
@@ -127,7 +135,10 @@ export class AdminCollectionsService {
     actorUserId: string,
     ipAddress?: string,
   ): Promise<AdminTaxonomyResponse> {
-    const existing = await this.prisma.collection.findUnique({ where: { id }, select: { id: true } });
+    const existing = await this.prisma.collection.findUnique({
+      where: { id },
+      select: { id: true },
+    });
     if (!existing) throw COLLECTION_NOT_FOUND();
 
     try {
@@ -192,7 +203,13 @@ export class AdminCollectionsService {
     await this.prisma.$transaction(async (tx) => {
       await tx.collection.delete({ where: { id } });
       await this.audit.record(
-        { actorUserId, action: "collection.deleted", entityType: "Collection", entityId: id, ipAddress },
+        {
+          actorUserId,
+          action: "collection.deleted",
+          entityType: "Collection",
+          entityId: id,
+          ipAddress,
+        },
         tx,
       );
     });

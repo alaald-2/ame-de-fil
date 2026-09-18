@@ -7,7 +7,12 @@ import {
   COLLECTION_GALLERY_IMAGE_LIMIT,
   type CollectionResponse,
 } from "./mappers/collection.mapper.ts";
-import { mapProduct, PRODUCT_INCLUDE, collectVariantIds, type ProductResponse } from "./mappers/product.mapper.ts";
+import {
+  mapProduct,
+  PRODUCT_INCLUDE,
+  collectVariantIds,
+  type ProductResponse,
+} from "./mappers/product.mapper.ts";
 import { resolveActivePromotionsForVariants } from "../promotions/effective-price.ts";
 
 const DEFAULT_LOCALE: AppLocale = "sv-SE";

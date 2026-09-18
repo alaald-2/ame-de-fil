@@ -116,14 +116,16 @@ export const ImageEditor = forwardRef<ImageEditorHandle, ImageEditorProps>(funct
           reject(new Error("Image editor is not ready"));
           return;
         }
-        cropper.getCroppedCanvas({ maxWidth: 2400, maxHeight: 2400, imageSmoothingQuality: "high" }).toBlob(
-          (blob) => {
-            if (blob) resolve(blob);
-            else reject(new Error("Could not export the edited image"));
-          },
-          file.type || "image/jpeg",
-          0.92,
-        );
+        cropper
+          .getCroppedCanvas({ maxWidth: 2400, maxHeight: 2400, imageSmoothingQuality: "high" })
+          .toBlob(
+            (blob) => {
+              if (blob) resolve(blob);
+              else reject(new Error("Could not export the edited image"));
+            },
+            file.type || "image/jpeg",
+            0.92,
+          );
       }),
   }));
 

@@ -1,6 +1,6 @@
 import { createParamDecorator, type ExecutionContext } from "@nestjs/common";
 import type { Request } from "express";
-import type { AuthContext } from "../types/auth-context.js";
+import type { AuthContext } from "../types/auth-context.ts";
 
 // `@CurrentUser() auth: AuthContext` in a controller method. Requires
 // SessionAuthGuard to have run first (request.auth is undefined on

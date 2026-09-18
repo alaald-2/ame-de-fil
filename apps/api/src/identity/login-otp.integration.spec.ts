@@ -10,7 +10,11 @@ import { SessionService } from "./session.service.ts";
 import { PasswordService } from "./password.service.ts";
 import { NotificationsService } from "../notifications/notifications.service.ts";
 import { PendingEmailProvider } from "../notifications/email-provider.ts";
-import { startTestDatabase, stopTestDatabase, type TestDatabase } from "../test/testcontainers-postgres.ts";
+import {
+  startTestDatabase,
+  stopTestDatabase,
+  type TestDatabase,
+} from "../test/testcontainers-postgres.ts";
 import { seedUserWithPermissions, seedLoginOtp } from "../test/fixtures.ts";
 
 function fakeConfig(ttlMinutes = 10): ConfigService<Env, true> {
@@ -25,7 +29,11 @@ describe("AuthService OTP login — real Postgres", () => {
   beforeAll(async () => {
     db = await startTestDatabase();
     sessions = new SessionService(db.prisma, fakeConfig());
-    const notifications = new NotificationsService(db.prisma, new PendingEmailProvider(), fakeConfig());
+    const notifications = new NotificationsService(
+      db.prisma,
+      new PendingEmailProvider(),
+      fakeConfig(),
+    );
     auth = new AuthService(db.prisma, new PasswordService(), sessions, notifications, fakeConfig());
   }, 120_000);
 
@@ -52,14 +60,20 @@ describe("AuthService OTP login — real Postgres", () => {
       expiresAt: new Date(Date.now() - 1000),
     });
 
-    await expect(auth.loginWithOtp({ email: fixture.email, code: plaintextCode }, {})).rejects.toThrow();
+    await expect(
+      auth.loginWithOtp({ email: fixture.email, code: plaintextCode }, {}),
+    ).rejects.toThrow();
   });
 
   it("rejects an already-consumed code", async () => {
     const fixture = await seedUserWithPermissions(db.prisma, []);
-    const { plaintextCode } = await seedLoginOtp(db.prisma, fixture.userId, { consumedAt: new Date() });
+    const { plaintextCode } = await seedLoginOtp(db.prisma, fixture.userId, {
+      consumedAt: new Date(),
+    });
 
-    await expect(auth.loginWithOtp({ email: fixture.email, code: plaintextCode }, {})).rejects.toThrow();
+    await expect(
+      auth.loginWithOtp({ email: fixture.email, code: plaintextCode }, {}),
+    ).rejects.toThrow();
   });
 
   it("increments the real attempts counter on a wrong guess, and kills the code after the 5th", async () => {
@@ -68,7 +82,9 @@ describe("AuthService OTP login — real Postgres", () => {
     const wrongCode = plaintextCode === "000000" ? "111111" : "000000";
 
     for (let attempt = 1; attempt <= 5; attempt++) {
-      await expect(auth.loginWithOtp({ email: fixture.email, code: wrongCode }, {})).rejects.toThrow();
+      await expect(
+        auth.loginWithOtp({ email: fixture.email, code: wrongCode }, {}),
+      ).rejects.toThrow();
       const row = await db.prisma.loginOtp.findUniqueOrThrow({ where: { id: otpId } });
       expect(row.attempts).toBe(attempt);
       if (attempt < 5) expect(row.consumedAt).toBeNull();
@@ -78,7 +94,9 @@ describe("AuthService OTP login — real Postgres", () => {
     // works, proving the code is truly dead, not just "still wrong."
     const dead = await db.prisma.loginOtp.findUniqueOrThrow({ where: { id: otpId } });
     expect(dead.consumedAt).not.toBeNull();
-    await expect(auth.loginWithOtp({ email: fixture.email, code: plaintextCode }, {})).rejects.toThrow();
+    await expect(
+      auth.loginWithOtp({ email: fixture.email, code: plaintextCode }, {}),
+    ).rejects.toThrow();
   });
 
   it("two concurrent verifications of the same correct code: exactly one succeeds", async () => {
@@ -109,7 +127,9 @@ describe("AuthService OTP login — real Postgres", () => {
     await auth.requestLoginOtp({ email: fixture.email });
 
     // The first, directly-seeded code is now dead...
-    await expect(auth.loginWithOtp({ email: fixture.email, code: firstCode }, {})).rejects.toThrow();
+    await expect(
+      auth.loginWithOtp({ email: fixture.email, code: firstCode }, {}),
+    ).rejects.toThrow();
 
     // ...but a real second code for this user exists and is still valid —
     // fetched directly since requestLoginOtp only ever emails the plaintext,

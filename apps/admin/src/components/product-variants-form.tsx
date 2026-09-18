@@ -3,7 +3,18 @@
 import { useState, type FormEvent } from "react";
 import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
-import { Heading, Text, Button, Alert, Badge, Card, Dialog, DialogTrigger, DialogContent, Spinner } from "@ame-de-fil/ui";
+import {
+  Heading,
+  Text,
+  Button,
+  Alert,
+  Badge,
+  Card,
+  Dialog,
+  DialogTrigger,
+  DialogContent,
+  Spinner,
+} from "@ame-de-fil/ui";
 import { api } from "../lib/api-client";
 import { readCsrfCookie } from "../lib/csrf";
 import { formatMoney } from "../lib/format-money";
@@ -21,7 +32,12 @@ export interface ProductVariantData {
   // Mirrors effective-price.ts's own result for this variant, if any
   // promotion is currently discounting it — see admin-product.mapper.ts's
   // own comment. priceMinor above always stays the permanent base price.
-  activePromotion: { id: string; name: string; percentage: number; effectivePriceMinor: number } | null;
+  activePromotion: {
+    id: string;
+    name: string;
+    percentage: number;
+    effectivePriceMinor: number;
+  } | null;
   inventory: {
     onHand: number;
     reserved: number;
@@ -73,7 +89,12 @@ type ErrorKind = "unknownTaxClass" | "generic" | null;
 // still the only way to define a product's variant matrix); stock levels
 // (onHand/reserved) stay exclusively in the existing Inventory module,
 // shown here read-only for context.
-export function ProductVariantsForm({ productId, variants, taxClasses, locale }: ProductVariantsFormProps) {
+export function ProductVariantsForm({
+  productId,
+  variants,
+  taxClasses,
+  locale,
+}: ProductVariantsFormProps) {
   const t = useTranslations("Products.detail");
   const router = useRouter();
 
@@ -107,7 +128,11 @@ export function ProductVariantsForm({ productId, variants, taxClasses, locale }:
     router.refresh();
   }
 
-  function updateDraft<K extends keyof VariantDraft>(variantId: string, field: K, value: VariantDraft[K]) {
+  function updateDraft<K extends keyof VariantDraft>(
+    variantId: string,
+    field: K,
+    value: VariantDraft[K],
+  ) {
     setSavedId(null);
     setDrafts((current) => {
       const existing = current[variantId];
@@ -170,7 +195,9 @@ export function ProductVariantsForm({ productId, variants, taxClasses, locale }:
           <Card key={variant.id} className="flex flex-col gap-4">
             <div className="flex flex-wrap items-baseline justify-between gap-2">
               <div className="flex flex-wrap items-baseline gap-2">
-                <Heading level={3}>{t("articleNumberLabel", { number: variant.articleNumber })}</Heading>
+                <Heading level={3}>
+                  {t("articleNumberLabel", { number: variant.articleNumber })}
+                </Heading>
                 {variant.sku ? (
                   <Text size="sm" tone="muted">
                     {t("skuLabel")}: {variant.sku}
@@ -223,10 +250,14 @@ export function ProductVariantsForm({ productId, variants, taxClasses, locale }:
                     <div className="mt-6 flex justify-end gap-3">
                       <Button
                         type="button"
-                        onClick={() => handleRemovePromotion(variant.activePromotion!.id, variant.id)}
+                        onClick={() =>
+                          handleRemovePromotion(variant.activePromotion!.id, variant.id)
+                        }
                         disabled={removingPromotionId === variant.id}
                       >
-                        {removingPromotionId === variant.id ? <Spinner className="h-4 w-4" /> : null}
+                        {removingPromotionId === variant.id ? (
+                          <Spinner className="h-4 w-4" />
+                        ) : null}
                         {t("removePromotionButton")}
                       </Button>
                     </div>
@@ -237,7 +268,10 @@ export function ProductVariantsForm({ productId, variants, taxClasses, locale }:
 
             {savedId === variant.id ? <Alert tone="success">{t("savedMessage")}</Alert> : null}
 
-            <form onSubmit={(e) => handleSave(e, variant.id)} className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+            <form
+              onSubmit={(e) => handleSave(e, variant.id)}
+              className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4"
+            >
               <label className="flex flex-col gap-1.5 text-sm">
                 <span className="font-medium text-neutral-800">{t("priceLabel")}</span>
                 <input

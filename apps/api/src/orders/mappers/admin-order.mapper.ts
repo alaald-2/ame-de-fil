@@ -146,7 +146,9 @@ export const ADMIN_ORDER_DETAIL_SELECT = {
   canceledAt: true,
 } satisfies Prisma.OrderSelect;
 
-export type AdminOrderDetailRow = Prisma.OrderGetPayload<{ select: typeof ADMIN_ORDER_DETAIL_SELECT }>;
+export type AdminOrderDetailRow = Prisma.OrderGetPayload<{
+  select: typeof ADMIN_ORDER_DETAIL_SELECT;
+}>;
 
 export function mapAdminOrderDetail(order: AdminOrderDetailRow) {
   return {

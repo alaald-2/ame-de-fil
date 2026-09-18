@@ -18,7 +18,9 @@ import type { AuthContext } from "../common/types/auth-context.ts";
 // AdminProductsService (this controller's dependency, per its own
 // "reuses AdminProductsService/products.view" rationale) mocked.
 async function bootApp(validateSession: (token: string) => Promise<AuthContext | null>) {
-  const listTaxClasses = vi.fn().mockResolvedValue([{ id: "tax-1", code: "STANDARD", name: "Standard 25%" }]);
+  const listTaxClasses = vi
+    .fn()
+    .mockResolvedValue([{ id: "tax-1", code: "STANDARD", name: "Standard 25%" }]);
 
   const moduleRef = await Test.createTestingModule({
     controllers: [AdminTaxClassesController],

@@ -1,10 +1,9 @@
 import type { MetadataRoute } from "next";
 import { routing } from "../i18n/routing";
+import { SITE_URL as BASE_URL } from "../lib/env";
 
-const BASE_URL = process.env.NEXT_PUBLIC_SITE_URL ?? "http://localhost:3001";
-
-// Foundation only — real entries (product/category/collection URLs)
-// populate once the catalog exists (SEO.md §3). One entry per locale for now.
+// Foundation only — real entries (product/category/collection URLs) are not
+// yet populated here (SEO.md §3). One entry per locale for now.
 export default function sitemap(): MetadataRoute.Sitemap {
   return routing.locales.map((locale) => ({
     url: `${BASE_URL}/${locale}`,

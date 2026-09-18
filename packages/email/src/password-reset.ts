@@ -1,4 +1,14 @@
-import { Body, Container, Head, Heading, Hr, Html, Link, Preview, Text } from "@react-email/components";
+import {
+  Body,
+  Container,
+  Head,
+  Heading,
+  Hr,
+  Html,
+  Link,
+  Preview,
+  Text,
+} from "@react-email/components";
 import { h } from "./h.ts";
 import type { EmailLocale } from "./order-confirmation.ts";
 
@@ -13,18 +23,22 @@ const COPY = {
   "sv-SE": {
     preview: "Återställ ditt lösenord hos Âme de Fil",
     heading: "Återställ ditt lösenord",
-    intro: "Vi fick en begäran om att återställa lösenordet för ditt konto. Klicka på länken nedan för att välja ett nytt lösenord.",
+    intro:
+      "Vi fick en begäran om att återställa lösenordet för ditt konto. Klicka på länken nedan för att välja ett nytt lösenord.",
     cta: "Återställ lösenord",
     expiry: "Länken slutar gälla om en timme.",
-    ignore: "Om du inte begärde det här kan du bortse från det här mejlet — ditt lösenord ändras inte.",
+    ignore:
+      "Om du inte begärde det här kan du bortse från det här mejlet — ditt lösenord ändras inte.",
   },
   en: {
     preview: "Reset your password for Âme de Fil",
     heading: "Reset your password",
-    intro: "We received a request to reset the password for your account. Click the link below to choose a new password.",
+    intro:
+      "We received a request to reset the password for your account. Click the link below to choose a new password.",
     cta: "Reset password",
     expiry: "This link expires in one hour.",
-    ignore: "If you didn't request this, you can safely ignore this email — your password won't change.",
+    ignore:
+      "If you didn't request this, you can safely ignore this email — your password won't change.",
   },
 } as const;
 

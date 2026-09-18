@@ -2,7 +2,10 @@ import type { Prisma } from "@ame-de-fil/database";
 import type { Locale as AppLocale } from "@ame-de-fil/validation";
 import { computeAvailability } from "../../common/inventory-availability.ts";
 import { resolveTranslation } from "../../catalog/mappers/translation.mapper.ts";
-import { resolveEffectivePrice, type ActivePromotionSummary } from "../../promotions/effective-price.ts";
+import {
+  resolveEffectivePrice,
+  type ActivePromotionSummary,
+} from "../../promotions/effective-price.ts";
 import { computeParcelInfo } from "../../shipping/parcel.ts";
 import type { CartResponse } from "../dto/responses.ts";
 

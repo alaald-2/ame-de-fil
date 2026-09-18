@@ -88,7 +88,12 @@ export function CartLineItem({ item, locale }: { item: CartItem; locale: AppLoca
   }
 
   return (
-    <div className={cn("flex gap-5 border-b border-neutral-200 py-8 first:pt-0", pending && "opacity-60")}>
+    <div
+      className={cn(
+        "flex gap-5 border-b border-neutral-200 py-8 first:pt-0",
+        pending && "opacity-60",
+      )}
+    >
       <div className="w-24 shrink-0 sm:w-28">
         <div className="relative aspect-[3/4] overflow-hidden bg-neutral-100">
           {item.image ? (

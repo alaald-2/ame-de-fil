@@ -3,13 +3,22 @@
 import { useState, type FormEvent } from "react";
 import { useSearchParams } from "next/navigation";
 import { useTranslations } from "next-intl";
-import { Heading, Text, Alert, Card, FormField, Input, Button, Stack, Spinner } from "@ame-de-fil/ui";
+import {
+  Heading,
+  Text,
+  Alert,
+  Card,
+  FormField,
+  Input,
+  Button,
+  Stack,
+  Spinner,
+} from "@ame-de-fil/ui";
 import { Link } from "../i18n/navigation";
 import { api } from "../lib/api-client";
+import { API_URL } from "../lib/env";
 import { LoginPasswordStep } from "./login-password-step";
 import { LoginOtpStep } from "./login-otp-step";
-
-const API_URL = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:3000";
 
 type Step = "email" | "password" | "otp";
 type EmailStepErrorKind = "rateLimited" | "genericError";
@@ -48,7 +57,9 @@ export function LoginForm() {
       // case, the success/no-op cases are indistinguishable by design
       // (AuthService.requestLoginOtp) and both correctly land on the same
       // code screen.
-      const { error, response } = await api.POST("/api/v1/auth/otp/request", { body: { email: targetEmail } });
+      const { error, response } = await api.POST("/api/v1/auth/otp/request", {
+        body: { email: targetEmail },
+      });
       if (error && response.status === 429) {
         setErrorKind("rateLimited");
         return;
@@ -65,7 +76,9 @@ export function LoginForm() {
     setIsSubmitting(true);
 
     try {
-      const { data, error, response } = await api.POST("/api/v1/auth/login-method", { body: { email } });
+      const { data, error, response } = await api.POST("/api/v1/auth/login-method", {
+        body: { email },
+      });
 
       if (error) {
         setErrorKind(response.status === 429 ? "rateLimited" : "genericError");
@@ -156,7 +169,10 @@ export function LoginForm() {
 
             <Text size="sm" tone="muted" className="mt-6 text-center">
               {t("createAccountPrompt")}{" "}
-              <Link href="/create-account" className="text-neutral-900 underline underline-offset-4">
+              <Link
+                href="/create-account"
+                className="text-neutral-900 underline underline-offset-4"
+              >
                 {t("createAccountLink")}
               </Link>
             </Text>

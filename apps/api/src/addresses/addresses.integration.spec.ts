@@ -6,7 +6,11 @@
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { NotFoundException, UnprocessableEntityException } from "@nestjs/common";
 import { AddressesService } from "./addresses.service.ts";
-import { startTestDatabase, stopTestDatabase, type TestDatabase } from "../test/testcontainers-postgres.ts";
+import {
+  startTestDatabase,
+  stopTestDatabase,
+  type TestDatabase,
+} from "../test/testcontainers-postgres.ts";
 import { seedUserWithPermissions } from "../test/fixtures.ts";
 
 const BASE_INPUT = {
@@ -93,9 +97,11 @@ describe("AddressesService — real Postgres", () => {
     const address = await service.createAddress(owner.userId, BASE_INPUT);
 
     await expect(service.getMyAddress(other.userId, address.id)).rejects.toThrow(NotFoundException);
-    await expect(service.updateAddress(other.userId, address.id, { city: "Malmö" })).rejects.toThrow(
+    await expect(
+      service.updateAddress(other.userId, address.id, { city: "Malmö" }),
+    ).rejects.toThrow(NotFoundException);
+    await expect(service.deleteAddress(other.userId, address.id)).rejects.toThrow(
       NotFoundException,
     );
-    await expect(service.deleteAddress(other.userId, address.id)).rejects.toThrow(NotFoundException);
   });
 });

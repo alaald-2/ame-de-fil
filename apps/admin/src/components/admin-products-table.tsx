@@ -13,6 +13,7 @@ import {
 } from "@ame-de-fil/ui";
 import { productStatusTone } from "../lib/product-status";
 import { formatMoney } from "../lib/format-money";
+import { formatDate } from "../lib/format-date";
 import type { AdminLocale } from "../i18n/config";
 
 export interface AdminProductListItem {
@@ -33,12 +34,10 @@ interface AdminProductsTableProps {
   locale: AdminLocale;
 }
 
-function formatDate(iso: string, locale: string): string {
-  return new Intl.DateTimeFormat(locale, { dateStyle: "medium" }).format(new Date(iso));
-}
-
 function formatPriceRange(min: number, max: number, locale: AdminLocale): string {
-  return min === max ? formatMoney(min, locale) : `${formatMoney(min, locale)}–${formatMoney(max, locale)}`;
+  return min === max
+    ? formatMoney(min, locale)
+    : `${formatMoney(min, locale)}–${formatMoney(max, locale)}`;
 }
 
 // Renders effective-price.ts's own result (via minEffectivePriceMinor/
@@ -46,10 +45,22 @@ function formatPriceRange(min: number, max: number, locale: AdminLocale): string
 // admin-product.mapper.ts) — never recomputes a discount here, only
 // compares the two already-computed ranges to decide whether to show the
 // struck-through original at all.
-function PriceCell({ item, locale, none }: { item: AdminProductListItem; locale: AdminLocale; none: string }) {
+function PriceCell({
+  item,
+  locale,
+  none,
+}: {
+  item: AdminProductListItem;
+  locale: AdminLocale;
+  none: string;
+}) {
   if (item.minPriceMinor === null || item.maxPriceMinor === null) return <>{none}</>;
 
-  if (!item.hasActivePromotion || item.minEffectivePriceMinor === null || item.maxEffectivePriceMinor === null) {
+  if (
+    !item.hasActivePromotion ||
+    item.minEffectivePriceMinor === null ||
+    item.maxEffectivePriceMinor === null
+  ) {
     return <>{formatPriceRange(item.minPriceMinor, item.maxPriceMinor, locale)}</>;
   }
 
@@ -92,7 +103,9 @@ export function AdminProductsTable({ products, locale }: AdminProductsTableProps
                 {product.name}
               </TableCell>
               <TableCell>
-                <Badge tone={productStatusTone(product.status)}>{t(`status.${product.status}`)}</Badge>
+                <Badge tone={productStatusTone(product.status)}>
+                  {t(`status.${product.status}`)}
+                </Badge>
               </TableCell>
               <TableCell numeric>{product.variantCount}</TableCell>
               <TableCell numeric>
@@ -113,7 +126,9 @@ export function AdminProductsTable({ products, locale }: AdminProductsTableProps
             >
               <div className="flex items-center justify-between gap-3">
                 <Text className="truncate font-medium text-neutral-900">{product.name}</Text>
-                <Badge tone={productStatusTone(product.status)}>{t(`status.${product.status}`)}</Badge>
+                <Badge tone={productStatusTone(product.status)}>
+                  {t(`status.${product.status}`)}
+                </Badge>
               </div>
               <div className="mt-3 grid grid-cols-3 gap-2">
                 <div>

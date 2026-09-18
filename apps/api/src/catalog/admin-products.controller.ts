@@ -34,12 +34,21 @@ import { ApiErrorResponses } from "../common/api-error-responses.ts";
 import { ApiZodParam, ApiZodQuery, toOpenApiSchema } from "../common/zod-openapi.ts";
 import type { AuthContext } from "../common/types/auth-context.ts";
 import { AdminProductsService } from "./admin-products.service.ts";
-import { listAdminProductsQuerySchema, type ListAdminProductsQuery } from "./dto/list-products-query.dto.ts";
+import {
+  listAdminProductsQuerySchema,
+  type ListAdminProductsQuery,
+} from "./dto/list-admin-products-query.dto.ts";
 import { createProductSchema, type CreateProductInput } from "./dto/create-product.dto.ts";
 import { updateProductSchema, type UpdateProductInput } from "./dto/update-product.dto.ts";
 import { productIdParamSchema, type ProductIdParam } from "./dto/product-id.param.ts";
-import { productImageIdParamSchema, type ProductImageIdParam } from "./dto/product-image-id.param.ts";
-import { productImageAltTextSchema, type ProductImageAltTextInput } from "./dto/product-image.dto.ts";
+import {
+  productImageIdParamSchema,
+  type ProductImageIdParam,
+} from "./dto/product-image-id.param.ts";
+import {
+  productImageAltTextSchema,
+  type ProductImageAltTextInput,
+} from "./dto/product-image.dto.ts";
 import {
   reorderProductImagesSchema,
   type ReorderProductImagesInput,
@@ -75,12 +84,15 @@ export class AdminProductsController {
   @Get()
   @RequirePermissions("products.view")
   @ApiOperation({
-    summary: "List products (admin), most recently updated first — optionally filtered to one status",
+    summary:
+      "List products (admin), most recently updated first — optionally filtered to one status",
   })
   @ApiZodQuery(listAdminProductsQuerySchema)
   @ApiOkResponse({ schema: toOpenApiSchema(listAdminProductsResponseSchema) })
   @ApiErrorResponses(400, 401, 403)
-  async list(@Query(new ZodValidationPipe(listAdminProductsQuerySchema)) query: ListAdminProductsQuery) {
+  async list(
+    @Query(new ZodValidationPipe(listAdminProductsQuerySchema)) query: ListAdminProductsQuery,
+  ) {
     return this.adminProducts.list(query.page, query.pageSize, query.status, query.q);
   }
 
@@ -89,7 +101,9 @@ export class AdminProductsController {
   // (otherwise ":id" would swallow "variants" as a literal id).
   @Get("variants")
   @RequirePermissions("products.view")
-  @ApiOperation({ summary: "List every non-archived variant, for pickers like the Promotions admin UI" })
+  @ApiOperation({
+    summary: "List every non-archived variant, for pickers like the Promotions admin UI",
+  })
   @ApiZodQuery(localeQuerySchema)
   @ApiOkResponse({ schema: toOpenApiSchema(listAdminProductVariantOptionsResponseSchema) })
   @ApiErrorResponses(400, 401, 403)
@@ -223,7 +237,7 @@ export class AdminProductsController {
   @ApiOperation({ summary: "Delete a product image" })
   @ApiZodParam(productImageIdParamSchema)
   @ApiNoContentResponse()
-  @ApiErrorResponses(401, 403, 404)
+  @ApiErrorResponses(400, 401, 403, 404)
   async deleteImage(
     @Param(new ZodValidationPipe(productImageIdParamSchema)) params: ProductImageIdParam,
     @CurrentUser() auth: AuthContext,
@@ -241,7 +255,7 @@ export class AdminProductsController {
   })
   @ApiZodParam(productIdParamSchema)
   @ApiNoContentResponse()
-  @ApiErrorResponses(401, 403, 404, 409)
+  @ApiErrorResponses(400, 401, 403, 404, 409)
   async delete(
     @Param(new ZodValidationPipe(productIdParamSchema)) params: ProductIdParam,
     @CurrentUser() auth: AuthContext,

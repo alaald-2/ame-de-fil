@@ -84,7 +84,11 @@ export class InventoryService {
     const matchingVariantIds = await findVariantIdsByArticleNumber(this.prisma, q);
     return [
       { variant: { sku: { contains: q, mode: "insensitive" } } },
-      { variant: { product: { translations: { some: { name: { contains: q, mode: "insensitive" } } } } } },
+      {
+        variant: {
+          product: { translations: { some: { name: { contains: q, mode: "insensitive" } } } },
+        },
+      },
       ...(matchingVariantIds.length > 0 ? [{ productVariantId: { in: matchingVariantIds } }] : []),
     ];
   }
@@ -208,7 +212,9 @@ export class InventoryService {
         { inventoryItem: { variant: { sku: { contains: q, mode: "insensitive" } } } },
         {
           inventoryItem: {
-            variant: { product: { translations: { some: { name: { contains: q, mode: "insensitive" } } } } },
+            variant: {
+              product: { translations: { some: { name: { contains: q, mode: "insensitive" } } } },
+            },
           },
         },
         ...(matchingVariantIds.length > 0
@@ -245,7 +251,9 @@ export class InventoryService {
         { inventoryItem: { variant: { sku: { contains: q, mode: "insensitive" } } } },
         {
           inventoryItem: {
-            variant: { product: { translations: { some: { name: { contains: q, mode: "insensitive" } } } } },
+            variant: {
+              product: { translations: { some: { name: { contains: q, mode: "insensitive" } } } },
+            },
           },
         },
         ...(matchingVariantIds.length > 0

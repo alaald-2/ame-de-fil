@@ -45,7 +45,10 @@ interface FormState {
 // non-empty — AddressesService's own invariant, docs/plans) seeds the
 // address fields the exact same way shippingMethods[0] already seeds
 // shippingMethodId — a one-time copy into local form state, not an effect.
-function initialFormState(shippingMethods: ShippingMethod[], savedAddresses: AddressResponse[]): FormState {
+function initialFormState(
+  shippingMethods: ShippingMethod[],
+  savedAddresses: AddressResponse[],
+): FormState {
   const defaultAddress = savedAddresses.find((address) => address.isDefault);
   return {
     guestEmail: "",
@@ -216,7 +219,9 @@ export function CheckoutForm({
         return;
       }
       setIsLoadingPickupPoints(true);
-      setForm((previous) => (previous.pickupPointId ? { ...previous, pickupPointId: "" } : previous));
+      setForm((previous) =>
+        previous.pickupPointId ? { ...previous, pickupPointId: "" } : previous,
+      );
       void api
         .GET("/api/v1/shipping-methods/{shippingMethodId}/pickup-points", {
           params: { path: { shippingMethodId }, query: { postalCode } },
@@ -257,31 +262,37 @@ export function CheckoutForm({
       },
     };
 
-    const { data, error } = await api.POST("/api/v1/checkout", {
-      params: { header: { "idempotency-key": idempotencyKeyRef.current } },
-      // @OptionalAuth() — required once a customer is signed in
-      // (cart-store.ts's own comment on the identical CsrfGuard interaction).
-      headers: { "x-csrf-token": readCsrfCookie() },
-      body,
-    });
+    try {
+      const { data, error } = await api.POST("/api/v1/checkout", {
+        params: { header: { "idempotency-key": idempotencyKeyRef.current } },
+        // @OptionalAuth() — required once a customer is signed in
+        // (cart-store.ts's own comment on the identical CsrfGuard interaction).
+        headers: { "x-csrf-token": readCsrfCookie() },
+        body,
+      });
 
-    setIsSubmitting(false);
-
-    if (error) {
-      if (getErrorCode(error) === "EmailNotVerified") {
-        setIsEmailNotVerified(true);
-      } else {
-        setErrorMessage(getErrorMessage(error, "Checkout failed"));
+      if (error) {
+        if (getErrorCode(error) === "EmailNotVerified") {
+          setIsEmailNotVerified(true);
+        } else {
+          setErrorMessage(getErrorMessage(error, "Checkout failed"));
+        }
+        return;
       }
-      return;
-    }
 
-    // Persisted before handing off — the payment/polling steps (and a
-    // possible Stripe 3DS redirect landing on /checkout/complete) read it
-    // back from sessionStorage, since a plain React state variable
-    // wouldn't survive a full-page redirect (checkout-order-storage.ts).
-    saveCheckoutOrder(data);
-    onSuccess(data);
+      // Persisted before handing off — the payment/polling steps (and a
+      // possible Stripe 3DS redirect landing on /checkout/complete) read it
+      // back from sessionStorage, since a plain React state variable
+      // wouldn't survive a full-page redirect (checkout-order-storage.ts).
+      saveCheckoutOrder(data);
+      onSuccess(data);
+    } catch {
+      // A rejected fetch (offline, unreachable API) isn't the typed
+      // {data,error} shape above — without this, isSubmitting never reset.
+      setErrorMessage("Checkout failed");
+    } finally {
+      setIsSubmitting(false);
+    }
   }
 
   return (

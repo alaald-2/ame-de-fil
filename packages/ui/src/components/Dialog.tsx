@@ -53,7 +53,9 @@ export function DialogContent({
         )}
         {...props}
       >
-        <RadixDialog.Title className="font-display text-xl text-neutral-900">{title}</RadixDialog.Title>
+        <RadixDialog.Title className="font-display text-xl text-neutral-900">
+          {title}
+        </RadixDialog.Title>
         {description ? (
           <RadixDialog.Description className="mt-1 text-sm text-neutral-600">
             {description}

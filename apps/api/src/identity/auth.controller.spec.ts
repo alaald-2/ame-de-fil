@@ -3,7 +3,11 @@ import { Test } from "@nestjs/testing";
 import type { INestApplication } from "@nestjs/common";
 import { APP_GUARD } from "@nestjs/core";
 import { ConfigService } from "@nestjs/config";
-import { BadRequestException, ServiceUnavailableException, UnauthorizedException } from "@nestjs/common";
+import {
+  BadRequestException,
+  ServiceUnavailableException,
+  UnauthorizedException,
+} from "@nestjs/common";
 import cookieParser from "cookie-parser";
 import supertest from "supertest";
 import { AuthController } from "./auth.controller.ts";
@@ -55,7 +59,10 @@ interface BootOptions {
   loginWithOtp?: ReturnType<typeof vi.fn>;
   list?: ReturnType<typeof vi.fn>;
   configOverrides?: Record<string, unknown>;
-  googleOAuthProvider?: { createAuthorizationRequest: ReturnType<typeof vi.fn>; exchangeCodeForProfile: ReturnType<typeof vi.fn> };
+  googleOAuthProvider?: {
+    createAuthorizationRequest: ReturnType<typeof vi.fn>;
+    exchangeCodeForProfile: ReturnType<typeof vi.fn>;
+  };
 }
 
 // A never-configured PendingOAuthProvider stand-in by default — matches
@@ -64,7 +71,10 @@ interface BootOptions {
 // session) to know Google sign-in exists at all.
 function makePendingGoogleProviderMock() {
   const notConfigured = () => {
-    throw new ServiceUnavailableException({ error: "OAuthNotConfigured", message: "Google sign-in is not configured" });
+    throw new ServiceUnavailableException({
+      error: "OAuthNotConfigured",
+      message: "Google sign-in is not configured",
+    });
   };
   return {
     createAuthorizationRequest: vi.fn(notConfigured),
@@ -77,7 +87,8 @@ async function bootApp(options: BootOptions = {}) {
   const logout = options.logout ?? vi.fn().mockResolvedValue(undefined);
   const getSafeUser = options.getSafeUser ?? vi.fn().mockResolvedValue(SAFE_USER);
   const loginWithGoogle = options.loginWithGoogle ?? vi.fn();
-  const getLoginMethod = options.getLoginMethod ?? vi.fn().mockResolvedValue({ method: "password" });
+  const getLoginMethod =
+    options.getLoginMethod ?? vi.fn().mockResolvedValue({ method: "password" });
   const requestLoginOtp = options.requestLoginOtp ?? vi.fn().mockResolvedValue({ message: "ok" });
   const loginWithOtp = options.loginWithOtp ?? vi.fn();
   const list = options.list ?? vi.fn().mockResolvedValue({ items: [], total: 0 });
@@ -90,7 +101,15 @@ async function bootApp(options: BootOptions = {}) {
     providers: [
       {
         provide: AuthService,
-        useValue: { login, logout, getSafeUser, loginWithGoogle, getLoginMethod, requestLoginOtp, loginWithOtp },
+        useValue: {
+          login,
+          logout,
+          getSafeUser,
+          loginWithGoogle,
+          getLoginMethod,
+          requestLoginOtp,
+          loginWithOtp,
+        },
       },
       { provide: InventoryService, useValue: { list } },
       { provide: SessionService, useValue: { validateSession } },
@@ -183,16 +202,23 @@ describe("POST /auth/login", () => {
     const booted = await bootApp();
     app = booted.app;
 
-    const response = await supertest(app.getHttpServer()).post("/auth/login").send({ email: "not-an-email" });
+    const response = await supertest(app.getHttpServer())
+      .post("/auth/login")
+      .send({ email: "not-an-email" });
 
     expect(response.status).toBe(400);
     expect(booted.login).not.toHaveBeenCalled();
   });
 
   it("returns 401 with no Set-Cookie header on invalid credentials", async () => {
-    const login = vi.fn().mockRejectedValue(
-      new UnauthorizedException({ error: "InvalidCredentials", message: "Invalid email or password" }),
-    );
+    const login = vi
+      .fn()
+      .mockRejectedValue(
+        new UnauthorizedException({
+          error: "InvalidCredentials",
+          message: "Invalid email or password",
+        }),
+      );
     const booted = await bootApp({ login });
     app = booted.app;
 
@@ -205,7 +231,9 @@ describe("POST /auth/login", () => {
   });
 
   it("returns 429 once the per-IP rate limit is exceeded", async () => {
-    const login = vi.fn().mockRejectedValue(new UnauthorizedException({ error: "InvalidCredentials", message: "x" }));
+    const login = vi
+      .fn()
+      .mockRejectedValue(new UnauthorizedException({ error: "InvalidCredentials", message: "x" }));
     const booted = await bootApp({ login });
     app = booted.app;
 
@@ -250,7 +278,9 @@ describe("POST /auth/login-method", () => {
     const booted = await bootApp();
     app = booted.app;
 
-    const response = await supertest(app.getHttpServer()).post("/auth/login-method").send({ email: "not-an-email" });
+    const response = await supertest(app.getHttpServer())
+      .post("/auth/login-method")
+      .send({ email: "not-an-email" });
 
     expect(response.status).toBe(400);
     expect(booted.getLoginMethod).not.toHaveBeenCalled();
@@ -416,17 +446,25 @@ describe("GET /auth/session", () => {
     const booted = await bootApp({ validateSession: async () => AUTH });
     app = booted.app;
 
-    const response = await supertest(app.getHttpServer()).get("/auth/session").set("Cookie", "ame_session=token");
+    const response = await supertest(app.getHttpServer())
+      .get("/auth/session")
+      .set("Cookie", "ame_session=token");
 
     expect(response.status).toBe(200);
-    expect(response.body).toEqual({ authenticated: true, user: SAFE_USER, csrfToken: "csrf-token" });
+    expect(response.body).toEqual({
+      authenticated: true,
+      user: SAFE_USER,
+      csrfToken: "csrf-token",
+    });
   });
 
   it("returns 401 (not { authenticated: false }) for a present but invalid/expired session cookie", async () => {
     const booted = await bootApp({ validateSession: async () => null });
     app = booted.app;
 
-    const response = await supertest(app.getHttpServer()).get("/auth/session").set("Cookie", "ame_session=stale");
+    const response = await supertest(app.getHttpServer())
+      .get("/auth/session")
+      .set("Cookie", "ame_session=stale");
 
     expect(response.status).toBe(401);
   });
@@ -476,7 +514,9 @@ describe("POST /auth/logout", () => {
     const setCookie = response.headers["set-cookie"] as unknown as string[];
     // Express's clearCookie sends an already-expired Max-Age=0 cookie —
     // this is what actually removes it from the browser.
-    expect(setCookie.some((c) => c.startsWith("ame_session=") && c.includes("Expires="))).toBe(true);
+    expect(setCookie.some((c) => c.startsWith("ame_session=") && c.includes("Expires="))).toBe(
+      true,
+    );
     expect(setCookie.some((c) => c.startsWith("ame_csrf=") && c.includes("Expires="))).toBe(true);
   });
 });
@@ -538,7 +578,11 @@ describe("GET /auth/google", () => {
     const googleOAuthProvider = {
       createAuthorizationRequest: vi
         .fn()
-        .mockReturnValue({ url: "https://accounts.google.com/o/oauth2/v2/auth?x=1", state: "s1", codeVerifier: "v1" }),
+        .mockReturnValue({
+          url: "https://accounts.google.com/o/oauth2/v2/auth?x=1",
+          state: "s1",
+          codeVerifier: "v1",
+        }),
       exchangeCodeForProfile: vi.fn(),
     };
     const booted = await bootApp({ googleOAuthProvider });
@@ -615,20 +659,28 @@ describe("GET /auth/google/callback", () => {
 
     expect(response.status).toBe(302);
     expect(response.headers.location).toBe("http://localhost:3001");
-    expect(googleOAuthProvider.exchangeCodeForProfile).toHaveBeenCalledWith("auth-code", "verifier-1");
+    expect(googleOAuthProvider.exchangeCodeForProfile).toHaveBeenCalledWith(
+      "auth-code",
+      "verifier-1",
+    );
     expect(loginWithGoogle).toHaveBeenCalled();
 
     const setCookie = response.headers["set-cookie"] as unknown as string[];
     expect(setCookie.some((c) => c.startsWith("ame_session=new-session-token"))).toBe(true);
     expect(setCookie.some((c) => c.startsWith("ame_csrf=new-csrf-token"))).toBe(true);
     // Flow cookies cleared (expired), never left behind.
-    expect(setCookie.filter((c) => c.startsWith("ame_oauth_state=")).every((c) => c.includes("Expires="))).toBe(
-      true,
-    );
+    expect(
+      setCookie
+        .filter((c) => c.startsWith("ame_oauth_state="))
+        .every((c) => c.includes("Expires=")),
+    ).toBe(true);
   });
 
   it("redirects with authError=google_denied when Google itself reports an error, without calling the provider", async () => {
-    const googleOAuthProvider = { createAuthorizationRequest: vi.fn(), exchangeCodeForProfile: vi.fn() };
+    const googleOAuthProvider = {
+      createAuthorizationRequest: vi.fn(),
+      exchangeCodeForProfile: vi.fn(),
+    };
     const booted = await bootApp({ googleOAuthProvider });
     app = booted.app;
 
@@ -645,14 +697,19 @@ describe("GET /auth/google/callback", () => {
     const booted = await bootApp();
     app = booted.app;
 
-    const response = await supertest(app.getHttpServer()).get("/auth/google/callback?code=x&state=y");
+    const response = await supertest(app.getHttpServer()).get(
+      "/auth/google/callback?code=x&state=y",
+    );
 
     expect(response.status).toBe(302);
     expect(response.headers.location).toBe("http://localhost:3001?authError=invalid_request");
   });
 
   it("redirects with authError=state_mismatch and never calls the provider when the state doesn't match the cookie", async () => {
-    const googleOAuthProvider = { createAuthorizationRequest: vi.fn(), exchangeCodeForProfile: vi.fn() };
+    const googleOAuthProvider = {
+      createAuthorizationRequest: vi.fn(),
+      exchangeCodeForProfile: vi.fn(),
+    };
     const booted = await bootApp({ googleOAuthProvider });
     app = booted.app;
 
@@ -694,7 +751,9 @@ describe("GET /auth/google/callback", () => {
         familyName: null,
       }),
     };
-    const loginWithGoogle = vi.fn().mockRejectedValue(new Error("Google account email is not verified"));
+    const loginWithGoogle = vi
+      .fn()
+      .mockRejectedValue(new Error("Google account email is not verified"));
     const booted = await bootApp({ googleOAuthProvider, loginWithGoogle });
     app = booted.app;
 

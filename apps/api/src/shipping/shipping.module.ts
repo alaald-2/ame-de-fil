@@ -3,7 +3,11 @@ import { ConfigService } from "@nestjs/config";
 import type { Env } from "@ame-de-fil/config";
 import { PrismaService } from "../database/prisma.service.ts";
 import { ShippingController } from "./shipping.controller.ts";
-import { SHIPPING_PROVIDER, ManualShippingProvider, type ShippingProvider } from "./shipping-provider.ts";
+import {
+  SHIPPING_PROVIDER,
+  ManualShippingProvider,
+  type ShippingProvider,
+} from "./shipping-provider.ts";
 import { ShipmondoShippingProvider } from "./shipmondo-shipping.provider.ts";
 import { PostNordShippingProvider } from "./postnord-shipping.provider.ts";
 

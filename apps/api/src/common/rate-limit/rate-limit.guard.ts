@@ -8,8 +8,8 @@ import {
 } from "@nestjs/common";
 import { Reflector } from "@nestjs/core";
 import type { Request } from "express";
-import { RATE_LIMIT_KEY, type RateLimitOptions } from "./rate-limit.decorator.js";
-import { RATE_LIMIT_STORE, type RateLimitStore } from "./rate-limit-store.js";
+import { RATE_LIMIT_KEY, type RateLimitOptions } from "./rate-limit.decorator.ts";
+import { RATE_LIMIT_STORE, type RateLimitStore } from "./rate-limit-store.ts";
 
 // Per-IP by default (SECURITY.md §4); combine with the caller's userId once
 // an endpoint has one, by keying on `${ip}:${request.auth.userId}`.

@@ -13,6 +13,7 @@ import {
 } from "@ame-de-fil/ui";
 import { orderStatusTone, paymentStatusTone } from "../lib/order-status";
 import { formatMoney } from "../lib/format-money";
+import { formatDate } from "../lib/format-date";
 import type { AdminLocale } from "../i18n/config";
 
 export interface OrderListItem {
@@ -30,11 +31,13 @@ interface OrdersTableProps {
   locale: AdminLocale;
 }
 
-function formatDate(iso: string, locale: string): string {
-  return new Intl.DateTimeFormat(locale, { dateStyle: "medium" }).format(new Date(iso));
-}
-
-function CustomerCell({ customer, guestLabel }: { customer: OrderListItem["customer"]; guestLabel: string }) {
+function CustomerCell({
+  customer,
+  guestLabel,
+}: {
+  customer: OrderListItem["customer"];
+  guestLabel: string;
+}) {
   if (customer.name) {
     return (
       <>

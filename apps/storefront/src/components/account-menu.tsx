@@ -75,6 +75,11 @@ export function AccountMenu({ displayName }: AccountMenuProps) {
       close();
       router.push("/");
       router.refresh();
+    } catch {
+      // A rejected fetch (offline, unreachable API) isn't the typed
+      // {error} shape above — this component deliberately has no error UI
+      // (a quiet disabled row, see the comment above), so just swallow it;
+      // finally below still resets the spinner either way.
     } finally {
       setIsSigningOut(false);
     }

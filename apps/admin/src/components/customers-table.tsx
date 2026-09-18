@@ -11,6 +11,7 @@ import {
   Badge,
   Text,
 } from "@ame-de-fil/ui";
+import { formatDate } from "../lib/format-date";
 
 export interface CustomerListItem {
   id: string;
@@ -25,10 +26,6 @@ export interface CustomerListItem {
 interface CustomersTableProps {
   customers: CustomerListItem[];
   locale: string;
-}
-
-function formatDate(iso: string, locale: string): string {
-  return new Intl.DateTimeFormat(locale, { dateStyle: "medium" }).format(new Date(iso));
 }
 
 // Two markups for one data set, toggled purely by CSS breakpoint (no JS,

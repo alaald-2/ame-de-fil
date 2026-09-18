@@ -48,3 +48,9 @@ export const checkoutResponseSchema = z.object({
   orderStatusToken: z.string(),
 });
 export type CheckoutResponse = z.infer<typeof checkoutResponseSchema>;
+
+export const expireReservationsResponseSchema = z.object({
+  releasedReservations: z.number().int(),
+  canceledOrders: z.number().int(),
+});
+export type ExpireReservationsResponse = z.infer<typeof expireReservationsResponseSchema>;

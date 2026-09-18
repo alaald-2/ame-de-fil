@@ -12,8 +12,15 @@ import { SessionService } from "./session.service.ts";
 import { PasswordService } from "./password.service.ts";
 import { NotificationsService } from "../notifications/notifications.service.ts";
 import { PendingEmailProvider } from "../notifications/email-provider.ts";
-import { generateAccountActionToken, hashAccountActionToken } from "../common/account-action-token.ts";
-import { startTestDatabase, stopTestDatabase, type TestDatabase } from "../test/testcontainers-postgres.ts";
+import {
+  generateAccountActionToken,
+  hashAccountActionToken,
+} from "../common/account-action-token.ts";
+import {
+  startTestDatabase,
+  stopTestDatabase,
+  type TestDatabase,
+} from "../test/testcontainers-postgres.ts";
 
 function fakeConfig(ttlHours = 24): ConfigService<Env, true> {
   return { get: () => ttlHours } as unknown as ConfigService<Env, true>;
@@ -26,7 +33,11 @@ describe("AuthService.register / verifyEmail — real Postgres concurrency", () 
   beforeAll(async () => {
     db = await startTestDatabase();
     const sessions = new SessionService(db.prisma, fakeConfig());
-    const notifications = new NotificationsService(db.prisma, new PendingEmailProvider(), fakeConfig());
+    const notifications = new NotificationsService(
+      db.prisma,
+      new PendingEmailProvider(),
+      fakeConfig(),
+    );
     auth = new AuthService(db.prisma, new PasswordService(), sessions, notifications, fakeConfig());
   }, 120_000);
 
@@ -52,7 +63,11 @@ describe("AuthService.register / verifyEmail — real Postgres concurrency", () 
     // never issued a second one.
     const user = await db.prisma.user.findUniqueOrThrow({ where: { email } });
     const tokenCount = await db.prisma.accountActionToken.count({
-      where: { userId: user.id, purpose: AccountActionTokenPurpose.EMAIL_VERIFICATION, consumedAt: null },
+      where: {
+        userId: user.id,
+        purpose: AccountActionTokenPurpose.EMAIL_VERIFICATION,
+        consumedAt: null,
+      },
     });
     expect(tokenCount).toBe(1);
   });
@@ -73,7 +88,11 @@ describe("AuthService.register / verifyEmail — real Postgres concurrency", () 
     await auth.register({ email, password: "a-strong-password" });
     const user = await db.prisma.user.findUniqueOrThrow({ where: { email } });
     const tokenRow = await db.prisma.accountActionToken.findFirstOrThrow({
-      where: { userId: user.id, purpose: AccountActionTokenPurpose.EMAIL_VERIFICATION, consumedAt: null },
+      where: {
+        userId: user.id,
+        purpose: AccountActionTokenPurpose.EMAIL_VERIFICATION,
+        consumedAt: null,
+      },
     });
 
     // The real plaintext token was only ever returned once, in the (never

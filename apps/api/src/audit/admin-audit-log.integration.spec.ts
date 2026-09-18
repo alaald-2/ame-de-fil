@@ -8,7 +8,11 @@ import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { randomUUID } from "node:crypto";
 import { AdminAuditLogService } from "./admin-audit-log.service.ts";
 import { AuditService } from "./audit.service.ts";
-import { startTestDatabase, stopTestDatabase, type TestDatabase } from "../test/testcontainers-postgres.ts";
+import {
+  startTestDatabase,
+  stopTestDatabase,
+  type TestDatabase,
+} from "../test/testcontainers-postgres.ts";
 import { seedUserWithPermissions } from "../test/fixtures.ts";
 
 describe("AdminAuditLogService — real Postgres", () => {
@@ -56,7 +60,12 @@ describe("AdminAuditLogService — real Postgres", () => {
   it("records with no before/after as null, not an empty object", async () => {
     const actor = await seedUserWithPermissions(db.prisma, []);
     const entityId = `entity-${randomUUID()}`;
-    await audit.record({ actorUserId: actor.userId, action: "test.no-payload", entityType: "TestEntity", entityId });
+    await audit.record({
+      actorUserId: actor.userId,
+      action: "test.no-payload",
+      entityType: "TestEntity",
+      entityId,
+    });
 
     const result = await service.list(1, 50);
     const entry = result.items.find((item) => item.entityId === entityId);
@@ -68,7 +77,12 @@ describe("AdminAuditLogService — real Postgres", () => {
   it("resolves actorEmail to null once the actor User row is deleted (onDelete: SetNull)", async () => {
     const actor = await seedUserWithPermissions(db.prisma, []);
     const entityId = `entity-${randomUUID()}`;
-    await audit.record({ actorUserId: actor.userId, action: "test.orphaned", entityType: "TestEntity", entityId });
+    await audit.record({
+      actorUserId: actor.userId,
+      action: "test.orphaned",
+      entityType: "TestEntity",
+      entityId,
+    });
 
     await db.prisma.user.delete({ where: { id: actor.userId } });
 
@@ -85,7 +99,12 @@ describe("AdminAuditLogService — real Postgres", () => {
   it("never leaks the actor's password hash anywhere in the response", async () => {
     const actor = await seedUserWithPermissions(db.prisma, []);
     const entityId = `entity-${randomUUID()}`;
-    await audit.record({ actorUserId: actor.userId, action: "test.leak-check", entityType: "TestEntity", entityId });
+    await audit.record({
+      actorUserId: actor.userId,
+      action: "test.leak-check",
+      entityType: "TestEntity",
+      entityId,
+    });
 
     const result = await service.list(1, 50);
     const rawUser = await db.prisma.user.findUniqueOrThrow({ where: { id: actor.userId } });
@@ -100,7 +119,11 @@ describe("AdminAuditLogService — real Postgres", () => {
     // a deterministic ordering assertion. Year-2099 timestamps sort ahead
     // of anything else this file (or a shared container) has created.
     const future = (offsetMinutes: number) => new Date(Date.UTC(2099, 0, 1, 0, offsetMinutes));
-    const entityIds = [`entity-${randomUUID()}`, `entity-${randomUUID()}`, `entity-${randomUUID()}`];
+    const entityIds = [
+      `entity-${randomUUID()}`,
+      `entity-${randomUUID()}`,
+      `entity-${randomUUID()}`,
+    ];
     for (const [i, entityId] of entityIds.entries()) {
       await db.prisma.auditLog.create({
         data: {
@@ -123,10 +146,20 @@ describe("AdminAuditLogService — real Postgres", () => {
   it("total reflects the real row count, not a mocked/stale value", async () => {
     const before = await service.list(1, 1);
     await db.prisma.auditLog.create({
-      data: { actorUserId: null, action: "test.count-a", entityType: "TestEntity", entityId: randomUUID() },
+      data: {
+        actorUserId: null,
+        action: "test.count-a",
+        entityType: "TestEntity",
+        entityId: randomUUID(),
+      },
     });
     await db.prisma.auditLog.create({
-      data: { actorUserId: null, action: "test.count-b", entityType: "TestEntity", entityId: randomUUID() },
+      data: {
+        actorUserId: null,
+        action: "test.count-b",
+        entityType: "TestEntity",
+        entityId: randomUUID(),
+      },
     });
     const after = await service.list(1, 1);
 

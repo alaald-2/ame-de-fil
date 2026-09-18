@@ -57,7 +57,8 @@
     "nextSlide": "Nästa bild",
     "goToSlide": "Gå till bild {number}",
     "signOut": "Logga ut",
-    "signOutError": "Något gick fel vid utloggningen. Försök igen."
+    "signOutError": "Något gick fel vid utloggningen. Försök igen.",
+    "language": "Språk"
   },
   "Errors": {
     "notFoundTitle": "Sidan kunde inte hittas",
@@ -210,6 +211,8 @@
     "otpResend": "Skicka koden igen",
     "otpResendIn": "Skicka koden igen om {seconds}s",
     "otpSending": "Skickar…",
+    "otpGroupLabel": "Verifieringskod",
+    "otpDigitLabel": "Siffra {index} av {count}",
     "invalidCode": "Koden är felaktig eller har gått ut.",
     "rateLimited": "För många försök. Försök igen om en minut."
   },

@@ -1,5 +1,14 @@
 import { useTranslations } from "next-intl";
-import { Table, TableHead, TableBody, TableRow, TableHeaderCell, TableCell, Badge, Text } from "@ame-de-fil/ui";
+import {
+  Table,
+  TableHead,
+  TableBody,
+  TableRow,
+  TableHeaderCell,
+  TableCell,
+  Badge,
+  Text,
+} from "@ame-de-fil/ui";
 import { AdjustStockDialog } from "./adjust-stock-dialog";
 
 export interface InventoryListItem {

@@ -6,7 +6,8 @@
 // in apps/api/src (users/orders/inventory/catalog/checkout) as of this
 // checkpoint, plus a generic fallback for anything added later.
 
-export type JsonValue = string | number | boolean | null | JsonValue[] | { [key: string]: JsonValue };
+export type JsonValue =
+  string | number | boolean | null | JsonValue[] | { [key: string]: JsonValue };
 
 export interface AuditDiffRow {
   key: string;
@@ -50,7 +51,9 @@ export function formatJsonValue(value: JsonValue | undefined): string | null {
   if (typeof value === "number") return String(value);
   if (typeof value === "boolean") return value ? "true" : "false";
   if (Array.isArray(value)) {
-    const parts = value.map((item) => formatJsonValue(item)).filter((item): item is string => item !== null);
+    const parts = value
+      .map((item) => formatJsonValue(item))
+      .filter((item): item is string => item !== null);
     return parts.length > 0 ? parts.join(", ") : null;
   }
   // One level of nested-object flattening (e.g. product.created's

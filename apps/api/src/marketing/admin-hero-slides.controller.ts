@@ -34,8 +34,15 @@ import { ApiZodParam, toOpenApiSchema } from "../common/zod-openapi.ts";
 import type { AuthContext } from "../common/types/auth-context.ts";
 import { AdminHeroSlidesService } from "./admin-hero-slides.service.ts";
 import { heroSlideIdParamSchema, type HeroSlideIdParam } from "./dto/hero-slide-id.param.ts";
-import { heroSlideCtaSchema, updateHeroSlideSchema, type UpdateHeroSlideInput } from "./dto/hero-slide-cta.dto.ts";
-import { reorderHeroSlidesSchema, type ReorderHeroSlidesInput } from "./dto/reorder-hero-slides.dto.ts";
+import {
+  heroSlideCtaSchema,
+  updateHeroSlideSchema,
+  type UpdateHeroSlideInput,
+} from "./dto/hero-slide-cta.dto.ts";
+import {
+  reorderHeroSlidesSchema,
+  type ReorderHeroSlidesInput,
+} from "./dto/reorder-hero-slides.dto.ts";
 import {
   adminHeroSlideResponseSchema,
   listAdminHeroSlidesResponseSchema,
@@ -138,7 +145,7 @@ export class AdminHeroSlidesController {
   @ApiOperation({ summary: "Delete a hero slide" })
   @ApiZodParam(heroSlideIdParamSchema)
   @ApiNoContentResponse()
-  @ApiErrorResponses(401, 403, 404)
+  @ApiErrorResponses(400, 401, 403, 404)
   async delete(
     @Param(new ZodValidationPipe(heroSlideIdParamSchema)) params: HeroSlideIdParam,
     @CurrentUser() auth: AuthContext,

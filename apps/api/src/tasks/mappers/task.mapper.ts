@@ -67,7 +67,11 @@ export function mapTask(task: TaskWithContext): TaskResponse {
     order: task.order,
     orderItem: task.orderItem,
     variant: task.variant
-      ? { id: task.variant.id, articleNumber: task.variant.articleNumber, productName: resolveVariantDisplayName(task.variant) }
+      ? {
+          id: task.variant.id,
+          articleNumber: task.variant.articleNumber,
+          productName: resolveVariantDisplayName(task.variant),
+        }
       : null,
   };
 }

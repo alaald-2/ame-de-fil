@@ -5,7 +5,9 @@ import { EmailVerifiedGuard } from "./email-verified.guard.ts";
 import type { AuthContext } from "../types/auth-context.ts";
 
 function guardFor(auth: AuthContext | undefined, required: boolean | undefined): boolean {
-  const reflector = { getAllAndOverride: vi.fn().mockReturnValue(required) } as unknown as Reflector;
+  const reflector = {
+    getAllAndOverride: vi.fn().mockReturnValue(required),
+  } as unknown as Reflector;
   const context = {
     getHandler: () => ({}),
     getClass: () => ({}),
@@ -41,7 +43,9 @@ describe("EmailVerifiedGuard", () => {
     try {
       guardFor(UNVERIFIED, true);
     } catch (error) {
-      expect((error as ForbiddenException).getResponse()).toMatchObject({ error: "EmailNotVerified" });
+      expect((error as ForbiddenException).getResponse()).toMatchObject({
+        error: "EmailNotVerified",
+      });
     }
   });
 });

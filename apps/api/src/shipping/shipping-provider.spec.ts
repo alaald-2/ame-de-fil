@@ -149,7 +149,9 @@ describe("ManualShippingProvider.getPickupPoint", () => {
   it("returns null for a method that doesn't require a pickup point", async () => {
     const prisma = makePrisma();
     const provider = new ManualShippingProvider(prisma);
-    const tx = { shippingMethod: { findUnique: vi.fn().mockResolvedValue(ROW) } } as unknown as Prisma.TransactionClient;
+    const tx = {
+      shippingMethod: { findUnique: vi.fn().mockResolvedValue(ROW) },
+    } as unknown as Prisma.TransactionClient;
 
     const point = await provider.getPickupPoint(tx, "ship-1", "anything", "11122");
 
@@ -157,10 +159,14 @@ describe("ManualShippingProvider.getPickupPoint", () => {
   });
 
   it("returns the matching fixture point for a valid id, read through the given transaction client", async () => {
-    const prisma = makePrisma({ shippingMethod: { findUnique: vi.fn().mockResolvedValue(PICKUP_ROW) } });
+    const prisma = makePrisma({
+      shippingMethod: { findUnique: vi.fn().mockResolvedValue(PICKUP_ROW) },
+    });
     const provider = new ManualShippingProvider(prisma);
     const txFindUnique = vi.fn().mockResolvedValue(PICKUP_ROW);
-    const tx = { shippingMethod: { findUnique: txFindUnique } } as unknown as Prisma.TransactionClient;
+    const tx = {
+      shippingMethod: { findUnique: txFindUnique },
+    } as unknown as Prisma.TransactionClient;
 
     const [first] = await provider.listPickupPoints("ship-2", "11122");
     const point = await provider.getPickupPoint(tx, "ship-2", first!.id, "11122");

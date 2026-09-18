@@ -3,18 +3,8 @@ import { getTranslations } from "next-intl/server";
 import { Container, Heading, Text, Reveal, Pagination } from "@ame-de-fil/ui";
 import { api } from "../../../lib/api-client";
 import { ProductCard } from "../../../components/product-card";
-import { getPathname } from "../../../i18n/navigation";
+import { buildShopHref } from "../../../lib/pagination-href";
 import type { AppLocale } from "../../../lib/locale";
-
-// Shared by Pagination below — the query string a page link needs, given
-// what it must preserve (q) vs. what resetting it implicitly drops (page,
-// whenever `q` itself changes — a fresh search always starts at page 1).
-function buildShopHref(locale: AppLocale, query: string | undefined, page: number): string {
-  return getPathname({
-    href: { pathname: "/shop", query: { ...(query ? { q: query } : {}), ...(page > 1 ? { page } : {}) } },
-    locale,
-  });
-}
 
 type LocaleParams = { locale: AppLocale };
 
@@ -76,7 +66,9 @@ export default async function ShopPage({
               makeHref={(targetPage) => buildShopHref(locale, query, targetPage)}
               previousLabel={tPagination("previousPage")}
               nextLabel={tPagination("nextPage")}
-              pageLabel={(current, total) => tPagination("pageLabel", { page: current, totalPages: total })}
+              pageLabel={(current, total) =>
+                tPagination("pageLabel", { page: current, totalPages: total })
+              }
             />
           ) : null}
         </>

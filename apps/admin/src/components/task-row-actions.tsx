@@ -37,7 +37,12 @@ function assigneeLabel(option: AssigneeOption): string {
 // (today's single seeded "admin" role holds every permission — seed.ts);
 // a caller without it simply gets a 403 from the guard, surfaced as the
 // generic error below.
-export function TaskRowActions({ taskId, status, assignedToUserId, assignees }: TaskRowActionsProps) {
+export function TaskRowActions({
+  taskId,
+  status,
+  assignedToUserId,
+  assignees,
+}: TaskRowActionsProps) {
   const t = useTranslations("Tasks");
   const router = useRouter();
   const selectId = useId();
@@ -137,7 +142,12 @@ export function TaskRowActions({ taskId, status, assignedToUserId, assignees }: 
           </Button>
         </div>
       ) : (
-        <Button type="button" variant="secondary" onClick={() => handleTransition("reopen")} disabled={isTransitioning}>
+        <Button
+          type="button"
+          variant="secondary"
+          onClick={() => handleTransition("reopen")}
+          disabled={isTransitioning}
+        >
           {isTransitioning ? <Spinner className="h-4 w-4" /> : null}
           {t("reopen")}
         </Button>

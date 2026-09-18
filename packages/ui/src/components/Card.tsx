@@ -9,7 +9,11 @@ import { cn } from "../utils/cn";
 // own sortable image cards need one to hand to dnd-kit's useSortable).
 export const Card = forwardRef<HTMLDivElement, ComponentPropsWithoutRef<"div">>(
   ({ className, ...props }, ref) => (
-    <div ref={ref} className={cn("rounded-sm border border-neutral-200 p-6", className)} {...props} />
+    <div
+      ref={ref}
+      className={cn("rounded-sm border border-neutral-200 p-6", className)}
+      {...props}
+    />
   ),
 );
 Card.displayName = "Card";

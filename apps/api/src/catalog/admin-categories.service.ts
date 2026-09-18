@@ -80,7 +80,11 @@ export class AdminCategoriesService {
     return mapAdminTaxonomy(category);
   }
 
-  async create(input: CreateTaxonomyInput, actorUserId: string, ipAddress?: string): Promise<{ id: string }> {
+  async create(
+    input: CreateTaxonomyInput,
+    actorUserId: string,
+    ipAddress?: string,
+  ): Promise<{ id: string }> {
     try {
       const category = await this.prisma.$transaction(async (tx) => {
         const created = await tx.category.create({ data: {} });
@@ -104,7 +108,11 @@ export class AdminCategoriesService {
             entityType: "Category",
             entityId: created.id,
             after: {
-              translations: input.translations.map((t) => ({ locale: t.locale, name: t.name, slug: t.slug })),
+              translations: input.translations.map((t) => ({
+                locale: t.locale,
+                name: t.name,
+                slug: t.slug,
+              })),
             },
             ipAddress,
           },
@@ -197,7 +205,13 @@ export class AdminCategoriesService {
     await this.prisma.$transaction(async (tx) => {
       await tx.category.delete({ where: { id } });
       await this.audit.record(
-        { actorUserId, action: "category.deleted", entityType: "Category", entityId: id, ipAddress },
+        {
+          actorUserId,
+          action: "category.deleted",
+          entityType: "Category",
+          entityId: id,
+          ipAddress,
+        },
         tx,
       );
     });

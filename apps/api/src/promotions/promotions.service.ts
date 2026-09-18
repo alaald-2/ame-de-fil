@@ -1,4 +1,9 @@
-import { BadRequestException, ConflictException, Injectable, NotFoundException } from "@nestjs/common";
+import {
+  BadRequestException,
+  ConflictException,
+  Injectable,
+  NotFoundException,
+} from "@nestjs/common";
 import type { Prisma } from "@ame-de-fil/database";
 import type { Locale as AppLocale } from "@ame-de-fil/validation";
 import { PrismaService } from "../database/prisma.service.ts";
@@ -213,7 +218,11 @@ export class PromotionsService {
             : null
           : existing.startsAt,
       endsAt:
-        input.endsAt !== undefined ? (input.endsAt ? new Date(input.endsAt) : null) : existing.endsAt,
+        input.endsAt !== undefined
+          ? input.endsAt
+            ? new Date(input.endsAt)
+            : null
+          : existing.endsAt,
       active: input.active ?? existing.active,
     };
 

@@ -116,7 +116,9 @@ describe("AddressesService.createAddress", () => {
 
     expect(result.isDefault).toBe(true);
     expect(prisma.address.create).toHaveBeenCalledWith(
-      expect.objectContaining({ data: expect.objectContaining({ isDefault: true, country: "SE" }) }),
+      expect.objectContaining({
+        data: expect.objectContaining({ isDefault: true, country: "SE" }),
+      }),
     );
     // Nothing to unset yet on a genuinely first address, but the transaction
     // still runs the unset-others step unconditionally when shouldBeDefault —
@@ -203,7 +205,10 @@ describe("AddressesService.updateAddress", () => {
 
     await service.updateAddress("user-1", "addr-1", { city: "Göteborg" });
 
-    expect(prisma.address.update).toHaveBeenCalledWith({ where: { id: "addr-1" }, data: { city: "Göteborg" } });
+    expect(prisma.address.update).toHaveBeenCalledWith({
+      where: { id: "addr-1" },
+      data: { city: "Göteborg" },
+    });
   });
 
   it("isDefault: true unsets every other default for that user first", async () => {

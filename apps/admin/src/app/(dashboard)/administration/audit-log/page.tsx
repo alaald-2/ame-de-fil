@@ -40,9 +40,17 @@ export default async function AuditLogPage({ searchParams }: AuditLogPageProps) 
           <AdministrationTabs permissions={session.user.permissions} />
         </div>
         {response.status === 403 ? (
-          <ErrorState className="mt-6" title={t("forbiddenTitle")} description={t("forbiddenDescription")} />
+          <ErrorState
+            className="mt-6"
+            title={t("forbiddenTitle")}
+            description={t("forbiddenDescription")}
+          />
         ) : (
-          <ErrorState className="mt-6" title={t("errorTitle")} description={t("errorDescription")} />
+          <ErrorState
+            className="mt-6"
+            title={t("errorTitle")}
+            description={t("errorDescription")}
+          />
         )}
       </div>
     );
@@ -76,7 +84,9 @@ export default async function AuditLogPage({ searchParams }: AuditLogPageProps) 
               makeHref={(targetPage) => `/administration/audit-log?page=${targetPage}`}
               previousLabel={t("paginationPrevious")}
               nextLabel={t("paginationNext")}
-              pageLabel={(current, total) => t("paginationPage", { page: current, totalPages: total })}
+              pageLabel={(current, total) =>
+                t("paginationPage", { page: current, totalPages: total })
+              }
             />
           ) : null}
         </>

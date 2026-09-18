@@ -2,8 +2,8 @@ import { describe, expect, it, vi, beforeEach } from "vitest";
 import { ConfigService } from "@nestjs/config";
 import type { Env } from "@ame-de-fil/config";
 import { UserStatus } from "@ame-de-fil/database";
-import { SessionService } from "./session.service.js";
-import type { PrismaService } from "../database/prisma.service.js";
+import { SessionService } from "./session.service.ts";
+import type { PrismaService } from "../database/prisma.service.ts";
 
 function makePrismaMock() {
   return {

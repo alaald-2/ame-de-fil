@@ -25,7 +25,11 @@ export class OrdersService {
   // method, deliberately not shared with it (customer/admin responses diverge
   // enough — see my-order.mapper.ts's own comment — that a shared helper
   // would need to branch on caller type internally, which is worse).
-  async listMyOrders(userId: string, page: number, pageSize: number): Promise<ListMyOrdersResponse> {
+  async listMyOrders(
+    userId: string,
+    page: number,
+    pageSize: number,
+  ): Promise<ListMyOrdersResponse> {
     const [rows, total] = await Promise.all([
       this.prisma.order.findMany({
         where: { userId },

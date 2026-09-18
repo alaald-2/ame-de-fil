@@ -109,7 +109,11 @@ describe("InventoryService.listLowStock", () => {
       isLimitedEdition: false,
       productionTimeDays: null,
       lowStockThreshold: 5,
-      variant: { id: `var-${sku}`, sku, product: { translations: [{ locale: Locale.sv_SE, name: sku }] } },
+      variant: {
+        id: `var-${sku}`,
+        sku,
+        product: { translations: [{ locale: Locale.sv_SE, name: sku }] },
+      },
     });
     // findMany intentionally returns them in the OPPOSITE order — Prisma's
     // `id IN (...)` never guarantees result order.
@@ -131,7 +135,9 @@ describe("InventoryService.listLowStock", () => {
 
   it("returns an empty page without querying the shaping select when nothing is low on stock", async () => {
     const prisma = makePrisma();
-    vi.mocked(prisma.$queryRaw).mockResolvedValueOnce([{ count: 0 }]).mockResolvedValueOnce([]);
+    vi.mocked(prisma.$queryRaw)
+      .mockResolvedValueOnce([{ count: 0 }])
+      .mockResolvedValueOnce([]);
     const service = new InventoryService(prisma, new AuditService(prisma));
 
     const result = await service.listLowStock(1, 20);
@@ -142,7 +148,9 @@ describe("InventoryService.listLowStock", () => {
 
   it("computes pagination consistently with the other list endpoint", async () => {
     const prisma = makePrisma();
-    vi.mocked(prisma.$queryRaw).mockResolvedValueOnce([{ count: 0 }]).mockResolvedValueOnce([]);
+    vi.mocked(prisma.$queryRaw)
+      .mockResolvedValueOnce([{ count: 0 }])
+      .mockResolvedValueOnce([]);
     const service = new InventoryService(prisma, new AuditService(prisma));
 
     const result = await service.listLowStock(3, 10);
@@ -271,7 +279,11 @@ function reservationRow(overrides: Record<string, unknown> = {}) {
     expiresAt: new Date("2026-01-01T00:15:00.000Z"),
     createdAt: new Date("2026-01-01T00:00:00.000Z"),
     inventoryItem: {
-      variant: { id: "var-1", sku: "SKU-1", product: { translations: [{ locale: Locale.sv_SE, name: "Halsduk" }] } },
+      variant: {
+        id: "var-1",
+        sku: "SKU-1",
+        product: { translations: [{ locale: Locale.sv_SE, name: "Halsduk" }] },
+      },
     },
     orderItem: { order: { id: "order-1", orderNumber: "ORD-1" } },
     ...overrides,
@@ -306,7 +318,9 @@ describe("InventoryService.listReservations", () => {
 
     await service.listReservations({ page: 1, pageSize: 20, status: "ALL" });
 
-    expect(prisma.stockReservation.findMany).toHaveBeenCalledWith(expect.objectContaining({ where: {} }));
+    expect(prisma.stockReservation.findMany).toHaveBeenCalledWith(
+      expect.objectContaining({ where: {} }),
+    );
   });
 
   it("filters by variantId via the inventoryItem relation", async () => {
@@ -329,7 +343,11 @@ function movementRow(overrides: Record<string, unknown> = {}) {
     reason: "New shipment",
     createdAt: new Date("2026-01-01T00:00:00.000Z"),
     inventoryItem: {
-      variant: { id: "var-1", sku: "SKU-1", product: { translations: [{ locale: Locale.sv_SE, name: "Halsduk" }] } },
+      variant: {
+        id: "var-1",
+        sku: "SKU-1",
+        product: { translations: [{ locale: Locale.sv_SE, name: "Halsduk" }] },
+      },
     },
     createdBy: { id: "user-1", email: "admin@example.com" },
     relatedOrderItem: { order: { id: "order-1", orderNumber: "ORD-1" } },

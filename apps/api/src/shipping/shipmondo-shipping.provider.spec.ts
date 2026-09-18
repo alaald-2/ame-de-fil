@@ -118,7 +118,12 @@ describe("ShipmondoShippingProvider.listAvailableMethods", () => {
     const body = JSON.parse(init.body as string);
     expect(body).toMatchObject({
       product_code: "DHLFSE_P",
-      sender: { address1: "Drottninggatan 1", zipcode: "111 51", city: "Stockholm", country_code: "SE" },
+      sender: {
+        address1: "Drottninggatan 1",
+        zipcode: "111 51",
+        city: "Stockholm",
+        country_code: "SE",
+      },
       receiver: { zipcode: "411 36", city: "Göteborg", country_code: "SE" },
       parcels: [{ quantity: 1, weight: 1000, length: 30, width: 20, height: 15, packaging: "PK" }],
     });
@@ -160,9 +165,7 @@ describe("ShipmondoShippingProvider.listAvailableMethods", () => {
     fetchMock.mockResolvedValue({ ok: false, status: 500, json: async () => ({}) });
     const provider = new ShipmondoShippingProvider(makeConfigMock(), makePrismaMock());
 
-    await expect(provider.listAvailableMethods(DESTINATION, PARCEL)).rejects.toThrow(
-      /status 500/,
-    );
+    await expect(provider.listAvailableMethods(DESTINATION, PARCEL)).rejects.toThrow(/status 500/);
   });
 });
 
@@ -189,7 +192,9 @@ describe("ShipmondoShippingProvider.getQuote", () => {
   it("returns null for a ShippingMethod row this provider doesn't recognize (e.g. Manual's STANDARD/OMBUD)", async () => {
     const provider = new ShipmondoShippingProvider(makeConfigMock(), makePrismaMock());
     const tx = {
-      shippingMethod: { findUnique: vi.fn().mockResolvedValue({ ...METHOD_ROW, code: "STANDARD" }) },
+      shippingMethod: {
+        findUnique: vi.fn().mockResolvedValue({ ...METHOD_ROW, code: "STANDARD" }),
+      },
     } as unknown as Prisma.TransactionClient;
 
     expect(await provider.getQuote(tx, "ship-1", DESTINATION, PARCEL)).toBeNull();
@@ -201,7 +206,9 @@ describe("ShipmondoShippingProvider.getQuote", () => {
     const prisma = makePrismaMock();
     const provider = new ShipmondoShippingProvider(makeConfigMock(), prisma);
     const txFindUnique = vi.fn().mockResolvedValue(METHOD_ROW);
-    const tx = { shippingMethod: { findUnique: txFindUnique } } as unknown as Prisma.TransactionClient;
+    const tx = {
+      shippingMethod: { findUnique: txFindUnique },
+    } as unknown as Prisma.TransactionClient;
 
     const quote = await provider.getQuote(tx, "method-1", DESTINATION, PARCEL);
 
@@ -228,12 +235,7 @@ describe("ShipmondoShippingProvider pickup points", () => {
 
     expect(await provider.listPickupPoints("method-1", "11122")).toEqual([]);
     expect(
-      await provider.getPickupPoint(
-        {} as Prisma.TransactionClient,
-        "method-1",
-        "any",
-        "11122",
-      ),
+      await provider.getPickupPoint({} as Prisma.TransactionClient, "method-1", "any", "11122"),
     ).toBeNull();
   });
 });
@@ -256,11 +258,18 @@ describe("ShipmondoShippingProvider.createShipment", () => {
 
   it("returns null for a ShippingMethod row this provider doesn't recognize", async () => {
     const prisma = makePrismaMock({
-      shippingMethod: { findUnique: vi.fn().mockResolvedValue({ ...METHOD_ROW, code: "STANDARD" }) },
+      shippingMethod: {
+        findUnique: vi.fn().mockResolvedValue({ ...METHOD_ROW, code: "STANDARD" }),
+      },
     });
     const provider = new ShipmondoShippingProvider(makeConfigMock(), prisma);
 
-    const result = await provider.createShipment("method-1", SHIPMENT_DESTINATION, PARCEL, "AF-TEST-1");
+    const result = await provider.createShipment(
+      "method-1",
+      SHIPMENT_DESTINATION,
+      PARCEL,
+      "AF-TEST-1",
+    );
 
     expect(result).toBeNull();
     expect(fetchMock).not.toHaveBeenCalled();
@@ -272,7 +281,12 @@ describe("ShipmondoShippingProvider.createShipment", () => {
     });
     const provider = new ShipmondoShippingProvider(makeConfigMock(), prisma);
 
-    const result = await provider.createShipment("missing", SHIPMENT_DESTINATION, PARCEL, "AF-TEST-1");
+    const result = await provider.createShipment(
+      "missing",
+      SHIPMENT_DESTINATION,
+      PARCEL,
+      "AF-TEST-1",
+    );
 
     expect(result).toBeNull();
     expect(fetchMock).not.toHaveBeenCalled();
@@ -286,7 +300,12 @@ describe("ShipmondoShippingProvider.createShipment", () => {
     });
     const provider = new ShipmondoShippingProvider(makeConfigMock(), makePrismaMock());
 
-    const result = await provider.createShipment("method-1", SHIPMENT_DESTINATION, PARCEL, "AF-TEST-1");
+    const result = await provider.createShipment(
+      "method-1",
+      SHIPMENT_DESTINATION,
+      PARCEL,
+      "AF-TEST-1",
+    );
 
     expect(result).toEqual({
       carrierName: "DHL Freight",

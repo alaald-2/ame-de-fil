@@ -58,7 +58,8 @@ export function SidebarNav({ permissions }: SidebarNavProps) {
       className="-mx-1 mt-3 flex items-center gap-1 overflow-x-auto px-1 md:mx-0 md:mt-0 md:flex-col md:items-stretch md:overflow-visible md:px-0"
     >
       {visibleItems.map((item) => {
-        const isActive = pathname === item.href || (item.href !== "/" && pathname.startsWith(item.href));
+        const isActive =
+          pathname === item.href || (item.href !== "/" && pathname.startsWith(item.href));
         return (
           <NavLink
             key={item.href}

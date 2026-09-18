@@ -1,4 +1,4 @@
-export type BadgeTone = "success" | "neutral" | "danger";
+import type { BadgeTone } from "@ame-de-fil/ui";
 
 // Pure status -> tone mapping, no i18n (the visible label comes from the
 // caller's own translator — see the Orders.status/.paymentStatus/

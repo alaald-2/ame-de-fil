@@ -132,7 +132,9 @@ export class PendingOAuthProvider implements GoogleOAuthProvider {
   private readonly logger = new Logger(PendingOAuthProvider.name);
 
   createAuthorizationRequest(): never {
-    this.logger.warn("Google sign-in requested but not configured (GOOGLE_CLIENT_ID/SECRET/REDIRECT_URI unset)");
+    this.logger.warn(
+      "Google sign-in requested but not configured (GOOGLE_CLIENT_ID/SECRET/REDIRECT_URI unset)",
+    );
     throw new ServiceUnavailableException({
       error: "OAuthNotConfigured",
       message: "Google sign-in is not configured",

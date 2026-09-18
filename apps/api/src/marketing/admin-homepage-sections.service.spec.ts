@@ -10,7 +10,12 @@ const ACTOR_USER_ID = "user-1";
 
 function makeImageStorageMock(): ImageStorageProvider {
   return {
-    upload: vi.fn().mockResolvedValue({ url: "https://res.cloudinary.com/x/section.jpg", publicId: "section-1" }),
+    upload: vi
+      .fn()
+      .mockResolvedValue({
+        url: "https://res.cloudinary.com/x/section.jpg",
+        publicId: "section-1",
+      }),
     delete: vi.fn().mockResolvedValue(undefined),
   };
 }
@@ -18,10 +23,19 @@ function makeImageStorageMock(): ImageStorageProvider {
 function makeTxMock() {
   return {
     homepageSection: {
-      upsert: vi.fn().mockImplementation(
-        ({ where, update, create }: { where: { key: HomepageSectionKey }; update: unknown; create: unknown }) =>
-          Promise.resolve({ key: where.key, ...(update ?? create) as object }),
-      ),
+      upsert: vi
+        .fn()
+        .mockImplementation(
+          ({
+            where,
+            update,
+            create,
+          }: {
+            where: { key: HomepageSectionKey };
+            update: unknown;
+            create: unknown;
+          }) => Promise.resolve({ key: where.key, ...((update ?? create) as object) }),
+        ),
     },
     auditLog: { create: vi.fn().mockResolvedValue({}) },
   };
@@ -54,7 +68,11 @@ describe("AdminHomepageSectionsService.list", () => {
   it("returns all three known slots even when no rows exist yet", async () => {
     const tx = makeTxMock();
     const prisma = makePrismaMock(tx);
-    const service = new AdminHomepageSectionsService(prisma, new AuditService(prisma), makeImageStorageMock());
+    const service = new AdminHomepageSectionsService(
+      prisma,
+      new AuditService(prisma),
+      makeImageStorageMock(),
+    );
 
     const result = await service.list();
 
@@ -72,10 +90,18 @@ describe("AdminHomepageSectionsService.uploadImage", () => {
     const tx = makeTxMock();
     const prisma = makePrismaMock(tx);
     const imageStorage = makeImageStorageMock();
-    const service = new AdminHomepageSectionsService(prisma, new AuditService(prisma), imageStorage);
+    const service = new AdminHomepageSectionsService(
+      prisma,
+      new AuditService(prisma),
+      imageStorage,
+    );
 
     await expect(
-      service.uploadImage("story", { buffer: Buffer.from("x"), mimetype: "image/gif" }, ACTOR_USER_ID),
+      service.uploadImage(
+        "story",
+        { buffer: Buffer.from("x"), mimetype: "image/gif" },
+        ACTOR_USER_ID,
+      ),
     ).rejects.toThrow(BadRequestException);
     expect(imageStorage.upload).not.toHaveBeenCalled();
   });
@@ -84,11 +110,21 @@ describe("AdminHomepageSectionsService.uploadImage", () => {
     const tx = makeTxMock();
     const prisma = makePrismaMock(tx);
     const imageStorage = makeImageStorageMock();
-    const service = new AdminHomepageSectionsService(prisma, new AuditService(prisma), imageStorage);
+    const service = new AdminHomepageSectionsService(
+      prisma,
+      new AuditService(prisma),
+      imageStorage,
+    );
 
-    const result = await service.uploadImage("made-to-order", { buffer: Buffer.from("x"), mimetype: "image/jpeg" }, ACTOR_USER_ID);
+    const result = await service.uploadImage(
+      "made-to-order",
+      { buffer: Buffer.from("x"), mimetype: "image/jpeg" },
+      ACTOR_USER_ID,
+    );
 
-    expect(imageStorage.upload).toHaveBeenCalledWith(expect.any(Buffer), { folder: "homepage-sections" });
+    expect(imageStorage.upload).toHaveBeenCalledWith(expect.any(Buffer), {
+      folder: "homepage-sections",
+    });
     expect(tx.homepageSection.upsert).toHaveBeenCalledWith(
       expect.objectContaining({ where: { key: HomepageSectionKey.MADE_TO_ORDER } }),
     );
@@ -101,15 +137,29 @@ describe("AdminHomepageSectionsService.uploadImage", () => {
 
   it("deletes the previous Cloudinary asset only after the new one uploads successfully", async () => {
     const tx = makeTxMock();
-    const prisma = makePrismaMock(tx, { key: HomepageSectionKey.STORY, imageUrl: "old", cloudinaryPublicId: "old-1" });
+    const prisma = makePrismaMock(tx, {
+      key: HomepageSectionKey.STORY,
+      imageUrl: "old",
+      cloudinaryPublicId: "old-1",
+    });
     const imageStorage = makeImageStorageMock();
-    const service = new AdminHomepageSectionsService(prisma, new AuditService(prisma), imageStorage);
+    const service = new AdminHomepageSectionsService(
+      prisma,
+      new AuditService(prisma),
+      imageStorage,
+    );
 
-    await service.uploadImage("story", { buffer: Buffer.from("x"), mimetype: "image/jpeg" }, ACTOR_USER_ID);
+    await service.uploadImage(
+      "story",
+      { buffer: Buffer.from("x"), mimetype: "image/jpeg" },
+      ACTOR_USER_ID,
+    );
 
     expect(imageStorage.delete).toHaveBeenCalledWith("old-1");
-    const uploadOrder = (imageStorage.upload as ReturnType<typeof vi.fn>).mock.invocationCallOrder[0]!;
-    const deleteOrder = (imageStorage.delete as ReturnType<typeof vi.fn>).mock.invocationCallOrder[0]!;
+    const uploadOrder = (imageStorage.upload as ReturnType<typeof vi.fn>).mock
+      .invocationCallOrder[0]!;
+    const deleteOrder = (imageStorage.delete as ReturnType<typeof vi.fn>).mock
+      .invocationCallOrder[0]!;
     expect(uploadOrder).toBeLessThan(deleteOrder);
   });
 });
@@ -117,9 +167,17 @@ describe("AdminHomepageSectionsService.uploadImage", () => {
 describe("AdminHomepageSectionsService.deleteImage", () => {
   it("deletes the Cloudinary asset and clears the row", async () => {
     const tx = makeTxMock();
-    const prisma = makePrismaMock(tx, { key: HomepageSectionKey.STORY, imageUrl: "old", cloudinaryPublicId: "old-1" });
+    const prisma = makePrismaMock(tx, {
+      key: HomepageSectionKey.STORY,
+      imageUrl: "old",
+      cloudinaryPublicId: "old-1",
+    });
     const imageStorage = makeImageStorageMock();
-    const service = new AdminHomepageSectionsService(prisma, new AuditService(prisma), imageStorage);
+    const service = new AdminHomepageSectionsService(
+      prisma,
+      new AuditService(prisma),
+      imageStorage,
+    );
 
     const result = await service.deleteImage("story", ACTOR_USER_ID);
 
@@ -134,7 +192,11 @@ describe("AdminHomepageSectionsService.deleteImage", () => {
     const tx = makeTxMock();
     const prisma = makePrismaMock(tx, null);
     const imageStorage = makeImageStorageMock();
-    const service = new AdminHomepageSectionsService(prisma, new AuditService(prisma), imageStorage);
+    const service = new AdminHomepageSectionsService(
+      prisma,
+      new AuditService(prisma),
+      imageStorage,
+    );
 
     await service.deleteImage("made-to-order", ACTOR_USER_ID);
 
@@ -146,7 +208,11 @@ describe("AdminHomepageSectionsService.updateContent", () => {
   it("creates a row (upsert) when the section has never been edited before", async () => {
     const tx = makeTxMock();
     const prisma = makePrismaMock(tx, null);
-    const service = new AdminHomepageSectionsService(prisma, new AuditService(prisma), makeImageStorageMock());
+    const service = new AdminHomepageSectionsService(
+      prisma,
+      new AuditService(prisma),
+      makeImageStorageMock(),
+    );
 
     const result = await service.updateContent(
       "hero",
@@ -174,7 +240,11 @@ describe("AdminHomepageSectionsService.updateContent", () => {
       titleSv: "Gammal rubrik",
       titleEn: "Old heading",
     });
-    const service = new AdminHomepageSectionsService(prisma, new AuditService(prisma), makeImageStorageMock());
+    const service = new AdminHomepageSectionsService(
+      prisma,
+      new AuditService(prisma),
+      makeImageStorageMock(),
+    );
 
     await service.updateContent("story", { titleSv: "" }, ACTOR_USER_ID);
 

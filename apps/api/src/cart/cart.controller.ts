@@ -11,7 +11,14 @@ import {
   Req,
   Res,
 } from "@nestjs/common";
-import { ApiBody, ApiCookieAuth, ApiOkResponse, ApiOperation, ApiTags } from "@nestjs/swagger";
+import {
+  ApiBody,
+  ApiCookieAuth,
+  ApiCreatedResponse,
+  ApiOkResponse,
+  ApiOperation,
+  ApiTags,
+} from "@nestjs/swagger";
 import { ConfigService } from "@nestjs/config";
 import type { Request, Response } from "express";
 import type { Env } from "@ame-de-fil/config";
@@ -65,7 +72,7 @@ export class CartController {
   @ApiOperation({ summary: "Add a variant to the cart, creating a guest cart cookie if needed" })
   @ApiZodQuery(localeQuerySchema)
   @ApiBody({ schema: toOpenApiSchema(addItemSchema) })
-  @ApiOkResponse({ schema: toOpenApiSchema(cartResponseSchema) })
+  @ApiCreatedResponse({ schema: toOpenApiSchema(cartResponseSchema) })
   @ApiErrorResponses(400, 401, 403)
   async addItem(
     @Req() request: Request,

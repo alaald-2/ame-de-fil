@@ -17,8 +17,16 @@ import { SessionService } from "../identity/session.service.ts";
 import { AllExceptionsFilter } from "../common/filters/all-exceptions.filter.ts";
 import type { AuthContext } from "../common/types/auth-context.ts";
 
-const CONFIG_VALUES: Record<string, unknown> = { SESSION_COOKIE_NAME: "ame_session", CSRF_COOKIE_NAME: "ame_csrf" };
-const AUTH: AuthContext = { userId: "user-1", sessionId: "s1", csrfToken: "csrf-token", permissions: [] };
+const CONFIG_VALUES: Record<string, unknown> = {
+  SESSION_COOKIE_NAME: "ame_session",
+  CSRF_COOKIE_NAME: "ame_csrf",
+};
+const AUTH: AuthContext = {
+  userId: "user-1",
+  sessionId: "s1",
+  csrfToken: "csrf-token",
+  permissions: [],
+};
 
 const ADDRESS = {
   id: "addr-1",
@@ -90,7 +98,9 @@ describe("AddressesController — the caller's own address book", () => {
     const booted = await bootApp(async () => AUTH);
     app = booted.app;
 
-    const response = await supertest(app.getHttpServer()).get("/addresses").set("Cookie", "ame_session=token");
+    const response = await supertest(app.getHttpServer())
+      .get("/addresses")
+      .set("Cookie", "ame_session=token");
 
     expect(response.status).toBe(200);
     expect(booted.listMyAddresses).toHaveBeenCalledWith("user-1");
@@ -103,7 +113,12 @@ describe("AddressesController — the caller's own address book", () => {
     const withoutCsrf = await supertest(app.getHttpServer())
       .post("/addresses")
       .set("Cookie", "ame_session=token; ame_csrf=csrf-token")
-      .send({ name: "Ada Lovelace", line1: "Storgatan 1", postalCode: "111 22", city: "Stockholm" });
+      .send({
+        name: "Ada Lovelace",
+        line1: "Storgatan 1",
+        postalCode: "111 22",
+        city: "Stockholm",
+      });
     expect(withoutCsrf.status).toBe(403);
     expect(booted.createAddress).not.toHaveBeenCalled();
 
@@ -111,7 +126,12 @@ describe("AddressesController — the caller's own address book", () => {
       .post("/addresses")
       .set("Cookie", "ame_session=token; ame_csrf=csrf-token")
       .set("x-csrf-token", "csrf-token")
-      .send({ name: "Ada Lovelace", line1: "Storgatan 1", postalCode: "111 22", city: "Stockholm" });
+      .send({
+        name: "Ada Lovelace",
+        line1: "Storgatan 1",
+        postalCode: "111 22",
+        city: "Stockholm",
+      });
     expect(withCsrf.status).toBe(201);
     expect(booted.createAddress).toHaveBeenCalledWith(
       "user-1",

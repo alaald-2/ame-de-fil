@@ -1,7 +1,17 @@
 import { useTranslations } from "next-intl";
 import Link from "next/link";
-import { Table, TableHead, TableBody, TableRow, TableHeaderCell, TableCell, Badge, Text } from "@ame-de-fil/ui";
+import {
+  Table,
+  TableHead,
+  TableBody,
+  TableRow,
+  TableHeaderCell,
+  TableCell,
+  Badge,
+  Text,
+} from "@ame-de-fil/ui";
 import { movementTypeTone } from "../lib/inventory-status";
+import { formatDateTime } from "../lib/format-date";
 
 export interface MovementListItem {
   id: string;
@@ -21,10 +31,6 @@ export interface MovementListItem {
 interface MovementsTableProps {
   movements: MovementListItem[];
   locale: string;
-}
-
-function formatDateTime(iso: string, locale: string): string {
-  return new Intl.DateTimeFormat(locale, { dateStyle: "medium", timeStyle: "short" }).format(new Date(iso));
 }
 
 // Quantity is a signed delta as InventoryMovement actually stores it
@@ -68,7 +74,9 @@ export function MovementsTable({ movements, locale }: MovementsTableProps) {
                 </div>
               </TableCell>
               <TableCell>
-                <Badge tone={movementTypeTone(movement.type)}>{t(`movementType.${movement.type}`)}</Badge>
+                <Badge tone={movementTypeTone(movement.type)}>
+                  {t(`movementType.${movement.type}`)}
+                </Badge>
                 {movement.reason ? (
                   <div className="mt-0.5 text-xs text-neutral-600">{movement.reason}</div>
                 ) : null}
@@ -98,7 +106,9 @@ export function MovementsTable({ movements, locale }: MovementsTableProps) {
           <li key={movement.id} className="px-1 py-4">
             <div className="flex items-center justify-between gap-3">
               <Text className="truncate font-medium text-neutral-900">{movement.productName}</Text>
-              <Badge tone={movementTypeTone(movement.type)}>{t(`movementType.${movement.type}`)}</Badge>
+              <Badge tone={movementTypeTone(movement.type)}>
+                {t(`movementType.${movement.type}`)}
+              </Badge>
             </div>
             <Text size="sm" tone="muted" className="mt-0.5">
               {movement.articleNumber}

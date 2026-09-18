@@ -55,7 +55,10 @@ export class AdminHomepageSectionsController {
 
   @Get()
   @RequirePermissions("marketing.view")
-  @ApiOperation({ summary: "Get the site's four named content sections (hero, story, made-to-order, announcement)" })
+  @ApiOperation({
+    summary:
+      "Get the site's four named content sections (hero, story, made-to-order, announcement)",
+  })
   @ApiOkResponse({ schema: toOpenApiSchema(listAdminHomepageSectionsResponseSchema) })
   @ApiErrorResponses(401, 403)
   async list() {
@@ -66,11 +69,17 @@ export class AdminHomepageSectionsController {
   @RequirePermissions("marketing.manage")
   @HttpCode(HttpStatus.CREATED)
   @UseInterceptors(FileInterceptor("file", { limits: { fileSize: 5 * 1024 * 1024 } }))
-  @ApiOperation({ summary: "Upload (or replace) a homepage section's image (JPEG/PNG/WebP, 5MB max)" })
+  @ApiOperation({
+    summary: "Upload (or replace) a homepage section's image (JPEG/PNG/WebP, 5MB max)",
+  })
   @ApiZodParam(homepageSectionKeyParamSchema)
   @ApiConsumes("multipart/form-data")
   @ApiBody({
-    schema: { type: "object", required: ["file"], properties: { file: { type: "string", format: "binary" } } },
+    schema: {
+      type: "object",
+      required: ["file"],
+      properties: { file: { type: "string", format: "binary" } },
+    },
   })
   @ApiCreatedResponse({ schema: toOpenApiSchema(adminHomepageSectionResponseSchema) })
   @ApiErrorResponses(400, 401, 403)
@@ -93,10 +102,12 @@ export class AdminHomepageSectionsController {
 
   @Delete(":key/image")
   @RequirePermissions("marketing.manage")
-  @ApiOperation({ summary: "Remove a homepage section's image (reverts to the storefront's placeholder)" })
+  @ApiOperation({
+    summary: "Remove a homepage section's image (reverts to the storefront's placeholder)",
+  })
   @ApiZodParam(homepageSectionKeyParamSchema)
   @ApiOkResponse({ schema: toOpenApiSchema(adminHomepageSectionResponseSchema) })
-  @ApiErrorResponses(401, 403)
+  @ApiErrorResponses(400, 401, 403)
   async deleteImage(
     @Param(new ZodValidationPipe(homepageSectionKeyParamSchema)) params: HomepageSectionKeyParam,
     @CurrentUser() auth: AuthContext,
@@ -107,7 +118,9 @@ export class AdminHomepageSectionsController {
 
   @Patch(":key")
   @RequirePermissions("marketing.manage")
-  @ApiOperation({ summary: "Update a homepage section's text content (eyebrow/title/description/CTA)" })
+  @ApiOperation({
+    summary: "Update a homepage section's text content (eyebrow/title/description/CTA)",
+  })
   @ApiZodParam(homepageSectionKeyParamSchema)
   @ApiBody({ schema: toOpenApiSchema(homepageSectionContentSchema) })
   @ApiOkResponse({ schema: toOpenApiSchema(adminHomepageSectionResponseSchema) })

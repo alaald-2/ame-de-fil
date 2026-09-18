@@ -41,8 +41,7 @@ export function isUniqueConstraintViolation(
   if (typeof target === "string") return target.includes(field);
 
   const driverAdapterError = error.meta?.["driverAdapterError"] as
-    | { cause?: { constraint?: { index?: unknown }; table?: unknown } }
-    | undefined;
+    { cause?: { constraint?: { index?: unknown }; table?: unknown } } | undefined;
   const cause = driverAdapterError?.cause;
   const index = cause?.constraint?.index;
   if (typeof index === "string" && cause?.table === modelName) {

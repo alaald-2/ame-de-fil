@@ -10,7 +10,11 @@ import { SessionService } from "./session.service.ts";
 import { PasswordService } from "./password.service.ts";
 import { NotificationsService } from "../notifications/notifications.service.ts";
 import { PendingEmailProvider } from "../notifications/email-provider.ts";
-import { startTestDatabase, stopTestDatabase, type TestDatabase } from "../test/testcontainers-postgres.ts";
+import {
+  startTestDatabase,
+  stopTestDatabase,
+  type TestDatabase,
+} from "../test/testcontainers-postgres.ts";
 import { seedUserWithPermissions, seedAccountActionToken } from "../test/fixtures.ts";
 
 function fakeConfig(ttlHours = 1): ConfigService<Env, true> {
@@ -25,7 +29,11 @@ describe("AuthService.resetPassword — real Postgres", () => {
   beforeAll(async () => {
     db = await startTestDatabase();
     sessions = new SessionService(db.prisma, fakeConfig());
-    const notifications = new NotificationsService(db.prisma, new PendingEmailProvider(), fakeConfig());
+    const notifications = new NotificationsService(
+      db.prisma,
+      new PendingEmailProvider(),
+      fakeConfig(),
+    );
     auth = new AuthService(db.prisma, new PasswordService(), sessions, notifications, fakeConfig());
   }, 120_000);
 

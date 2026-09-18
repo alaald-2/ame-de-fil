@@ -6,7 +6,13 @@ import type { ShippingNotificationEmailProps } from "./shipping-notification.ts"
 const ORDER_PROPS: Omit<OrderConfirmationEmailProps, "locale"> = {
   orderNumber: "AF-2026-000123",
   items: [
-    { name: "Handstickad tröja", variantLabel: "M / Blå", quantity: 2, unitPriceMinor: 49900, lineTotalMinor: 99800 },
+    {
+      name: "Handstickad tröja",
+      variantLabel: "M / Blå",
+      quantity: 2,
+      unitPriceMinor: 49900,
+      lineTotalMinor: 99800,
+    },
   ],
   subtotalMinor: 99800,
   shippingMinor: 4900,

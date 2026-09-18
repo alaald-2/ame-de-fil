@@ -11,7 +11,14 @@ import {
   Query,
   Req,
 } from "@nestjs/common";
-import { ApiBody, ApiCookieAuth, ApiCreatedResponse, ApiOkResponse, ApiOperation, ApiTags } from "@nestjs/swagger";
+import {
+  ApiBody,
+  ApiCookieAuth,
+  ApiCreatedResponse,
+  ApiOkResponse,
+  ApiOperation,
+  ApiTags,
+} from "@nestjs/swagger";
 import type { Request } from "express";
 import { CurrentUser } from "../common/decorators/current-user.decorator.ts";
 import { RequirePermissions } from "../common/decorators/require-permissions.decorator.ts";
@@ -21,7 +28,12 @@ import { ApiZodParam, ApiZodQuery, toOpenApiSchema } from "../common/zod-openapi
 import type { AuthContext } from "../common/types/auth-context.ts";
 import { AdminCategoriesService } from "./admin-categories.service.ts";
 import { listTaxonomyQuerySchema, type ListTaxonomyQuery } from "./dto/list-taxonomy-query.dto.ts";
-import { createTaxonomySchema, updateTaxonomySchema, type CreateTaxonomyInput, type UpdateTaxonomyInput } from "./dto/taxonomy.dto.ts";
+import {
+  createTaxonomySchema,
+  updateTaxonomySchema,
+  type CreateTaxonomyInput,
+  type UpdateTaxonomyInput,
+} from "./dto/taxonomy.dto.ts";
 import { taxonomyIdParamSchema, type TaxonomyIdParam } from "./dto/taxonomy-id.param.ts";
 import {
   createTaxonomyResponseSchema,

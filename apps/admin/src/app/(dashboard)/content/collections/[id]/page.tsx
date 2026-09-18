@@ -20,7 +20,11 @@ export default async function CollectionDetailPage({ params }: CollectionDetailP
   const client = await getServerApiClient();
   const permissions = session.user.permissions;
 
-  const { data: collection, error, response } = await client.GET("/api/v1/admin/collections/{id}", {
+  const {
+    data: collection,
+    error,
+    response,
+  } = await client.GET("/api/v1/admin/collections/{id}", {
     params: { path: { id } },
   });
 
@@ -30,13 +34,18 @@ export default async function CollectionDetailPage({ params }: CollectionDetailP
       <ErrorState
         className="mt-6"
         title={response.status === 403 ? t("forbiddenTitle") : td("detailErrorTitle")}
-        description={response.status === 403 ? t("forbiddenDescription") : td("detailErrorDescription")}
+        description={
+          response.status === 403 ? t("forbiddenDescription") : td("detailErrorDescription")
+        }
       />
     );
   }
 
   const canManage = permissions.includes("collections.manage");
-  const displayName = collection.translations.find((tr) => tr.locale === "sv-SE")?.name ?? collection.translations[0]?.name ?? collection.id;
+  const displayName =
+    collection.translations.find((tr) => tr.locale === "sv-SE")?.name ??
+    collection.translations[0]?.name ??
+    collection.id;
 
   return (
     <div>

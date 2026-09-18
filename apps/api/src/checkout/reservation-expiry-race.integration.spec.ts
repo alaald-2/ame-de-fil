@@ -15,8 +15,18 @@ import { ReservationExpiryService } from "./reservation-expiry.service.ts";
 import type { VerifiedWebhookEvent } from "../payments/payment-provider.ts";
 import { NotificationsService } from "../notifications/notifications.service.ts";
 import { PendingEmailProvider } from "../notifications/email-provider.ts";
-import { startTestDatabase, stopTestDatabase, type TestDatabase } from "../test/testcontainers-postgres.ts";
-import { seedShopFixture, seedVariant, seedPendingOrder, type ShopFixture, type VariantFixture } from "../test/fixtures.ts";
+import {
+  startTestDatabase,
+  stopTestDatabase,
+  type TestDatabase,
+} from "../test/testcontainers-postgres.ts";
+import {
+  seedShopFixture,
+  seedVariant,
+  seedPendingOrder,
+  type ShopFixture,
+  type VariantFixture,
+} from "../test/fixtures.ts";
 
 // Real ReservationExpiryService needs CHECKOUT_RESERVATION_TTL_MINUTES —
 // matches env.ts's own default (15) so this file's cutoff arithmetic stays
@@ -105,7 +115,9 @@ describe("reservation expiry vs. payment-success — real Postgres", () => {
     const payment = await db.prisma.payment.findUniqueOrThrow({ where: { id: order.paymentId } });
     expect(payment.status).toBe(PaymentStatus.PAID);
 
-    const attempts = await db.prisma.paymentAttempt.count({ where: { paymentId: order.paymentId } });
+    const attempts = await db.prisma.paymentAttempt.count({
+      where: { paymentId: order.paymentId },
+    });
     expect(attempts).toBe(1); // not 2
 
     const movements = await db.prisma.inventoryMovement.count({
@@ -131,7 +143,9 @@ describe("reservation expiry vs. payment-success — real Postgres", () => {
     expect(canceledOrder.status).toBe(OrderStatus.CANCELED);
 
     // The customer's payment succeeds anyway, and the real webhook arrives late.
-    await webhook.handle(succeededEvent(order.providerPaymentIntentId, `evt_stocklost_${order.orderId}`));
+    await webhook.handle(
+      succeededEvent(order.providerPaymentIntentId, `evt_stocklost_${order.orderId}`),
+    );
 
     const finalOrder = await db.prisma.order.findUniqueOrThrow({ where: { id: order.orderId } });
     expect(finalOrder.status).toBe(OrderStatus.PAYMENT_SUCCEEDED_STOCK_LOST);
@@ -166,7 +180,9 @@ describe("reservation expiry vs. payment-success — real Postgres", () => {
     // controlled by this test (the point of the test).
     await Promise.all([
       reservationExpiry.releaseExpiredReservations(),
-      webhook.handle(succeededEvent(order.providerPaymentIntentId, `evt_concurrent_${order.orderId}`)),
+      webhook.handle(
+        succeededEvent(order.providerPaymentIntentId, `evt_concurrent_${order.orderId}`),
+      ),
     ]);
 
     const finalOrder = await db.prisma.order.findUniqueOrThrow({ where: { id: order.orderId } });
@@ -180,7 +196,9 @@ describe("reservation expiry vs. payment-success — real Postgres", () => {
     const payment = await db.prisma.payment.findUniqueOrThrow({ where: { id: order.paymentId } });
     expect(payment.status).toBe(PaymentStatus.PAID);
 
-    const attempts = await db.prisma.paymentAttempt.count({ where: { paymentId: order.paymentId } });
+    const attempts = await db.prisma.paymentAttempt.count({
+      where: { paymentId: order.paymentId },
+    });
     expect(attempts).toBe(1);
 
     const movements = await db.prisma.inventoryMovement.count({
@@ -209,7 +227,9 @@ describe("reservation expiry vs. payment-success — real Postgres", () => {
     });
     expect(order.stockReservationId).toBeNull();
 
-    await webhook.handle(succeededEvent(order.providerPaymentIntentId, `evt_production_${order.orderId}`));
+    await webhook.handle(
+      succeededEvent(order.providerPaymentIntentId, `evt_production_${order.orderId}`),
+    );
 
     const finalOrder = await db.prisma.order.findUniqueOrThrow({ where: { id: order.orderId } });
     expect(finalOrder.status).toBe(OrderStatus.IN_PRODUCTION);
@@ -217,7 +237,9 @@ describe("reservation expiry vs. payment-success — real Postgres", () => {
     const payment = await db.prisma.payment.findUniqueOrThrow({ where: { id: order.paymentId } });
     expect(payment.status).toBe(PaymentStatus.PAID);
 
-    const orderItem = await db.prisma.orderItem.findUniqueOrThrow({ where: { id: order.orderItemId } });
+    const orderItem = await db.prisma.orderItem.findUniqueOrThrow({
+      where: { id: order.orderItemId },
+    });
     expect(orderItem.madeToOrder).toBe(true);
     expect(orderItem.productionTimeDaysSnapshot).toBe(14);
 
@@ -238,7 +260,9 @@ describe("reservation expiry vs. payment-success — real Postgres", () => {
       reservationExpiresAt: new Date(Date.now() + 15 * 60_000),
     });
 
-    await webhook.handle(succeededEvent(order.providerPaymentIntentId, `evt_regression_${order.orderId}`));
+    await webhook.handle(
+      succeededEvent(order.providerPaymentIntentId, `evt_regression_${order.orderId}`),
+    );
 
     const finalOrder = await db.prisma.order.findUniqueOrThrow({ where: { id: order.orderId } });
     expect(finalOrder.status).toBe(OrderStatus.CONFIRMED);
@@ -280,7 +304,9 @@ describe("reservation expiry vs. payment-success — real Postgres", () => {
       // Idempotent, same as the reservation-driven branch: a second sweep
       // finds nothing left to cancel for this order.
       const second = await reservationExpiry.releaseExpiredReservations();
-      const stillCanceled = await db.prisma.order.findUniqueOrThrow({ where: { id: order.orderId } });
+      const stillCanceled = await db.prisma.order.findUniqueOrThrow({
+        where: { id: order.orderId },
+      });
       expect(stillCanceled.status).toBe(OrderStatus.CANCELED);
       expect(second.canceledOrders).toBe(0);
     });

@@ -1,5 +1,14 @@
 import { getTranslations, getLocale } from "next-intl/server";
-import { Heading, Text, Button, Link, Pagination, SearchField, EmptyState, ErrorState } from "@ame-de-fil/ui";
+import {
+  Heading,
+  Text,
+  Button,
+  Link,
+  Pagination,
+  SearchField,
+  EmptyState,
+  ErrorState,
+} from "@ame-de-fil/ui";
 import { requireSession } from "../../../lib/dal";
 import { getServerApiClient } from "../../../lib/server-api";
 import { AdminProductsTable } from "../../../components/admin-products-table";
@@ -65,7 +74,11 @@ export default async function ProductsPage({ searchParams }: ProductsPageProps) 
             description={t("forbiddenDescription")}
           />
         ) : (
-          <ErrorState className="mt-6" title={t("errorTitle")} description={t("errorDescription")} />
+          <ErrorState
+            className="mt-6"
+            title={t("errorTitle")}
+            description={t("errorDescription")}
+          />
         )}
       </div>
     );
@@ -115,7 +128,9 @@ export default async function ProductsPage({ searchParams }: ProductsPageProps) 
               makeHref={(targetPage) => buildProductsHref(status, q, targetPage)}
               previousLabel={t("paginationPrevious")}
               nextLabel={t("paginationNext")}
-              pageLabel={(current, total) => t("paginationPage", { page: current, totalPages: total })}
+              pageLabel={(current, total) =>
+                t("paginationPage", { page: current, totalPages: total })
+              }
             />
           ) : null}
         </>

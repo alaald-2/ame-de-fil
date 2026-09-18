@@ -17,7 +17,11 @@ export default async function NewPromotionPage() {
     return (
       <div>
         <Heading level={1}>{tCreate("heading")}</Heading>
-        <ErrorState className="mt-6" title={t("forbiddenTitle")} description={t("forbiddenDescription")} />
+        <ErrorState
+          className="mt-6"
+          title={t("forbiddenTitle")}
+          description={t("forbiddenDescription")}
+        />
       </div>
     );
   }

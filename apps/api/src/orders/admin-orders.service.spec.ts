@@ -1,10 +1,20 @@
 import { describe, expect, it, vi } from "vitest";
 import { ConflictException, NotFoundException } from "@nestjs/common";
-import { Currency, Locale, OrderStatus, PaymentStatus, RefundStatus, ShipmentStatus } from "@ame-de-fil/database";
+import {
+  Currency,
+  Locale,
+  OrderStatus,
+  PaymentStatus,
+  RefundStatus,
+  ShipmentStatus,
+} from "@ame-de-fil/database";
 import type { ConfigService } from "@nestjs/config";
 import type { Env } from "@ame-de-fil/config";
 import { AdminOrdersService } from "./admin-orders.service.ts";
-import { ADMIN_ORDER_DETAIL_SELECT, ADMIN_ORDER_LIST_SELECT } from "./mappers/admin-order.mapper.ts";
+import {
+  ADMIN_ORDER_DETAIL_SELECT,
+  ADMIN_ORDER_LIST_SELECT,
+} from "./mappers/admin-order.mapper.ts";
 import type { PrismaService } from "../database/prisma.service.ts";
 import type { NotificationsService } from "../notifications/notifications.service.ts";
 import { AuditService } from "../audit/audit.service.ts";
@@ -14,7 +24,9 @@ import type { ShippingProvider } from "../shipping/shipping-provider.ts";
 const ACTOR_USER_ID = "user-1";
 
 function makeNotificationsMock() {
-  return { sendShippingNotification: vi.fn().mockResolvedValue(undefined) } as unknown as NotificationsService & {
+  return {
+    sendShippingNotification: vi.fn().mockResolvedValue(undefined),
+  } as unknown as NotificationsService & {
     sendShippingNotification: ReturnType<typeof vi.fn>;
   };
 }
@@ -66,7 +78,9 @@ const READY_ORDER = {
   shippingCity: "Stockholm",
   shippingCountry: "SE",
   shippingPhone: null,
-  items: [{ quantity: 1, variant: { weightGrams: 500, lengthMm: null, widthMm: null, heightMm: null } }],
+  items: [
+    { quantity: 1, variant: { weightGrams: 500, lengthMm: null, widthMm: null, heightMm: null } },
+  ],
 };
 
 const SHIPMENT = {
@@ -94,7 +108,9 @@ function makePrismaMock(overrides: Record<string, unknown> = {}) {
   const shipmentCreate = vi.fn().mockResolvedValue(SHIPMENT);
   const shipmentFindFirst = vi.fn().mockResolvedValue(SHIPMENT);
   const shipmentFindFirstOrThrow = vi.fn().mockResolvedValue(SHIPMENT);
-  const shipmentUpdate = vi.fn().mockResolvedValue({ ...SHIPMENT, status: ShipmentStatus.DELIVERED });
+  const shipmentUpdate = vi
+    .fn()
+    .mockResolvedValue({ ...SHIPMENT, status: ShipmentStatus.DELIVERED });
   const auditLogCreate = vi.fn().mockResolvedValue({});
 
   const prisma: Record<string, unknown> = {
@@ -117,7 +133,11 @@ function makePrismaMock(overrides: Record<string, unknown> = {}) {
   prisma["$transaction"] = vi
     .fn()
     .mockImplementation((callback: (tx: unknown) => unknown) =>
-      callback({ order: prisma["order"], shipment: prisma["shipment"], auditLog: prisma["auditLog"] }),
+      callback({
+        order: prisma["order"],
+        shipment: prisma["shipment"],
+        auditLog: prisma["auditLog"],
+      }),
     );
 
   return {
@@ -164,11 +184,15 @@ describe("AdminOrdersService.listOrders", () => {
       payments: [],
     };
     const { prisma, orderFindMany, orderCount } = makePrismaMock({
-      order: { findMany: vi.fn().mockResolvedValue([registeredRow, guestRow]), count: vi.fn().mockResolvedValue(2) },
+      order: {
+        findMany: vi.fn().mockResolvedValue([registeredRow, guestRow]),
+        count: vi.fn().mockResolvedValue(2),
+      },
     });
     // makePrismaMock's override replaces the whole `order` object, so re-read
     // the actual mocks it produced for the assertions below.
-    const findMany = (prisma as unknown as { order: { findMany: typeof orderFindMany } }).order.findMany;
+    const findMany = (prisma as unknown as { order: { findMany: typeof orderFindMany } }).order
+      .findMany;
     const count = (prisma as unknown as { order: { count: typeof orderCount } }).order.count;
     const service = new AdminOrdersService(
       prisma,
@@ -265,7 +289,9 @@ describe("AdminOrdersService.listOrders", () => {
 
     await service.listOrders(1, 20, undefined, RefundStatus.FAILED);
 
-    const expectedWhere = { payments: { some: { refunds: { some: { status: RefundStatus.FAILED } } } } };
+    const expectedWhere = {
+      payments: { some: { refunds: { some: { status: RefundStatus.FAILED } } } },
+    };
     expect(orderFindMany).toHaveBeenCalledWith(expect.objectContaining({ where: expectedWhere }));
     expect(orderCount).toHaveBeenCalledWith({ where: expectedWhere });
   });
@@ -315,10 +341,18 @@ describe("AdminOrdersService.listOrders", () => {
       const whereArg = orderFindMany.mock.calls[0]![0].where;
       // Guest-order fields, searched directly on Order.
       expect(whereArg.OR).toContainEqual({ guestEmail: { contains: "elin", mode: "insensitive" } });
-      expect(whereArg.OR).toContainEqual({ shippingName: { contains: "elin", mode: "insensitive" } });
-      expect(whereArg.OR).toContainEqual({ billingName: { contains: "elin", mode: "insensitive" } });
-      expect(whereArg.OR).toContainEqual({ shippingPhone: { contains: "elin", mode: "insensitive" } });
-      expect(whereArg.OR).toContainEqual({ billingPhone: { contains: "elin", mode: "insensitive" } });
+      expect(whereArg.OR).toContainEqual({
+        shippingName: { contains: "elin", mode: "insensitive" },
+      });
+      expect(whereArg.OR).toContainEqual({
+        billingName: { contains: "elin", mode: "insensitive" },
+      });
+      expect(whereArg.OR).toContainEqual({
+        shippingPhone: { contains: "elin", mode: "insensitive" },
+      });
+      expect(whereArg.OR).toContainEqual({
+        billingPhone: { contains: "elin", mode: "insensitive" },
+      });
       // Registered-customer fields, searched through the user relation.
       expect(whereArg.OR).toContainEqual({
         user: {
@@ -434,9 +468,11 @@ describe("AdminOrdersService.getOrderDetail", () => {
   });
 
   it("queries with the exact admin-safe select (never a bare User include)", async () => {
-    const { prisma } = makePrismaMock({ order: { findUnique: vi.fn().mockResolvedValue(DETAIL_ROW) } });
-    const findUnique = (prisma as unknown as { order: { findUnique: ReturnType<typeof vi.fn> } }).order
-      .findUnique;
+    const { prisma } = makePrismaMock({
+      order: { findUnique: vi.fn().mockResolvedValue(DETAIL_ROW) },
+    });
+    const findUnique = (prisma as unknown as { order: { findUnique: ReturnType<typeof vi.fn> } })
+      .order.findUnique;
     const service = new AdminOrdersService(
       prisma,
       makeNotificationsMock(),
@@ -455,7 +491,9 @@ describe("AdminOrdersService.getOrderDetail", () => {
   });
 
   it("maps a full order to the admin-safe detail shape for a registered customer", async () => {
-    const { prisma } = makePrismaMock({ order: { findUnique: vi.fn().mockResolvedValue(DETAIL_ROW) } });
+    const { prisma } = makePrismaMock({
+      order: { findUnique: vi.fn().mockResolvedValue(DETAIL_ROW) },
+    });
     const service = new AdminOrdersService(
       prisma,
       makeNotificationsMock(),
@@ -467,7 +505,11 @@ describe("AdminOrdersService.getOrderDetail", () => {
 
     const result = await service.getOrderDetail("order-1");
 
-    expect(result.customer).toEqual({ userId: "user-1", email: "anna@example.com", name: "Anna Andersson" });
+    expect(result.customer).toEqual({
+      userId: "user-1",
+      email: "anna@example.com",
+      name: "Anna Andersson",
+    });
     expect(result.items).toEqual([
       {
         id: "item-1",
@@ -543,7 +585,9 @@ describe("AdminOrdersService.getOrderDetail", () => {
 
   it("maps a guest order's customer with no userId/name", async () => {
     const guestRow = { ...DETAIL_ROW, guestEmail: "guest@example.com", user: null };
-    const { prisma } = makePrismaMock({ order: { findUnique: vi.fn().mockResolvedValue(guestRow) } });
+    const { prisma } = makePrismaMock({
+      order: { findUnique: vi.fn().mockResolvedValue(guestRow) },
+    });
     const service = new AdminOrdersService(
       prisma,
       makeNotificationsMock(),
@@ -606,7 +650,9 @@ describe("AdminOrdersService.markReadyToShip", () => {
       makeUnusedConfigMock(),
     );
 
-    await expect(service.markReadyToShip("order-1", ACTOR_USER_ID)).rejects.toThrow(ConflictException);
+    await expect(service.markReadyToShip("order-1", ACTOR_USER_ID)).rejects.toThrow(
+      ConflictException,
+    );
     expect(auditLogCreate).not.toHaveBeenCalled();
   });
 });
@@ -671,7 +717,8 @@ describe("AdminOrdersService.markShipped", () => {
     await service.markShipped("order-1", INPUT, ACTOR_USER_ID);
 
     expect(notifications.sendShippingNotification).toHaveBeenCalledWith("order-1");
-    const transactionOrder = (prisma.$transaction as ReturnType<typeof vi.fn>).mock.invocationCallOrder[0];
+    const transactionOrder = (prisma.$transaction as ReturnType<typeof vi.fn>).mock
+      .invocationCallOrder[0];
     const notifyOrder = notifications.sendShippingNotification.mock.invocationCallOrder[0];
     expect(transactionOrder).toBeDefined();
     expect(notifyOrder).toBeDefined();
@@ -701,7 +748,9 @@ describe("AdminOrdersService.markShipped", () => {
       makeUnusedConfigMock(),
     );
 
-    await expect(service.markShipped("order-1", INPUT, ACTOR_USER_ID)).rejects.toThrow(ConflictException);
+    await expect(service.markShipped("order-1", INPUT, ACTOR_USER_ID)).rejects.toThrow(
+      ConflictException,
+    );
     expect(shipmentCreate).not.toHaveBeenCalled();
     expect(notifications.sendShippingNotification).not.toHaveBeenCalled();
     expect(shippingProvider.createShipment).not.toHaveBeenCalled();
@@ -847,7 +896,10 @@ describe("AdminOrdersService.markDelivered", () => {
   it("throws when the order is not SHIPPED, without touching any Shipment", async () => {
     const orderUpdateMany = vi.fn().mockResolvedValue({ count: 0 });
     const shipmentFindFirstOrThrow = vi.fn();
-    const tx = { order: { updateMany: orderUpdateMany }, shipment: { findFirstOrThrow: shipmentFindFirstOrThrow } };
+    const tx = {
+      order: { updateMany: orderUpdateMany },
+      shipment: { findFirstOrThrow: shipmentFindFirstOrThrow },
+    };
     const prisma = {
       $transaction: vi.fn().mockImplementation((cb: (tx: unknown) => unknown) => cb(tx)),
     } as unknown as PrismaService;
@@ -860,7 +912,9 @@ describe("AdminOrdersService.markDelivered", () => {
       makeUnusedConfigMock(),
     );
 
-    await expect(service.markDelivered("order-1", ACTOR_USER_ID)).rejects.toThrow(ConflictException);
+    await expect(service.markDelivered("order-1", ACTOR_USER_ID)).rejects.toThrow(
+      ConflictException,
+    );
     expect(shipmentFindFirstOrThrow).not.toHaveBeenCalled();
   });
 });

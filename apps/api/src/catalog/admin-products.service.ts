@@ -1,11 +1,20 @@
-import { BadRequestException, ConflictException, Inject, Injectable, NotFoundException } from "@nestjs/common";
+import {
+  BadRequestException,
+  ConflictException,
+  Inject,
+  Injectable,
+  NotFoundException,
+} from "@nestjs/common";
 import { Currency, Prisma, type ProductStatus } from "@ame-de-fil/database";
 import type { Locale as AppLocale } from "@ame-de-fil/validation";
 import { PrismaService } from "../database/prisma.service.ts";
 import { toPrismaLocale } from "../common/locale.ts";
 import { AuditService } from "../audit/audit.service.ts";
 import { isUniqueConstraintViolation } from "../checkout/prisma-errors.ts";
-import { IMAGE_STORAGE_PROVIDER, type ImageStorageProvider } from "../images/image-storage.provider.ts";
+import {
+  IMAGE_STORAGE_PROVIDER,
+  type ImageStorageProvider,
+} from "../images/image-storage.provider.ts";
 import { resolveTranslation } from "./mappers/translation.mapper.ts";
 import { collectVariantIds } from "./mappers/product.mapper.ts";
 import { resolveActivePromotionsForVariants } from "../promotions/effective-price.ts";
@@ -191,7 +200,10 @@ export class AdminProductsService {
     actorUserId: string,
     ipAddress?: string,
   ): Promise<AdminProductImageResponse> {
-    const product = await this.prisma.product.findUnique({ where: { id: productId }, select: { id: true } });
+    const product = await this.prisma.product.findUnique({
+      where: { id: productId },
+      select: { id: true },
+    });
     if (!product) throw PRODUCT_NOT_FOUND();
 
     if (!ALLOWED_IMAGE_MIME_TYPES.has(file.mimetype)) {
@@ -207,7 +219,9 @@ export class AdminProductsService {
       });
     }
 
-    const uploaded = await this.imageStorage.upload(file.buffer, { folder: `products/${productId}` });
+    const uploaded = await this.imageStorage.upload(file.buffer, {
+      folder: `products/${productId}`,
+    });
 
     const { _max } = await this.prisma.productImage.aggregate({
       where: { productId },
@@ -306,7 +320,9 @@ export class AdminProductsService {
     actorUserId: string,
     ipAddress?: string,
   ): Promise<AdminProductImageResponse> {
-    const existing = await this.prisma.productImage.findFirst({ where: { id: imageId, productId } });
+    const existing = await this.prisma.productImage.findFirst({
+      where: { id: imageId, productId },
+    });
     if (!existing) throw PRODUCT_IMAGE_NOT_FOUND();
 
     const image = await this.prisma.$transaction(async (tx) => {
@@ -343,7 +359,9 @@ export class AdminProductsService {
     actorUserId: string,
     ipAddress?: string,
   ): Promise<void> {
-    const existing = await this.prisma.productImage.findFirst({ where: { id: imageId, productId } });
+    const existing = await this.prisma.productImage.findFirst({
+      where: { id: imageId, productId },
+    });
     if (!existing) throw PRODUCT_IMAGE_NOT_FOUND();
 
     // Delete the Cloudinary asset before the DB row — if the external
@@ -482,7 +500,10 @@ export class AdminProductsService {
               await tx.productVariant.update({ where: { id: variant.id }, data: variantData });
             }
 
-            if (variant.isLimitedEdition !== undefined || variant.productionTimeDays !== undefined) {
+            if (
+              variant.isLimitedEdition !== undefined ||
+              variant.productionTimeDays !== undefined
+            ) {
               const inventoryData: Prisma.InventoryItemUpdateInput = {};
               if (variant.isLimitedEdition !== undefined) {
                 inventoryData.isLimitedEdition = variant.isLimitedEdition;

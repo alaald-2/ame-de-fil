@@ -91,7 +91,12 @@ export interface AdminProductVariantResponse {
   // discounting this variant, without leaving Products for the dedicated
   // Promotions area. priceMinor above is never touched by this — it stays
   // the permanent base price exactly as effective-price.ts requires.
-  activePromotion: { id: string; name: string; percentage: number; effectivePriceMinor: number } | null;
+  activePromotion: {
+    id: string;
+    name: string;
+    percentage: number;
+    effectivePriceMinor: number;
+  } | null;
 }
 
 export interface AdminProductImageResponse {
@@ -250,7 +255,9 @@ export function mapAdminProductListItem(
   const prices = product.variants.map((v) => v.priceMinor);
   const effectivePrices = product.variants.map((v) => {
     const promotion = promotionsByVariantId.get(v.id);
-    return promotion ? computeEffectivePriceMinor(v.priceMinor, promotion.percentage) : v.priceMinor;
+    return promotion
+      ? computeEffectivePriceMinor(v.priceMinor, promotion.percentage)
+      : v.priceMinor;
   });
 
   return {

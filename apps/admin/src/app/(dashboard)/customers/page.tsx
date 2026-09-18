@@ -48,7 +48,11 @@ export default async function CustomersPage({ searchParams }: CustomersPageProps
             description={t("forbiddenDescription")}
           />
         ) : (
-          <ErrorState className="mt-6" title={t("errorTitle")} description={t("errorDescription")} />
+          <ErrorState
+            className="mt-6"
+            title={t("errorTitle")}
+            description={t("errorDescription")}
+          />
         )}
       </div>
     );
@@ -86,7 +90,9 @@ export default async function CustomersPage({ searchParams }: CustomersPageProps
               makeHref={(targetPage) => buildCustomersHref(q, targetPage)}
               previousLabel={t("paginationPrevious")}
               nextLabel={t("paginationNext")}
-              pageLabel={(current, total) => t("paginationPage", { page: current, totalPages: total })}
+              pageLabel={(current, total) =>
+                t("paginationPage", { page: current, totalPages: total })
+              }
             />
           ) : null}
         </>

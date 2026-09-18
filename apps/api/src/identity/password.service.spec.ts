@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { PasswordService } from "./password.service.js";
+import { PasswordService } from "./password.service.ts";
 
 // Real argon2 hashing/verification — no mocks, no database needed.
 describe("PasswordService", () => {

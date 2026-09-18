@@ -1,4 +1,4 @@
-import type { BadgeTone } from "./order-status";
+import type { BadgeTone } from "@ame-de-fil/ui";
 
 export type TaskBucket = "overdue" | "dueToday" | "dueTomorrow" | "upcoming" | "noDueDate";
 

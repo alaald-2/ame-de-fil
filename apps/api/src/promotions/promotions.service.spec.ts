@@ -62,7 +62,9 @@ describe("PromotionsService.create", () => {
     const tx = makeTxMock();
     const prisma = {
       productVariant: { findMany: vi.fn().mockResolvedValue([{ id: "var-1" }]) },
-      $transaction: vi.fn().mockImplementation((callback: (tx: unknown) => unknown) => callback(tx)),
+      $transaction: vi
+        .fn()
+        .mockImplementation((callback: (tx: unknown) => unknown) => callback(tx)),
     } as unknown as PrismaService;
     const service = new PromotionsService(prisma, new AuditService(prisma));
 
@@ -75,7 +77,9 @@ describe("PromotionsService.create", () => {
           name: "Autumn Sale",
           percentage: 20,
           active: true,
-          variants: { create: [expect.objectContaining({ productVariantId: "var-1", activeSnapshot: true })] },
+          variants: {
+            create: [expect.objectContaining({ productVariantId: "var-1", activeSnapshot: true })],
+          },
         }),
       }),
     );
@@ -102,29 +106,45 @@ describe("PromotionsService.create", () => {
         findMany: vi.fn().mockResolvedValue([
           {
             productVariantId: "var-1",
-            promotion: { id: "promo-existing", name: "Existing Sale", startsAt: null, endsAt: null },
+            promotion: {
+              id: "promo-existing",
+              name: "Existing Sale",
+              startsAt: null,
+              endsAt: null,
+            },
           },
         ]),
       },
     });
     const prisma = {
       productVariant: { findMany: vi.fn().mockResolvedValue([{ id: "var-1" }]) },
-      $transaction: vi.fn().mockImplementation((callback: (tx: unknown) => unknown) => callback(tx)),
+      $transaction: vi
+        .fn()
+        .mockImplementation((callback: (tx: unknown) => unknown) => callback(tx)),
     } as unknown as PrismaService;
     const service = new PromotionsService(prisma, new AuditService(prisma));
 
-    await expect(service.create(VALID_CREATE_INPUT, ACTOR_USER_ID)).rejects.toThrow(ConflictException);
+    await expect(service.create(VALID_CREATE_INPUT, ACTOR_USER_ID)).rejects.toThrow(
+      ConflictException,
+    );
     expect(tx.promotion.create).not.toHaveBeenCalled();
   });
 
   it("skips the overlap check entirely for an inactive promotion, even with a conflicting variant", async () => {
-    const findMany = vi.fn().mockResolvedValue([
-      { productVariantId: "var-1", promotion: { id: "promo-existing", name: "Existing", startsAt: null, endsAt: null } },
-    ]);
+    const findMany = vi
+      .fn()
+      .mockResolvedValue([
+        {
+          productVariantId: "var-1",
+          promotion: { id: "promo-existing", name: "Existing", startsAt: null, endsAt: null },
+        },
+      ]);
     const tx = makeTxMock({ promotionVariant: { findMany, deleteMany: vi.fn() } });
     const prisma = {
       productVariant: { findMany: vi.fn().mockResolvedValue([{ id: "var-1" }]) },
-      $transaction: vi.fn().mockImplementation((callback: (tx: unknown) => unknown) => callback(tx)),
+      $transaction: vi
+        .fn()
+        .mockImplementation((callback: (tx: unknown) => unknown) => callback(tx)),
     } as unknown as PrismaService;
     const service = new PromotionsService(prisma, new AuditService(prisma));
 
@@ -145,11 +165,15 @@ describe("PromotionsService.create", () => {
     });
     const prisma = {
       productVariant: { findMany: vi.fn().mockResolvedValue([{ id: "var-1" }]) },
-      $transaction: vi.fn().mockImplementation((callback: (tx: unknown) => unknown) => callback(tx)),
+      $transaction: vi
+        .fn()
+        .mockImplementation((callback: (tx: unknown) => unknown) => callback(tx)),
     } as unknown as PrismaService;
     const service = new PromotionsService(prisma, new AuditService(prisma));
 
-    await expect(service.create(VALID_CREATE_INPUT, ACTOR_USER_ID)).rejects.toThrow(ConflictException);
+    await expect(service.create(VALID_CREATE_INPUT, ACTOR_USER_ID)).rejects.toThrow(
+      ConflictException,
+    );
   });
 });
 
@@ -187,7 +211,9 @@ describe("PromotionsService.update", () => {
           .mockResolvedValueOnce(existingPromotionRow())
           .mockResolvedValueOnce({ ...existingPromotionRow({ percentage: 30 }), variants: [] }),
       },
-      $transaction: vi.fn().mockImplementation((callback: (tx: unknown) => unknown) => callback(tx)),
+      $transaction: vi
+        .fn()
+        .mockImplementation((callback: (tx: unknown) => unknown) => callback(tx)),
     } as unknown as PrismaService;
     const service = new PromotionsService(prisma, new AuditService(prisma));
 
@@ -206,7 +232,9 @@ describe("PromotionsService.update", () => {
 
   it("activate/deactivate is just `active` in the PATCH body — deactivating skips the conflict check", async () => {
     const findMany = vi.fn().mockResolvedValue([]);
-    const tx = makeTxMock({ promotionVariant: { findMany, deleteMany: vi.fn().mockResolvedValue({ count: 1 }) } });
+    const tx = makeTxMock({
+      promotionVariant: { findMany, deleteMany: vi.fn().mockResolvedValue({ count: 1 }) },
+    });
     const prisma = {
       promotion: {
         findUnique: vi
@@ -214,7 +242,9 @@ describe("PromotionsService.update", () => {
           .mockResolvedValueOnce(existingPromotionRow())
           .mockResolvedValueOnce({ ...existingPromotionRow({ active: false }), variants: [] }),
       },
-      $transaction: vi.fn().mockImplementation((callback: (tx: unknown) => unknown) => callback(tx)),
+      $transaction: vi
+        .fn()
+        .mockImplementation((callback: (tx: unknown) => unknown) => callback(tx)),
     } as unknown as PrismaService;
     const service = new PromotionsService(prisma, new AuditService(prisma));
 
@@ -247,7 +277,9 @@ describe("PromotionsService.update", () => {
 
   it("excludes the promotion's own existing row from its own overlap check", async () => {
     const findMany = vi.fn().mockResolvedValue([]);
-    const tx = makeTxMock({ promotionVariant: { findMany, deleteMany: vi.fn().mockResolvedValue({ count: 1 }) } });
+    const tx = makeTxMock({
+      promotionVariant: { findMany, deleteMany: vi.fn().mockResolvedValue({ count: 1 }) },
+    });
     const prisma = {
       promotion: {
         findUnique: vi
@@ -255,7 +287,9 @@ describe("PromotionsService.update", () => {
           .mockResolvedValueOnce(existingPromotionRow())
           .mockResolvedValueOnce({ ...existingPromotionRow(), variants: [] }),
       },
-      $transaction: vi.fn().mockImplementation((callback: (tx: unknown) => unknown) => callback(tx)),
+      $transaction: vi
+        .fn()
+        .mockImplementation((callback: (tx: unknown) => unknown) => callback(tx)),
     } as unknown as PrismaService;
     const service = new PromotionsService(prisma, new AuditService(prisma));
 
@@ -280,13 +314,21 @@ describe("PromotionsService.update", () => {
           .mockResolvedValueOnce({ ...existingPromotionRow(), variants: [] }),
       },
       productVariant: { findMany: vi.fn().mockResolvedValue([{ id: "var-2" }]) },
-      $transaction: vi.fn().mockImplementation((callback: (tx: unknown) => unknown) => callback(tx)),
+      $transaction: vi
+        .fn()
+        .mockImplementation((callback: (tx: unknown) => unknown) => callback(tx)),
     } as unknown as PrismaService;
     const service = new PromotionsService(prisma, new AuditService(prisma));
 
-    await service.update("promo-1", { variantIds: ["var-2"] } as UpdatePromotionInput, ACTOR_USER_ID);
+    await service.update(
+      "promo-1",
+      { variantIds: ["var-2"] } as UpdatePromotionInput,
+      ACTOR_USER_ID,
+    );
 
-    expect(tx.promotionVariant.deleteMany).toHaveBeenCalledWith({ where: { promotionId: "promo-1" } });
+    expect(tx.promotionVariant.deleteMany).toHaveBeenCalledWith({
+      where: { promotionId: "promo-1" },
+    });
     expect(tx.promotion.update).toHaveBeenCalledWith(
       expect.objectContaining({
         data: expect.objectContaining({
@@ -316,7 +358,9 @@ describe("PromotionsService.removeVariant", () => {
   it("404s when the promotion doesn't apply to that variant", async () => {
     const prisma = {
       promotion: {
-        findUnique: vi.fn().mockResolvedValue(existingPromotionRow({ variants: [{ productVariantId: "var-1" }] })),
+        findUnique: vi
+          .fn()
+          .mockResolvedValue(existingPromotionRow({ variants: [{ productVariantId: "var-1" }] })),
       },
     } as unknown as PrismaService;
     const service = new PromotionsService(prisma, new AuditService(prisma));
@@ -347,7 +391,9 @@ describe("PromotionsService.removeVariant", () => {
           .mockResolvedValueOnce({ ...existingPromotionRow(), variants: [] }),
       },
       productVariant: { findMany: vi.fn().mockResolvedValue([{ id: "var-1" }]) },
-      $transaction: vi.fn().mockImplementation((callback: (tx: unknown) => unknown) => callback(tx)),
+      $transaction: vi
+        .fn()
+        .mockImplementation((callback: (tx: unknown) => unknown) => callback(tx)),
     } as unknown as PrismaService;
     const service = new PromotionsService(prisma, new AuditService(prisma));
 
@@ -369,20 +415,28 @@ describe("PromotionsService.removeVariant", () => {
       promotion: {
         findUnique: vi
           .fn()
-          .mockResolvedValueOnce(existingPromotionRow({ variants: [{ productVariantId: "var-1" }] }))
+          .mockResolvedValueOnce(
+            existingPromotionRow({ variants: [{ productVariantId: "var-1" }] }),
+          )
           // update()'s own lookup — same current state, re-read fresh.
-          .mockResolvedValueOnce(existingPromotionRow({ variants: [{ productVariantId: "var-1" }] }))
+          .mockResolvedValueOnce(
+            existingPromotionRow({ variants: [{ productVariantId: "var-1" }] }),
+          )
           // getOne()'s final read, at the end of update().
           .mockResolvedValueOnce({ ...existingPromotionRow({ active: false }), variants: [] }),
       },
       productVariant: { findMany: vi.fn().mockResolvedValue([]) },
-      $transaction: vi.fn().mockImplementation((callback: (tx: unknown) => unknown) => callback(tx)),
+      $transaction: vi
+        .fn()
+        .mockImplementation((callback: (tx: unknown) => unknown) => callback(tx)),
     } as unknown as PrismaService;
     const service = new PromotionsService(prisma, new AuditService(prisma));
 
     await service.removeVariant("promo-1", "var-1", ACTOR_USER_ID);
 
-    expect(tx.promotionVariant.deleteMany).toHaveBeenCalledWith({ where: { promotionId: "promo-1" } });
+    expect(tx.promotionVariant.deleteMany).toHaveBeenCalledWith({
+      where: { promotionId: "promo-1" },
+    });
     expect(tx.promotion.update).toHaveBeenCalledWith(
       expect.objectContaining({
         data: expect.objectContaining({ active: false, variants: { create: [] } }),

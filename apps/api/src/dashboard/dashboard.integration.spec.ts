@@ -17,8 +17,17 @@ import {
 import { DashboardService } from "./dashboard.service.ts";
 import { InventoryService } from "../inventory/inventory.service.ts";
 import { AuditService } from "../audit/audit.service.ts";
-import { startTestDatabase, stopTestDatabase, type TestDatabase } from "../test/testcontainers-postgres.ts";
-import { seedShopFixture, seedVariant, type ShopFixture, type VariantFixture } from "../test/fixtures.ts";
+import {
+  startTestDatabase,
+  stopTestDatabase,
+  type TestDatabase,
+} from "../test/testcontainers-postgres.ts";
+import {
+  seedShopFixture,
+  seedVariant,
+  type ShopFixture,
+  type VariantFixture,
+} from "../test/fixtures.ts";
 
 describe("DashboardService — real Postgres", () => {
   let db: TestDatabase;
@@ -30,7 +39,10 @@ describe("DashboardService — real Postgres", () => {
     db = await startTestDatabase();
     shop = await seedShopFixture(db.prisma);
     variant = await seedVariant(db.prisma, shop.taxClassId);
-    service = new DashboardService(db.prisma, new InventoryService(db.prisma, new AuditService(db.prisma)));
+    service = new DashboardService(
+      db.prisma,
+      new InventoryService(db.prisma, new AuditService(db.prisma)),
+    );
   }, 120_000);
 
   afterAll(async () => {
@@ -71,7 +83,12 @@ describe("DashboardService — real Postgres", () => {
     });
   }
 
-  async function seedPayment(options: { orderId: string; status: PaymentStatus; amountMinor: number; createdAt: Date }) {
+  async function seedPayment(options: {
+    orderId: string;
+    status: PaymentStatus;
+    amountMinor: number;
+    createdAt: Date;
+  }) {
     return db.prisma.payment.create({
       data: {
         orderId: options.orderId,
@@ -116,8 +133,18 @@ describe("DashboardService — real Postgres", () => {
     it("excludes an order confirmed before the period, includes one confirmed inside it", async () => {
       const from = day(10);
       const to = day(20);
-      await seedOrder({ status: OrderStatus.CONFIRMED, totalMinor: 10_000, createdAt: day(5), confirmedAt: day(5) });
-      await seedOrder({ status: OrderStatus.CONFIRMED, totalMinor: 25_000, createdAt: day(12), confirmedAt: day(12) });
+      await seedOrder({
+        status: OrderStatus.CONFIRMED,
+        totalMinor: 10_000,
+        createdAt: day(5),
+        confirmedAt: day(5),
+      });
+      await seedOrder({
+        status: OrderStatus.CONFIRMED,
+        totalMinor: 25_000,
+        createdAt: day(12),
+        confirmedAt: day(12),
+      });
 
       const result = await service.getOverview(from.toISOString(), to.toISOString());
 
@@ -129,8 +156,18 @@ describe("DashboardService — real Postgres", () => {
     it("respects the half-open interval: confirmedAt === from is included, confirmedAt === to is excluded", async () => {
       const from = day(100);
       const to = day(110);
-      await seedOrder({ status: OrderStatus.CONFIRMED, totalMinor: 1_000, createdAt: from, confirmedAt: from });
-      await seedOrder({ status: OrderStatus.CONFIRMED, totalMinor: 2_000, createdAt: to, confirmedAt: to });
+      await seedOrder({
+        status: OrderStatus.CONFIRMED,
+        totalMinor: 1_000,
+        createdAt: from,
+        confirmedAt: from,
+      });
+      await seedOrder({
+        status: OrderStatus.CONFIRMED,
+        totalMinor: 2_000,
+        createdAt: to,
+        confirmedAt: to,
+      });
 
       const result = await service.getOverview(from.toISOString(), to.toISOString());
 
@@ -146,7 +183,9 @@ describe("DashboardService — real Postgres", () => {
       const result = await service.getOverview(from.toISOString(), to.toISOString());
 
       expect(result.revenue.grossMinor).toBe(0);
-      expect(result.orders.byStatus.find((s) => s.status === "CANCELED")?.count).toBeGreaterThanOrEqual(1);
+      expect(
+        result.orders.byStatus.find((s) => s.status === "CANCELED")?.count,
+      ).toBeGreaterThanOrEqual(1);
     });
 
     it("counts PAYMENT_SUCCEEDED_STOCK_LOST as revenue (a real successful payment despite a fulfillment problem)", async () => {
@@ -249,14 +288,24 @@ describe("DashboardService — real Postgres", () => {
   describe("alerts (current snapshots, unscoped by period)", () => {
     it("counts a DISPUTED payment and a FAILED refund regardless of how old they are relative to the requested period", async () => {
       const longAgo = day(0);
-      const order = await seedOrder({ status: OrderStatus.CONFIRMED, totalMinor: 3_000, createdAt: longAgo, confirmedAt: longAgo });
+      const order = await seedOrder({
+        status: OrderStatus.CONFIRMED,
+        totalMinor: 3_000,
+        createdAt: longAgo,
+        confirmedAt: longAgo,
+      });
       const disputedPayment = await seedPayment({
         orderId: order.id,
         status: PaymentStatus.DISPUTED,
         amountMinor: 3_000,
         createdAt: longAgo,
       });
-      await seedRefund({ paymentId: disputedPayment.id, status: RefundStatus.FAILED, amountMinor: 3_000, createdAt: longAgo });
+      await seedRefund({
+        paymentId: disputedPayment.id,
+        status: RefundStatus.FAILED,
+        amountMinor: 3_000,
+        createdAt: longAgo,
+      });
 
       // A period far in the future, nowhere near `longAgo` — the alert
       // counts must still reflect the old, still-unresolved records.
@@ -287,6 +336,8 @@ describe("DashboardService — real Postgres", () => {
   });
 
   it("rejects from >= to with a 400", async () => {
-    await expect(service.getOverview(day(20).toISOString(), day(10).toISOString())).rejects.toThrow();
+    await expect(
+      service.getOverview(day(20).toISOString(), day(10).toISOString()),
+    ).rejects.toThrow();
   });
 });

@@ -1,5 +1,23 @@
-import { Body, Controller, Delete, Get, HttpCode, HttpStatus, Param, Post, Query, Req } from "@nestjs/common";
-import { ApiBody, ApiCookieAuth, ApiOkResponse, ApiOperation, ApiTags } from "@nestjs/swagger";
+import {
+  Body,
+  Controller,
+  Delete,
+  Get,
+  HttpCode,
+  HttpStatus,
+  Param,
+  Post,
+  Query,
+  Req,
+} from "@nestjs/common";
+import {
+  ApiBody,
+  ApiCookieAuth,
+  ApiCreatedResponse,
+  ApiOkResponse,
+  ApiOperation,
+  ApiTags,
+} from "@nestjs/swagger";
 import type { Request } from "express";
 import type { z } from "zod";
 import { CurrentUser } from "../common/decorators/current-user.decorator.ts";
@@ -43,7 +61,9 @@ export class AdminUsersController {
 
   @Get()
   @RequirePermissions("users.view")
-  @ApiOperation({ summary: "List staff users (accounts holding at least one role), most recently created first" })
+  @ApiOperation({
+    summary: "List staff users (accounts holding at least one role), most recently created first",
+  })
   @ApiZodQuery(listUsersQuerySchema)
   @ApiOkResponse({ schema: toOpenApiSchema(listAdminUsersResponseSchema) })
   @ApiErrorResponses(400, 401, 403)
@@ -69,10 +89,12 @@ export class AdminUsersController {
   @RequirePermissions("users.manage")
   @RateLimit({ windowMs: 60_000, max: 5 })
   @HttpCode(HttpStatus.CREATED)
-  @ApiOperation({ summary: "Create a new staff user — password is server-generated and returned once" })
+  @ApiOperation({
+    summary: "Create a new staff user — password is server-generated and returned once",
+  })
   @ApiBody({ schema: toOpenApiSchema(createUserSchema) })
-  @ApiOkResponse({ schema: toOpenApiSchema(createUserResponseSchema) })
-  @ApiErrorResponses(400, 401, 403, 409, 429)
+  @ApiCreatedResponse({ schema: toOpenApiSchema(createUserResponseSchema) })
+  @ApiErrorResponses(400, 401, 403, 404, 409, 429)
   async create(
     @Body(new ZodValidationPipe(createUserSchema)) body: CreateUserInput,
     @CurrentUser() auth: AuthContext,

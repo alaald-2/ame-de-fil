@@ -47,9 +47,17 @@ export default async function TasksPage({ searchParams }: TasksPageProps) {
       <div>
         <Heading level={1}>{tNav("tasks")}</Heading>
         {response.status === 403 ? (
-          <ErrorState className="mt-6" title={t("forbiddenTitle")} description={t("forbiddenDescription")} />
+          <ErrorState
+            className="mt-6"
+            title={t("forbiddenTitle")}
+            description={t("forbiddenDescription")}
+          />
         ) : (
-          <ErrorState className="mt-6" title={t("errorTitle")} description={t("errorDescription")} />
+          <ErrorState
+            className="mt-6"
+            title={t("errorTitle")}
+            description={t("errorDescription")}
+          />
         )}
       </div>
     );
@@ -108,7 +116,9 @@ export default async function TasksPage({ searchParams }: TasksPageProps) {
               makeHref={(targetPage) => buildTasksHref(targetPage)}
               previousLabel={t("paginationPrevious")}
               nextLabel={t("paginationNext")}
-              pageLabel={(current, total) => t("paginationPage", { page: current, totalPages: total })}
+              pageLabel={(current, total) =>
+                t("paginationPage", { page: current, totalPages: total })
+              }
             />
           ) : null}
         </>

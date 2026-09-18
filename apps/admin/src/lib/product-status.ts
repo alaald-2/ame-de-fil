@@ -1,4 +1,4 @@
-import type { BadgeTone } from "./order-status";
+import type { BadgeTone } from "@ame-de-fil/ui";
 
 // Pure status -> tone mapping, no i18n (the visible label comes from the
 // caller's own translator — see Products.status.*). PUBLISHED is the only

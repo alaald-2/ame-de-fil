@@ -2,8 +2,8 @@ import { Module } from "@nestjs/common";
 import { ConfigService } from "@nestjs/config";
 import type { Env } from "@ame-de-fil/config";
 import { NotificationsModule } from "../notifications/notifications.module.ts";
-import { SessionService } from "./session.service.js";
-import { PasswordService } from "./password.service.js";
+import { SessionService } from "./session.service.ts";
+import { PasswordService } from "./password.service.ts";
 import { AuthService } from "./auth.service.ts";
 import { AuthController } from "./auth.controller.ts";
 import {

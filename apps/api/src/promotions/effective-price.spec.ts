@@ -42,10 +42,7 @@ describe("isPromotionCurrentlyEffective", () => {
 
   it("is not effective when inactive, regardless of dates", () => {
     expect(
-      isPromotionCurrentlyEffective(
-        { active: false, startsAt: null, endsAt: null },
-        now,
-      ),
+      isPromotionCurrentlyEffective({ active: false, startsAt: null, endsAt: null }, now),
     ).toBe(false);
   });
 
@@ -59,18 +56,15 @@ describe("isPromotionCurrentlyEffective", () => {
   });
 
   it("is effective exactly at startsAt (inclusive start)", () => {
-    expect(
-      isPromotionCurrentlyEffective(
-        { active: true, startsAt: now, endsAt: null },
-        now,
-      ),
-    ).toBe(true);
+    expect(isPromotionCurrentlyEffective({ active: true, startsAt: now, endsAt: null }, now)).toBe(
+      true,
+    );
   });
 
   it("is not effective at or after endsAt (exclusive end)", () => {
-    expect(
-      isPromotionCurrentlyEffective({ active: true, startsAt: null, endsAt: now }, now),
-    ).toBe(false);
+    expect(isPromotionCurrentlyEffective({ active: true, startsAt: null, endsAt: now }, now)).toBe(
+      false,
+    );
     expect(
       isPromotionCurrentlyEffective(
         { active: true, startsAt: null, endsAt: new Date(now.getTime() - 1) },
@@ -118,7 +112,14 @@ describe("resolveActivePromotionsForVariants", () => {
     const findMany = vi.fn().mockResolvedValue([
       {
         productVariantId: "var-1",
-        promotion: { id: "promo-1", name: "Live", percentage: 10, active: true, startsAt: null, endsAt: null },
+        promotion: {
+          id: "promo-1",
+          name: "Live",
+          percentage: 10,
+          active: true,
+          startsAt: null,
+          endsAt: null,
+        },
       },
       {
         productVariantId: "var-2",
@@ -152,7 +153,9 @@ describe("resolveActivePromotionsForVariants", () => {
     await resolveActivePromotionsForVariants(client, ["var-1", "var-1", "var-1"], new Date());
 
     expect(findMany).toHaveBeenCalledWith(
-      expect.objectContaining({ where: expect.objectContaining({ productVariantId: { in: ["var-1"] } }) }),
+      expect.objectContaining({
+        where: expect.objectContaining({ productVariantId: { in: ["var-1"] } }),
+      }),
     );
   });
 });

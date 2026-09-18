@@ -22,10 +22,14 @@ export interface TestDatabase {
 // this proves the committed migration files are what's actually being
 // tested, not a schema regenerated some other way.
 function runMigrations(connectionUri: string): void {
-  execFileSync("pnpm", ["--filter", "@ame-de-fil/database", "exec", "prisma", "migrate", "deploy"], {
-    env: { ...process.env, DATABASE_URL: connectionUri },
-    stdio: "pipe",
-  });
+  execFileSync(
+    "pnpm",
+    ["--filter", "@ame-de-fil/database", "exec", "prisma", "migrate", "deploy"],
+    {
+      env: { ...process.env, DATABASE_URL: connectionUri },
+      stdio: "pipe",
+    },
+  );
 }
 
 // Sets DATABASE_URL to the container's connection string and constructs a

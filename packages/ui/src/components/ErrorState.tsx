@@ -21,7 +21,13 @@ interface ErrorStateProps {
 //
 // level={2}: same reasoning as EmptyState.tsx's own comment — every real
 // usage renders this directly under a page's <h1>, with no <h2> in between.
-export function ErrorState({ title, description, retryHref, retryLabel, className }: ErrorStateProps) {
+export function ErrorState({
+  title,
+  description,
+  retryHref,
+  retryLabel,
+  className,
+}: ErrorStateProps) {
   return (
     <div
       className={cn(
@@ -34,7 +40,11 @@ export function ErrorState({ title, description, retryHref, retryLabel, classNam
       )}
     >
       <Heading level={2}>{title}</Heading>
-      {description ? <Text tone="muted" className="max-w-sm">{description}</Text> : null}
+      {description ? (
+        <Text tone="muted" className="max-w-sm">
+          {description}
+        </Text>
+      ) : null}
       {retryHref && retryLabel ? (
         <Link href={retryHref} className="mt-4">
           {retryLabel}

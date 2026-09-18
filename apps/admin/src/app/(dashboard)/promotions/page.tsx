@@ -1,5 +1,14 @@
 import { getTranslations, getLocale } from "next-intl/server";
-import { Heading, Text, Button, Link, Pagination, SearchField, EmptyState, ErrorState } from "@ame-de-fil/ui";
+import {
+  Heading,
+  Text,
+  Button,
+  Link,
+  Pagination,
+  SearchField,
+  EmptyState,
+  ErrorState,
+} from "@ame-de-fil/ui";
 import { requireSession } from "../../../lib/dal";
 import { getServerApiClient } from "../../../lib/server-api";
 import { PromotionsTable } from "../../../components/promotions-table";
@@ -36,9 +45,17 @@ export default async function PromotionsPage({ searchParams }: PromotionsPagePro
       <div>
         <Heading level={1}>{tNav("promotions")}</Heading>
         {response.status === 403 ? (
-          <ErrorState className="mt-6" title={t("forbiddenTitle")} description={t("forbiddenDescription")} />
+          <ErrorState
+            className="mt-6"
+            title={t("forbiddenTitle")}
+            description={t("forbiddenDescription")}
+          />
         ) : (
-          <ErrorState className="mt-6" title={t("errorTitle")} description={t("errorDescription")} />
+          <ErrorState
+            className="mt-6"
+            title={t("errorTitle")}
+            description={t("errorDescription")}
+          />
         )}
       </div>
     );
@@ -82,11 +99,15 @@ export default async function PromotionsPage({ searchParams }: PromotionsPagePro
               page={data.page}
               totalPages={totalPages}
               makeHref={(targetPage) =>
-                q ? `/promotions?page=${targetPage}&q=${encodeURIComponent(q)}` : `/promotions?page=${targetPage}`
+                q
+                  ? `/promotions?page=${targetPage}&q=${encodeURIComponent(q)}`
+                  : `/promotions?page=${targetPage}`
               }
               previousLabel={t("paginationPrevious")}
               nextLabel={t("paginationNext")}
-              pageLabel={(current, total) => t("paginationPage", { page: current, totalPages: total })}
+              pageLabel={(current, total) =>
+                t("paginationPage", { page: current, totalPages: total })
+              }
             />
           ) : null}
         </>

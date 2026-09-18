@@ -11,7 +11,16 @@ import { searchQuerySchema } from "../../common/dto/search-query.schema.ts";
 // phone (registered or guest), and any line item's SKU/Article Number.
 export const listAdminOrdersQuerySchema = paginationQuerySchema.extend({
   paymentStatus: z
-    .enum(["PENDING", "AUTHORIZED", "PAID", "FAILED", "CANCELED", "REFUNDED", "PARTIALLY_REFUNDED", "DISPUTED"])
+    .enum([
+      "PENDING",
+      "AUTHORIZED",
+      "PAID",
+      "FAILED",
+      "CANCELED",
+      "REFUNDED",
+      "PARTIALLY_REFUNDED",
+      "DISPUTED",
+    ])
     .optional(),
   refundStatus: z.enum(["PENDING", "SUCCEEDED", "FAILED"]).optional(),
   ...searchQuerySchema.shape,

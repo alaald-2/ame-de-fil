@@ -12,8 +12,17 @@ import { OrderStatus, PaymentStatus } from "@ame-de-fil/database";
 import { CheckoutService } from "./checkout.service.ts";
 import { ManualShippingProvider } from "../shipping/shipping-provider.ts";
 import { PendingPaymentProvider } from "../payments/payment-provider.ts";
-import { startTestDatabase, stopTestDatabase, type TestDatabase } from "../test/testcontainers-postgres.ts";
-import { seedShopFixture, seedVariant, type ShopFixture, type VariantFixture } from "../test/fixtures.ts";
+import {
+  startTestDatabase,
+  stopTestDatabase,
+  type TestDatabase,
+} from "../test/testcontainers-postgres.ts";
+import {
+  seedShopFixture,
+  seedVariant,
+  type ShopFixture,
+  type VariantFixture,
+} from "../test/fixtures.ts";
 import type { InitiateCheckoutInput } from "./dto/initiate-checkout.dto.ts";
 
 function fakeConfig(): ConstructorParameters<typeof CheckoutService>[3] {

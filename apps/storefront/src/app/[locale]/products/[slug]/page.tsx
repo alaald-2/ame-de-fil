@@ -3,6 +3,7 @@ import { notFound } from "next/navigation";
 import { getTranslations } from "next-intl/server";
 import { Container, Heading, Text, Alert, Reveal } from "@ame-de-fil/ui";
 import { api } from "../../../../lib/api-client";
+import { unwrapOrNotFound } from "../../../../lib/fetch-or-not-found";
 import type { AppLocale } from "../../../../lib/locale";
 import { Link } from "../../../../i18n/navigation";
 import { CartErrorAlert } from "../../../../components/cart-error-alert";
@@ -13,12 +14,10 @@ import { ProductCard } from "../../../../components/product-card";
 type PageParams = { locale: AppLocale; slug: string };
 
 async function loadProduct(slug: string, locale: AppLocale) {
-  const { data, error, response } = await api.GET("/api/v1/products/{slug}", {
+  const result = await api.GET("/api/v1/products/{slug}", {
     params: { path: { slug }, query: { locale } },
   });
-  if (response.status === 404) return null;
-  if (error || !data) throw new Error("Failed to load product");
-  return data;
+  return unwrapOrNotFound(result, "Failed to load product");
 }
 
 export async function generateMetadata({
@@ -59,13 +58,21 @@ export default async function ProductPage({ params }: { params: Promise<PagePara
         .GET("/api/v1/products", {
           params: { query: { locale, page: 1, pageSize: 5, ...relatedFilter } },
         })
-        .then(({ data }) => (data?.items ?? []).filter((item) => item.id !== product.id).slice(0, 4))
+        .then(({ data }) =>
+          (data?.items ?? []).filter((item) => item.id !== product.id).slice(0, 4),
+        )
     : [];
 
   return (
     <Container className="py-16">
-      <nav aria-label={t("breadcrumbLabel")} className="mb-8 flex flex-wrap items-center gap-2 text-sm">
-        <Link href="/shop" className="text-neutral-600 transition-colors duration-300 ease-out-slow hover:text-neutral-900">
+      <nav
+        aria-label={t("breadcrumbLabel")}
+        className="mb-8 flex flex-wrap items-center gap-2 text-sm"
+      >
+        <Link
+          href="/shop"
+          className="text-neutral-600 transition-colors duration-300 ease-out-slow hover:text-neutral-900"
+        >
           {tNav("shop")}
         </Link>
         {primaryCategory ? (
@@ -103,7 +110,11 @@ export default async function ProductPage({ params }: { params: Promise<PagePara
             variants={product.variants}
             locale={locale}
             productName={product.name}
-            image={product.images[0] ? { url: product.images[0].url, altText: product.images[0].altText } : null}
+            image={
+              product.images[0]
+                ? { url: product.images[0].url, altText: product.images[0].altText }
+                : null
+            }
           />
 
           <CartErrorAlert />

@@ -11,7 +11,10 @@ export const updateTaskSchema = z
     notes: z.string().trim().max(2000).nullable().optional(),
     dueAt: z.iso.datetime().nullable().optional(),
   })
-  .refine((value) => value.title !== undefined || value.notes !== undefined || value.dueAt !== undefined, {
-    message: "At least one field must be provided",
-  });
+  .refine(
+    (value) => value.title !== undefined || value.notes !== undefined || value.dueAt !== undefined,
+    {
+      message: "At least one field must be provided",
+    },
+  );
 export type UpdateTaskInput = z.infer<typeof updateTaskSchema>;

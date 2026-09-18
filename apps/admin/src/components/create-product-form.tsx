@@ -3,11 +3,22 @@
 import { useState, type FormEvent } from "react";
 import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
-import { Heading, Text, Button, Alert, FormField, Input, Textarea, Card, Spinner } from "@ame-de-fil/ui";
+import {
+  Heading,
+  Text,
+  Button,
+  Alert,
+  FormField,
+  Input,
+  Textarea,
+  Card,
+  Spinner,
+} from "@ame-de-fil/ui";
 import { api } from "../lib/api-client";
 import { readCsrfCookie } from "../lib/csrf";
 import { slugify } from "../lib/slugify";
 import { PRODUCT_CONTENT_PLACEHOLDERS } from "../lib/product-content-placeholders";
+import { ALLOWED_IMAGE_TYPES, MAX_IMAGE_BYTES } from "../lib/image-upload";
 
 export interface TaxonomyOption {
   id: string;
@@ -85,12 +96,6 @@ interface StagedImage {
   file: File;
   previewUrl: string;
 }
-
-// Mirrors admin-products.service.ts's own upload validation exactly — a
-// frontend-only nicety (reject before spending a round trip), not a new
-// rule; the backend still enforces this regardless.
-const ALLOWED_IMAGE_TYPES = new Set(["image/jpeg", "image/png", "image/webp"]);
-const MAX_IMAGE_BYTES = 5 * 1024 * 1024;
 
 function emptyVariant(defaultTaxClassCode: string): VariantDraft {
   return {
@@ -194,7 +199,13 @@ export function CreateProductForm({ categories, collections, taxClasses }: Creat
     setOptions((current) =>
       current.map((o) =>
         o.clientId === optionClientId
-          ? { ...o, values: [...o.values, { clientId: nextClientId(), value: "", labelSv: "", labelEn: "" }] }
+          ? {
+              ...o,
+              values: [
+                ...o.values,
+                { clientId: nextClientId(), value: "", labelSv: "", labelEn: "" },
+              ],
+            }
           : o,
       ),
     );
@@ -238,19 +249,32 @@ export function CreateProductForm({ categories, collections, taxClasses }: Creat
     setVariants((current) => current.filter((v) => v.clientId !== clientId));
   }
 
-  function updateVariant<K extends keyof VariantDraft>(clientId: string, field: K, value: VariantDraft[K]) {
-    setVariants((current) => current.map((v) => (v.clientId === clientId ? { ...v, [field]: value } : v)));
+  function updateVariant<K extends keyof VariantDraft>(
+    clientId: string,
+    field: K,
+    value: VariantDraft[K],
+  ) {
+    setVariants((current) =>
+      current.map((v) => (v.clientId === clientId ? { ...v, [field]: value } : v)),
+    );
   }
 
   // Keyed by the option's stable clientId, not its freely-editable key text —
   // otherwise renaming an option's key after a variant already selected one
   // of its values would silently orphan that selection under the old key
   // string (see handleSubmit, which resolves clientId -> current key).
-  function updateVariantOptionSelection(variantClientId: string, optionClientId: string, valueSlug: string) {
+  function updateVariantOptionSelection(
+    variantClientId: string,
+    optionClientId: string,
+    valueSlug: string,
+  ) {
     setVariants((current) =>
       current.map((v) =>
         v.clientId === variantClientId
-          ? { ...v, selectedOptionValues: { ...v.selectedOptionValues, [optionClientId]: valueSlug } }
+          ? {
+              ...v,
+              selectedOptionValues: { ...v.selectedOptionValues, [optionClientId]: valueSlug },
+            }
           : v,
       ),
     );
@@ -390,7 +414,7 @@ export function CreateProductForm({ categories, collections, taxClasses }: Creat
     setIsSubmitting(true);
 
     const body = {
-      translations: (Object.entries(translations) as [("sv-SE" | "en"), TranslationDraft][])
+      translations: (Object.entries(translations) as ["sv-SE" | "en", TranslationDraft][])
         .filter(([, draft]) => draft.name.trim() && draft.slug.trim())
         .map(([locale, draft]) => ({
           locale,
@@ -430,7 +454,9 @@ export function CreateProductForm({ categories, collections, taxClasses }: Creat
           initialStock: Number.parseInt(v.initialStock || "0", 10),
           tracksStock: v.tracksStock,
           isLimitedEdition: v.isLimitedEdition,
-          productionTimeDays: v.productionTimeDays ? Number.parseInt(v.productionTimeDays, 10) : undefined,
+          productionTimeDays: v.productionTimeDays
+            ? Number.parseInt(v.productionTimeDays, 10)
+            : undefined,
         };
       }),
       categoryIds,
@@ -487,7 +513,10 @@ export function CreateProductForm({ categories, collections, taxClasses }: Creat
     const failed = stagedImages
       .filter((_, index) => {
         const result = uploadResults[index];
-        return result?.status === "rejected" || (result?.status === "fulfilled" && Boolean(result.value.error));
+        return (
+          result?.status === "rejected" ||
+          (result?.status === "fulfilled" && Boolean(result.value.error))
+        );
       })
       .map((staged) => staged.file.name);
 
@@ -562,7 +591,11 @@ export function CreateProductForm({ categories, collections, taxClasses }: Creat
         {renderTranslationFields("sv-SE")}
 
         <div className="mt-6">
-          <Button type="button" variant="ghost" onClick={() => setShowEnglish((current) => !current)}>
+          <Button
+            type="button"
+            variant="ghost"
+            onClick={() => setShowEnglish((current) => !current)}
+          >
             {showEnglish ? t("hideEnglishContent") : t("showEnglishContent")}
           </Button>
         </div>
@@ -609,22 +642,41 @@ export function CreateProductForm({ categories, collections, taxClasses }: Creat
 
               <div className="mt-4 flex flex-col gap-3">
                 {option.values.map((value) => (
-                  <div key={value.clientId} className="grid grid-cols-1 gap-2 sm:grid-cols-[1fr_1fr_1fr_auto]">
+                  <div
+                    key={value.clientId}
+                    className="grid grid-cols-1 gap-2 sm:grid-cols-[1fr_1fr_1fr_auto]"
+                  >
                     <Input
                       value={value.value}
-                      onChange={(e) => updateOptionValue(option.clientId, value.clientId, "value", e.target.value)}
+                      onChange={(e) =>
+                        updateOptionValue(option.clientId, value.clientId, "value", e.target.value)
+                      }
                       placeholder={t("valueSlugPlaceholder")}
                       aria-label={t("valueSlugPlaceholder")}
                     />
                     <Input
                       value={value.labelSv}
-                      onChange={(e) => updateOptionValue(option.clientId, value.clientId, "labelSv", e.target.value)}
+                      onChange={(e) =>
+                        updateOptionValue(
+                          option.clientId,
+                          value.clientId,
+                          "labelSv",
+                          e.target.value,
+                        )
+                      }
                       placeholder={t("valueLabelSvPlaceholder")}
                       aria-label={t("valueLabelSvPlaceholder")}
                     />
                     <Input
                       value={value.labelEn}
-                      onChange={(e) => updateOptionValue(option.clientId, value.clientId, "labelEn", e.target.value)}
+                      onChange={(e) =>
+                        updateOptionValue(
+                          option.clientId,
+                          value.clientId,
+                          "labelEn",
+                          e.target.value,
+                        )
+                      }
                       placeholder={t("valueLabelEnPlaceholder")}
                       aria-label={t("valueLabelEnPlaceholder")}
                     />
@@ -638,7 +690,11 @@ export function CreateProductForm({ categories, collections, taxClasses }: Creat
                   </div>
                 ))}
                 <div>
-                  <Button type="button" variant="secondary" onClick={() => addOptionValue(option.clientId)}>
+                  <Button
+                    type="button"
+                    variant="secondary"
+                    onClick={() => addOptionValue(option.clientId)}
+                  >
                     {t("addValue")}
                   </Button>
                 </div>
@@ -659,9 +715,15 @@ export function CreateProductForm({ categories, collections, taxClasses }: Creat
           {variants.map((variant, index) => (
             <Card key={variant.clientId}>
               <div className="flex items-center justify-between">
-                <Text className="font-medium text-neutral-900">{t("variantN", { n: index + 1 })}</Text>
+                <Text className="font-medium text-neutral-900">
+                  {t("variantN", { n: index + 1 })}
+                </Text>
                 {variants.length > 1 ? (
-                  <Button type="button" variant="ghost" onClick={() => removeVariant(variant.clientId)}>
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    onClick={() => removeVariant(variant.clientId)}
+                  >
                     {t("removeVariant")}
                   </Button>
                 ) : null}
@@ -688,18 +750,25 @@ export function CreateProductForm({ categories, collections, taxClasses }: Creat
                       required
                       placeholder="0.00"
                       value={variant.priceMinor}
-                      onChange={(e) => updateVariant(variant.clientId, "priceMinor", e.target.value)}
+                      onChange={(e) =>
+                        updateVariant(variant.clientId, "priceMinor", e.target.value)
+                      }
                     />
                   )}
                 </FormField>
-                <FormField label={t("initialStockLabel")} hint={!variant.tracksStock ? t("initialStockDisabledHint") : undefined}>
+                <FormField
+                  label={t("initialStockLabel")}
+                  hint={!variant.tracksStock ? t("initialStockDisabledHint") : undefined}
+                >
                   {(fieldProps) => (
                     <Input
                       {...fieldProps}
                       type="number"
                       min="0"
                       value={variant.initialStock}
-                      onChange={(e) => updateVariant(variant.clientId, "initialStock", e.target.value)}
+                      onChange={(e) =>
+                        updateVariant(variant.clientId, "initialStock", e.target.value)
+                      }
                       disabled={!variant.tracksStock}
                     />
                   )}
@@ -710,10 +779,14 @@ export function CreateProductForm({ categories, collections, taxClasses }: Creat
                       {...fieldProps}
                       required
                       value={variant.taxClassCode}
-                      onChange={(e) => updateVariant(variant.clientId, "taxClassCode", e.target.value)}
+                      onChange={(e) =>
+                        updateVariant(variant.clientId, "taxClassCode", e.target.value)
+                      }
                       className="rounded-sm border border-neutral-300 bg-neutral-50 px-3 py-2 font-sans text-sm text-neutral-900 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent-500"
                     >
-                      {taxClasses.length === 0 ? <option value="">{t("noTaxClasses")}</option> : null}
+                      {taxClasses.length === 0 ? (
+                        <option value="">{t("noTaxClasses")}</option>
+                      ) : null}
                       {taxClasses.map((taxClass) => (
                         <option key={taxClass.id} value={taxClass.code}>
                           {taxClass.name}
@@ -730,7 +803,9 @@ export function CreateProductForm({ categories, collections, taxClasses }: Creat
                       min="1"
                       placeholder={t("weightGramsPlaceholder")}
                       value={variant.weightGrams}
-                      onChange={(e) => updateVariant(variant.clientId, "weightGrams", e.target.value)}
+                      onChange={(e) =>
+                        updateVariant(variant.clientId, "weightGrams", e.target.value)
+                      }
                     />
                   )}
                 </FormField>
@@ -742,7 +817,9 @@ export function CreateProductForm({ categories, collections, taxClasses }: Creat
                       min="1"
                       placeholder={t("productionTimeDaysPlaceholder")}
                       value={variant.productionTimeDays}
-                      onChange={(e) => updateVariant(variant.clientId, "productionTimeDays", e.target.value)}
+                      onChange={(e) =>
+                        updateVariant(variant.clientId, "productionTimeDays", e.target.value)
+                      }
                     />
                   )}
                 </FormField>
@@ -760,7 +837,11 @@ export function CreateProductForm({ categories, collections, taxClasses }: Creat
                         <select
                           value={variant.selectedOptionValues[option.clientId] ?? ""}
                           onChange={(e) =>
-                            updateVariantOptionSelection(variant.clientId, option.clientId, e.target.value)
+                            updateVariantOptionSelection(
+                              variant.clientId,
+                              option.clientId,
+                              e.target.value,
+                            )
                           }
                           className="rounded-sm border border-neutral-300 bg-neutral-50 px-3 py-2 font-sans text-sm text-neutral-900 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent-500"
                         >
@@ -782,7 +863,9 @@ export function CreateProductForm({ categories, collections, taxClasses }: Creat
                     type="checkbox"
                     className="h-4 w-4 rounded-sm border-neutral-300 text-accent-600 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent-500"
                     checked={variant.tracksStock}
-                    onChange={(e) => updateVariant(variant.clientId, "tracksStock", e.target.checked)}
+                    onChange={(e) =>
+                      updateVariant(variant.clientId, "tracksStock", e.target.checked)
+                    }
                   />
                   {t("tracksStockLabel")}
                 </label>
@@ -791,7 +874,9 @@ export function CreateProductForm({ categories, collections, taxClasses }: Creat
                     type="checkbox"
                     className="h-4 w-4 rounded-sm border-neutral-300 text-accent-600 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent-500"
                     checked={variant.isLimitedEdition}
-                    onChange={(e) => updateVariant(variant.clientId, "isLimitedEdition", e.target.checked)}
+                    onChange={(e) =>
+                      updateVariant(variant.clientId, "isLimitedEdition", e.target.checked)
+                    }
                   />
                   {t("isLimitedEditionLabel")}
                 </label>
@@ -826,7 +911,11 @@ export function CreateProductForm({ categories, collections, taxClasses }: Creat
                   alt=""
                   className="aspect-square w-full rounded-sm border border-neutral-200 object-cover"
                 />
-                <Button type="button" variant="ghost" onClick={() => removeStagedImage(staged.clientId)}>
+                <Button
+                  type="button"
+                  variant="ghost"
+                  onClick={() => removeStagedImage(staged.clientId)}
+                >
                   {t("removeImageButton")}
                 </Button>
               </div>
@@ -857,46 +946,54 @@ export function CreateProductForm({ categories, collections, taxClasses }: Creat
             {t("categoriesCollectionsHeading")}
           </Heading>
           <div className="grid gap-8 sm:grid-cols-2">
-          {categories.length > 0 ? (
-            <fieldset>
-              <legend className="font-sans text-sm font-medium text-neutral-800">
-                {t("categoriesLabel")}
-              </legend>
-              <div className="mt-2 flex flex-col gap-2">
-                {categories.map((category) => (
-                  <label key={category.id} className="flex items-center gap-2 text-sm text-neutral-800">
-                    <input
-                      type="checkbox"
-                      className="h-4 w-4 rounded-sm border-neutral-300 text-accent-600 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent-500"
-                      checked={categoryIds.includes(category.id)}
-                      onChange={() => setCategoryIds((current) => toggleId(current, category.id))}
-                    />
-                    {category.name}
-                  </label>
-                ))}
-              </div>
-            </fieldset>
-          ) : null}
-          {collections.length > 0 ? (
-            <fieldset>
-              <legend className="font-sans text-sm font-medium text-neutral-800">
-                {t("collectionsLabel")}
-              </legend>
-              <div className="mt-2 flex flex-col gap-2">
-                {collections.map((collection) => (
-                  <label key={collection.id} className="flex items-center gap-2 text-sm text-neutral-800">
-                    <input
-                      type="checkbox"
-                      className="h-4 w-4 rounded-sm border-neutral-300 text-accent-600 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent-500"
-                      checked={collectionIds.includes(collection.id)}
-                      onChange={() => setCollectionIds((current) => toggleId(current, collection.id))}
-                    />
-                    {collection.name}
-                  </label>
-                ))}
-              </div>
-            </fieldset>
-          ) : null}
+            {categories.length > 0 ? (
+              <fieldset>
+                <legend className="font-sans text-sm font-medium text-neutral-800">
+                  {t("categoriesLabel")}
+                </legend>
+                <div className="mt-2 flex flex-col gap-2">
+                  {categories.map((category) => (
+                    <label
+                      key={category.id}
+                      className="flex items-center gap-2 text-sm text-neutral-800"
+                    >
+                      <input
+                        type="checkbox"
+                        className="h-4 w-4 rounded-sm border-neutral-300 text-accent-600 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent-500"
+                        checked={categoryIds.includes(category.id)}
+                        onChange={() => setCategoryIds((current) => toggleId(current, category.id))}
+                      />
+                      {category.name}
+                    </label>
+                  ))}
+                </div>
+              </fieldset>
+            ) : null}
+            {collections.length > 0 ? (
+              <fieldset>
+                <legend className="font-sans text-sm font-medium text-neutral-800">
+                  {t("collectionsLabel")}
+                </legend>
+                <div className="mt-2 flex flex-col gap-2">
+                  {collections.map((collection) => (
+                    <label
+                      key={collection.id}
+                      className="flex items-center gap-2 text-sm text-neutral-800"
+                    >
+                      <input
+                        type="checkbox"
+                        className="h-4 w-4 rounded-sm border-neutral-300 text-accent-600 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent-500"
+                        checked={collectionIds.includes(collection.id)}
+                        onChange={() =>
+                          setCollectionIds((current) => toggleId(current, collection.id))
+                        }
+                      />
+                      {collection.name}
+                    </label>
+                  ))}
+                </div>
+              </fieldset>
+            ) : null}
           </div>
         </section>
       ) : null}

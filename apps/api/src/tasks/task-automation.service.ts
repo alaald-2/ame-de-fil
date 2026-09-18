@@ -98,8 +98,13 @@ export class TaskAutomationService {
 
     const data: Prisma.TaskCreateManyInput[] = [];
     for (const order of orders) {
-      const maxDays = order.items.reduce((max, item) => Math.max(max, item.productionTimeDaysSnapshot ?? 0), 0);
-      const finishDue = order.confirmedAt ? new Date(order.confirmedAt.getTime() + maxDays * DAY_MS) : null;
+      const maxDays = order.items.reduce(
+        (max, item) => Math.max(max, item.productionTimeDaysSnapshot ?? 0),
+        0,
+      );
+      const finishDue = order.confirmedAt
+        ? new Date(order.confirmedAt.getTime() + maxDays * DAY_MS)
+        : null;
 
       data.push(
         {
@@ -147,7 +152,16 @@ export class TaskAutomationService {
   // this is only the backstop.
   private async closeProductionChecklist(now: Date): Promise<number> {
     const orders = await this.prisma.order.findMany({
-      where: { status: { in: [OrderStatus.READY_TO_SHIP, OrderStatus.SHIPPED, OrderStatus.DELIVERED, OrderStatus.COMPLETED] } },
+      where: {
+        status: {
+          in: [
+            OrderStatus.READY_TO_SHIP,
+            OrderStatus.SHIPPED,
+            OrderStatus.DELIVERED,
+            OrderStatus.COMPLETED,
+          ],
+        },
+      },
       select: { id: true },
     });
     if (orders.length === 0) return 0;
@@ -155,7 +169,14 @@ export class TaskAutomationService {
     const result = await this.prisma.task.updateMany({
       where: {
         orderId: { in: orders.map((o) => o.id) },
-        type: { in: [TaskType.START_PRODUCTION, TaskType.FINISH_PRODUCTION, TaskType.QUALITY_CHECK, TaskType.PACK_ORDER] },
+        type: {
+          in: [
+            TaskType.START_PRODUCTION,
+            TaskType.FINISH_PRODUCTION,
+            TaskType.QUALITY_CHECK,
+            TaskType.PACK_ORDER,
+          ],
+        },
         status: TaskStatus.OPEN,
         source: TaskSource.AUTOMATED,
       },
@@ -185,13 +206,20 @@ export class TaskAutomationService {
 
   private async closeShipOrder(now: Date): Promise<number> {
     const orders = await this.prisma.order.findMany({
-      where: { status: { in: [OrderStatus.SHIPPED, OrderStatus.DELIVERED, OrderStatus.COMPLETED] } },
+      where: {
+        status: { in: [OrderStatus.SHIPPED, OrderStatus.DELIVERED, OrderStatus.COMPLETED] },
+      },
       select: { id: true },
     });
     if (orders.length === 0) return 0;
 
     const result = await this.prisma.task.updateMany({
-      where: { orderId: { in: orders.map((o) => o.id) }, type: TaskType.SHIP_ORDER, status: TaskStatus.OPEN, source: TaskSource.AUTOMATED },
+      where: {
+        orderId: { in: orders.map((o) => o.id) },
+        type: TaskType.SHIP_ORDER,
+        status: TaskStatus.OPEN,
+        source: TaskSource.AUTOMATED,
+      },
       data: CLOSE_DATA(now),
     });
     return result.count;
@@ -218,7 +246,10 @@ export class TaskAutomationService {
     const data: Prisma.TaskCreateManyInput[] = [];
     for (const order of orders) {
       if (!order.confirmedAt) continue;
-      const maxDays = order.items.reduce((max, item) => Math.max(max, item.productionTimeDaysSnapshot ?? 0), 0);
+      const maxDays = order.items.reduce(
+        (max, item) => Math.max(max, item.productionTimeDaysSnapshot ?? 0),
+        0,
+      );
       const finishDue = order.confirmedAt.getTime() + maxDays * DAY_MS;
       const graceCutoff = finishDue + graceDays * DAY_MS;
       if (graceCutoff >= now.getTime()) continue;
@@ -240,7 +271,12 @@ export class TaskAutomationService {
 
   private async closeDelayedOrderFollowUps(now: Date): Promise<number> {
     const openTasks = await this.prisma.task.findMany({
-      where: { type: TaskType.FOLLOW_UP_DELAYED_ORDER, status: TaskStatus.OPEN, source: TaskSource.AUTOMATED, orderId: { not: null } },
+      where: {
+        type: TaskType.FOLLOW_UP_DELAYED_ORDER,
+        status: TaskStatus.OPEN,
+        source: TaskSource.AUTOMATED,
+        orderId: { not: null },
+      },
       select: { id: true, orderId: true },
     });
     if (openTasks.length === 0) return 0;
@@ -253,7 +289,10 @@ export class TaskAutomationService {
     const toClose = openTasks.filter((t) => !stillInProductionIds.has(t.orderId!)).map((t) => t.id);
     if (toClose.length === 0) return 0;
 
-    const result = await this.prisma.task.updateMany({ where: { id: { in: toClose } }, data: CLOSE_DATA(now) });
+    const result = await this.prisma.task.updateMany({
+      where: { id: { in: toClose } },
+      data: CLOSE_DATA(now),
+    });
     return result.count;
   }
 
@@ -279,17 +318,27 @@ export class TaskAutomationService {
 
   private async closeRestockTasks(now: Date): Promise<number> {
     const openTasks = await this.prisma.task.findMany({
-      where: { type: TaskType.RESTOCK, status: TaskStatus.OPEN, source: TaskSource.AUTOMATED, productVariantId: { not: null } },
+      where: {
+        type: TaskType.RESTOCK,
+        status: TaskStatus.OPEN,
+        source: TaskSource.AUTOMATED,
+        productVariantId: { not: null },
+      },
       select: { id: true, productVariantId: true },
     });
     if (openTasks.length === 0) return 0;
 
     const lowStock = await this.inventory.listLowStock(1, 1000);
     const stillLowStockVariantIds = new Set(lowStock.items.map((i) => i.variantId));
-    const toClose = openTasks.filter((t) => !stillLowStockVariantIds.has(t.productVariantId!)).map((t) => t.id);
+    const toClose = openTasks
+      .filter((t) => !stillLowStockVariantIds.has(t.productVariantId!))
+      .map((t) => t.id);
     if (toClose.length === 0) return 0;
 
-    const result = await this.prisma.task.updateMany({ where: { id: { in: toClose } }, data: CLOSE_DATA(now) });
+    const result = await this.prisma.task.updateMany({
+      where: { id: { in: toClose } },
+      data: CLOSE_DATA(now),
+    });
     return result.count;
   }
 
@@ -309,7 +358,9 @@ export class TaskAutomationService {
       select: {
         id: true,
         processedAt: true,
-        payment: { select: { orderId: true, order: { select: { orderNumber: true, userId: true } } } },
+        payment: {
+          select: { orderId: true, order: { select: { orderNumber: true, userId: true } } },
+        },
       },
     });
     if (refunds.length === 0) return 0;
@@ -335,7 +386,10 @@ export class TaskAutomationService {
     const cutoff = new Date(now.getTime() - hours * 3_600_000);
     const refunds = await this.prisma.refund.findMany({
       where: { status: RefundStatus.PENDING, createdAt: { lte: cutoff } },
-      select: { id: true, payment: { select: { orderId: true, order: { select: { orderNumber: true } } } } },
+      select: {
+        id: true,
+        payment: { select: { orderId: true, order: { select: { orderNumber: true } } } },
+      },
     });
     if (refunds.length === 0) return 0;
 
@@ -353,7 +407,11 @@ export class TaskAutomationService {
 
   private async closePendingRefundFollowUps(now: Date): Promise<number> {
     const openTasks = await this.prisma.task.findMany({
-      where: { type: TaskType.FOLLOW_UP_PENDING_REFUND, status: TaskStatus.OPEN, source: TaskSource.AUTOMATED },
+      where: {
+        type: TaskType.FOLLOW_UP_PENDING_REFUND,
+        status: TaskStatus.OPEN,
+        source: TaskSource.AUTOMATED,
+      },
       select: { id: true, dedupeKey: true },
     });
     if (openTasks.length === 0) return 0;
@@ -364,10 +422,15 @@ export class TaskAutomationService {
       select: { id: true },
     });
     const stillPendingIds = new Set(stillPending.map((r) => r.id));
-    const toClose = openTasks.filter((t) => !stillPendingIds.has(t.dedupeKey!.split(":")[1]!)).map((t) => t.id);
+    const toClose = openTasks
+      .filter((t) => !stillPendingIds.has(t.dedupeKey!.split(":")[1]!))
+      .map((t) => t.id);
     if (toClose.length === 0) return 0;
 
-    const result = await this.prisma.task.updateMany({ where: { id: { in: toClose } }, data: CLOSE_DATA(now) });
+    const result = await this.prisma.task.updateMany({
+      where: { id: { in: toClose } },
+      data: CLOSE_DATA(now),
+    });
     return result.count;
   }
 
@@ -377,7 +440,10 @@ export class TaskAutomationService {
   private async generateFailedRefundFollowUps(now: Date): Promise<number> {
     const refunds = await this.prisma.refund.findMany({
       where: { status: RefundStatus.FAILED, createdAt: { gte: this.lookbackCutoff(now, 30) } },
-      select: { id: true, payment: { select: { orderId: true, order: { select: { orderNumber: true } } } } },
+      select: {
+        id: true,
+        payment: { select: { orderId: true, order: { select: { orderNumber: true } } } },
+      },
     });
     if (refunds.length === 0) return 0;
 
@@ -419,7 +485,11 @@ export class TaskAutomationService {
 
   private async closeDisputeReviews(now: Date): Promise<number> {
     const openTasks = await this.prisma.task.findMany({
-      where: { type: TaskType.REVIEW_DISPUTE, status: TaskStatus.OPEN, source: TaskSource.AUTOMATED },
+      where: {
+        type: TaskType.REVIEW_DISPUTE,
+        status: TaskStatus.OPEN,
+        source: TaskSource.AUTOMATED,
+      },
       select: { id: true, dedupeKey: true },
     });
     if (openTasks.length === 0) return 0;
@@ -430,10 +500,15 @@ export class TaskAutomationService {
       select: { id: true },
     });
     const stillDisputedIds = new Set(stillDisputed.map((p) => p.id));
-    const toClose = openTasks.filter((t) => !stillDisputedIds.has(t.dedupeKey!.split(":")[1]!)).map((t) => t.id);
+    const toClose = openTasks
+      .filter((t) => !stillDisputedIds.has(t.dedupeKey!.split(":")[1]!))
+      .map((t) => t.id);
     if (toClose.length === 0) return 0;
 
-    const result = await this.prisma.task.updateMany({ where: { id: { in: toClose } }, data: CLOSE_DATA(now) });
+    const result = await this.prisma.task.updateMany({
+      where: { id: { in: toClose } },
+      data: CLOSE_DATA(now),
+    });
     return result.count;
   }
 }

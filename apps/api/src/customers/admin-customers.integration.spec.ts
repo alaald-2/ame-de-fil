@@ -7,7 +7,11 @@ import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { randomUUID } from "node:crypto";
 import { Currency, Locale, OrderStatus } from "@ame-de-fil/database";
 import { AdminCustomersService } from "./admin-customers.service.ts";
-import { startTestDatabase, stopTestDatabase, type TestDatabase } from "../test/testcontainers-postgres.ts";
+import {
+  startTestDatabase,
+  stopTestDatabase,
+  type TestDatabase,
+} from "../test/testcontainers-postgres.ts";
 import { seedShopFixture, seedUserWithPermissions, type ShopFixture } from "../test/fixtures.ts";
 
 describe("AdminCustomersService — real Postgres", () => {

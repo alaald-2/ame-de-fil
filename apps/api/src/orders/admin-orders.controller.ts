@@ -12,7 +12,16 @@ import {
   Req,
   Res,
 } from "@nestjs/common";
-import { ApiBody, ApiCookieAuth, ApiHeader, ApiOkResponse, ApiOperation, ApiTags } from "@nestjs/swagger";
+import {
+  ApiBody,
+  ApiCookieAuth,
+  ApiHeader,
+  ApiOkResponse,
+  ApiOperation,
+  ApiProduces,
+  ApiResponse,
+  ApiTags,
+} from "@nestjs/swagger";
 import type { Request, Response } from "express";
 import { CurrentUser } from "../common/decorators/current-user.decorator.ts";
 import { RequirePermissions } from "../common/decorators/require-permissions.decorator.ts";
@@ -21,7 +30,10 @@ import { ApiErrorResponses } from "../common/api-error-responses.ts";
 import { ApiZodParam, ApiZodQuery, toOpenApiSchema } from "../common/zod-openapi.ts";
 import type { AuthContext } from "../common/types/auth-context.ts";
 import { AdminOrdersService } from "./admin-orders.service.ts";
-import { listAdminOrdersQuerySchema, type ListAdminOrdersQuery } from "./dto/list-orders-query.dto.ts";
+import {
+  listAdminOrdersQuerySchema,
+  type ListAdminOrdersQuery,
+} from "./dto/list-orders-query.dto.ts";
 import { exportOrdersQuerySchema, type ExportOrdersQuery } from "./dto/export-orders-query.dto.ts";
 import { orderIdParamSchema, type OrderIdParam } from "./dto/order-id.param.ts";
 import { markShippedSchema, type MarkShippedInput } from "./dto/mark-shipped.dto.ts";
@@ -57,7 +69,9 @@ export class AdminOrdersController {
   @ApiZodQuery(listAdminOrdersQuerySchema)
   @ApiOkResponse({ schema: toOpenApiSchema(listAdminOrdersResponseSchema) })
   @ApiErrorResponses(400, 401, 403)
-  async list(@Query(new ZodValidationPipe(listAdminOrdersQuerySchema)) query: ListAdminOrdersQuery) {
+  async list(
+    @Query(new ZodValidationPipe(listAdminOrdersQuerySchema)) query: ListAdminOrdersQuery,
+  ) {
     return this.adminOrders.listOrders(
       query.page,
       query.pageSize,
@@ -74,6 +88,8 @@ export class AdminOrdersController {
   @RequirePermissions("orders.view")
   @ApiOperation({ summary: "Download a CSV of confirmed orders in a date range, for accounting" })
   @ApiZodQuery(exportOrdersQuerySchema)
+  @ApiProduces("text/csv")
+  @ApiResponse({ status: 200, description: "A CSV file of confirmed orders in the given date range" })
   @ApiErrorResponses(400, 401, 403)
   async export(
     @Query(new ZodValidationPipe(exportOrdersQuerySchema)) query: ExportOrdersQuery,
@@ -102,7 +118,11 @@ export class AdminOrdersController {
   @ApiOperation({ summary: "Mark a CONFIRMED order as ready to ship" })
   @ApiZodParam(orderIdParamSchema)
   @ApiOkResponse({ schema: toOpenApiSchema(fulfillmentResponseSchema) })
-  @ApiErrorResponses(400, 401, 403, 404, 409)
+  // No 404: an order id that doesn't exist currently reaches
+  // findUniqueOrThrow ahead of any guard and surfaces as an undocumented
+  // 500 instead (known bug, tracked separately — not fixed by this pass,
+  // which is documentation-only).
+  @ApiErrorResponses(400, 401, 403, 409)
   async readyToShip(
     @Param(new ZodValidationPipe(orderIdParamSchema)) params: OrderIdParam,
     @CurrentUser() auth: AuthContext,
@@ -118,7 +138,9 @@ export class AdminOrdersController {
   @ApiZodParam(orderIdParamSchema)
   @ApiBody({ schema: toOpenApiSchema(markShippedSchema) })
   @ApiOkResponse({ schema: toOpenApiSchema(fulfillmentResponseSchema) })
-  @ApiErrorResponses(400, 401, 403, 404, 409)
+  // No 404: same findUniqueOrThrow-ahead-of-any-guard bug as readyToShip
+  // above — an order id that doesn't exist surfaces as an undocumented 500.
+  @ApiErrorResponses(400, 401, 403, 409)
   async ship(
     @Param(new ZodValidationPipe(orderIdParamSchema)) params: OrderIdParam,
     @Body(new ZodValidationPipe(markShippedSchema)) body: MarkShippedInput,
@@ -134,7 +156,10 @@ export class AdminOrdersController {
   @ApiOperation({ summary: "Mark a SHIPPED order as delivered" })
   @ApiZodParam(orderIdParamSchema)
   @ApiOkResponse({ schema: toOpenApiSchema(fulfillmentResponseSchema) })
-  @ApiErrorResponses(400, 401, 403, 404, 409)
+  // No 404: a missing order and a wrong-status order both hit the same
+  // guarded updateMany and produce the same 409 — there's no code path
+  // here that ever returns 404.
+  @ApiErrorResponses(400, 401, 403, 409)
   async deliver(
     @Param(new ZodValidationPipe(orderIdParamSchema)) params: OrderIdParam,
     @CurrentUser() auth: AuthContext,
@@ -171,6 +196,12 @@ export class AdminOrdersController {
       });
     }
 
-    return this.adminOrders.issueRefund(params.orderId, body, idempotencyKey, auth.userId, request.ip);
+    return this.adminOrders.issueRefund(
+      params.orderId,
+      body,
+      idempotencyKey,
+      auth.userId,
+      request.ip,
+    );
   }
 }

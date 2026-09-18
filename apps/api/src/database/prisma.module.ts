@@ -1,5 +1,5 @@
 import { Global, Module } from "@nestjs/common";
-import { PrismaService } from "./prisma.service.js";
+import { PrismaService } from "./prisma.service.ts";
 
 // Global so every domain module can inject PrismaService without each one
 // re-importing this module (ARCHITECTURE.md §2 — apps/api is the only

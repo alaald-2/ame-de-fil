@@ -2,6 +2,7 @@ import { getTranslations } from "next-intl/server";
 import { Card, Badge, Text, Link } from "@ame-de-fil/ui";
 import { taskBucket, taskBucketTone, taskStatusTone, type TaskBucket } from "../lib/task-status";
 import { TaskRowActions, type AssigneeOption } from "./task-row-actions";
+import { formatDate as formatDueDate } from "../lib/format-date";
 import type { AdminLocale } from "../i18n/config";
 
 export interface TaskListItem {
@@ -10,7 +11,12 @@ export interface TaskListItem {
   status: "OPEN" | "DONE" | "CANCELED";
   title: string;
   dueAt: string | null;
-  assignedTo: { id: string; firstName: string | null; lastName: string | null; email: string } | null;
+  assignedTo: {
+    id: string;
+    firstName: string | null;
+    lastName: string | null;
+    email: string;
+  } | null;
   order: { id: string; orderNumber: string } | null;
   variant: { id: string; articleNumber: number; productName: string } | null;
 }
@@ -23,10 +29,6 @@ interface TasksListProps {
 }
 
 const BUCKET_ORDER: TaskBucket[] = ["overdue", "dueToday", "dueTomorrow", "upcoming", "noDueDate"];
-
-function formatDueDate(iso: string, locale: string): string {
-  return new Intl.DateTimeFormat(locale, { dateStyle: "medium" }).format(new Date(iso));
-}
 
 // Grouped by urgency bucket rather than one flat table — a dense table row
 // can't comfortably hold this row's actual interactive content (an
@@ -64,18 +66,30 @@ export async function TasksList({ tasks, assignees, locale, now }: TasksListProp
                         <Text className="font-medium text-neutral-900">{task.title}</Text>
                         <Badge tone="neutral">{t(`type.${task.type}`)}</Badge>
                         {task.status !== "OPEN" ? (
-                          <Badge tone={taskStatusTone(task.status)}>{t(`status.${task.status}`)}</Badge>
+                          <Badge tone={taskStatusTone(task.status)}>
+                            {t(`status.${task.status}`)}
+                          </Badge>
                         ) : null}
                       </div>
                       <div className="mt-1 flex flex-wrap gap-x-4 gap-y-1 text-sm text-neutral-600">
-                        {task.dueAt ? <span>{t("dueOn", { date: formatDueDate(task.dueAt, locale) })}</span> : null}
+                        {task.dueAt ? (
+                          <span>{t("dueOn", { date: formatDueDate(task.dueAt, locale) })}</span>
+                        ) : null}
                         {task.order ? (
-                          <Link href={`/orders/${task.order.id}`} className="underline underline-offset-4">
+                          <Link
+                            href={`/orders/${task.order.id}`}
+                            className="underline underline-offset-4"
+                          >
                             {t("orderLink", { orderNumber: task.order.orderNumber })}
                           </Link>
                         ) : null}
                         {task.variant ? (
-                          <span>{t("variantLabel", { productName: task.variant.productName, articleNumber: task.variant.articleNumber })}</span>
+                          <span>
+                            {t("variantLabel", {
+                              productName: task.variant.productName,
+                              articleNumber: task.variant.articleNumber,
+                            })}
+                          </span>
                         ) : null}
                       </div>
                     </div>

@@ -1,5 +1,23 @@
-import { Body, Controller, Get, HttpCode, HttpStatus, Param, Post, Patch, Query, Req } from "@nestjs/common";
-import { ApiBody, ApiCookieAuth, ApiOkResponse, ApiOperation, ApiTags } from "@nestjs/swagger";
+import {
+  Body,
+  Controller,
+  Get,
+  HttpCode,
+  HttpStatus,
+  Param,
+  Post,
+  Patch,
+  Query,
+  Req,
+} from "@nestjs/common";
+import {
+  ApiBody,
+  ApiCookieAuth,
+  ApiCreatedResponse,
+  ApiOkResponse,
+  ApiOperation,
+  ApiTags,
+} from "@nestjs/swagger";
 import type { Request } from "express";
 import { CurrentUser } from "../common/decorators/current-user.decorator.ts";
 import { RequirePermissions } from "../common/decorators/require-permissions.decorator.ts";
@@ -36,7 +54,10 @@ export class AdminTasksController {
   @ApiZodQuery(listTasksQuerySchema)
   @ApiOkResponse({ schema: toOpenApiSchema(listTasksResponseSchema) })
   @ApiErrorResponses(400, 401, 403)
-  async list(@Query(new ZodValidationPipe(listTasksQuerySchema)) query: ListTasksQuery, @CurrentUser() auth: AuthContext) {
+  async list(
+    @Query(new ZodValidationPipe(listTasksQuerySchema)) query: ListTasksQuery,
+    @CurrentUser() auth: AuthContext,
+  ) {
     return this.tasks.list(query, auth.userId);
   }
 
@@ -66,7 +87,7 @@ export class AdminTasksController {
   @HttpCode(HttpStatus.CREATED)
   @ApiOperation({ summary: "Create a manual task" })
   @ApiBody({ schema: toOpenApiSchema(createTaskSchema) })
-  @ApiOkResponse({ schema: toOpenApiSchema(taskResponseSchema) })
+  @ApiCreatedResponse({ schema: toOpenApiSchema(taskResponseSchema) })
   @ApiErrorResponses(400, 401, 403)
   async create(
     @Body(new ZodValidationPipe(createTaskSchema)) body: CreateTaskInput,

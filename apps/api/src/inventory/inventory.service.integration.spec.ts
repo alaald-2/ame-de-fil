@@ -8,7 +8,11 @@
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { InventoryService } from "./inventory.service.ts";
 import { AuditService } from "../audit/audit.service.ts";
-import { startTestDatabase, stopTestDatabase, type TestDatabase } from "../test/testcontainers-postgres.ts";
+import {
+  startTestDatabase,
+  stopTestDatabase,
+  type TestDatabase,
+} from "../test/testcontainers-postgres.ts";
 import { seedShopFixture, seedVariant, type ShopFixture } from "../test/fixtures.ts";
 
 describe("InventoryService.listLowStock — real Postgres", () => {

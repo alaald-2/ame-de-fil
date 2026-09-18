@@ -60,7 +60,9 @@ describe("POST /admin/promotions — authorization", () => {
     const booted = await bootApp(async () => null);
     app = booted.app;
 
-    const response = await supertest(app.getHttpServer()).post("/admin/promotions").send(VALID_BODY);
+    const response = await supertest(app.getHttpServer())
+      .post("/admin/promotions")
+      .send(VALID_BODY);
 
     expect(response.status).toBe(401);
     expect(booted.create).not.toHaveBeenCalled();
@@ -224,7 +226,12 @@ describe("PATCH /admin/promotions/:id — authorization", () => {
       .send({ active: false });
 
     expect(response.status).toBe(200);
-    expect(booted.update).toHaveBeenCalledWith("promo-1", { active: false }, "user-1", expect.anything());
+    expect(booted.update).toHaveBeenCalledWith(
+      "promo-1",
+      { active: false },
+      "user-1",
+      expect.anything(),
+    );
   });
 });
 
@@ -267,6 +274,11 @@ describe("DELETE /admin/promotions/:id/variants/:variantId — authorization", (
       .set("Cookie", "ame_session=some-token");
 
     expect(response.status).toBe(200);
-    expect(booted.removeVariant).toHaveBeenCalledWith("promo-1", "var-1", "user-1", expect.anything());
+    expect(booted.removeVariant).toHaveBeenCalledWith(
+      "promo-1",
+      "var-1",
+      "user-1",
+      expect.anything(),
+    );
   });
 });

@@ -1,7 +1,21 @@
 import { useTranslations } from "next-intl";
-import { Table, TableHead, TableBody, TableRow, TableHeaderCell, TableCell, Text } from "@ame-de-fil/ui";
-import { diffAuditPayload, formatJsonValue, humanizeFieldNameFallback, type JsonValue } from "../lib/audit-diff";
+import {
+  Table,
+  TableHead,
+  TableBody,
+  TableRow,
+  TableHeaderCell,
+  TableCell,
+  Text,
+} from "@ame-de-fil/ui";
+import {
+  diffAuditPayload,
+  formatJsonValue,
+  humanizeFieldNameFallback,
+  type JsonValue,
+} from "../lib/audit-diff";
 import { formatMoney } from "../lib/format-money";
+import { formatDateTime } from "../lib/format-date";
 import type { AdminLocale } from "../i18n/config";
 
 export interface AuditLogEntry {
@@ -20,10 +34,6 @@ export interface AuditLogEntry {
 interface AuditLogTableProps {
   entries: AuditLogEntry[];
   locale: AdminLocale;
-}
-
-function formatDateTime(iso: string, locale: string): string {
-  return new Intl.DateTimeFormat(locale, { dateStyle: "medium", timeStyle: "short" }).format(new Date(iso));
 }
 
 // A translation lookup that never throws and never lets a missing key leak
@@ -99,7 +109,12 @@ export function AuditLogTable({ entries, locale }: AuditLogTableProps) {
                 <div className="text-xs">{entry.entityId}</div>
               </TableCell>
               <TableCell>
-                <ChangeSummary before={entry.before} after={entry.after} action={entry.action} locale={locale} />
+                <ChangeSummary
+                  before={entry.before}
+                  after={entry.after}
+                  action={entry.action}
+                  locale={locale}
+                />
               </TableCell>
               <TableCell>{entry.actorEmail ?? t("systemActor")}</TableCell>
               <TableCell className="text-neutral-600">{entry.ipAddress ?? t("none")}</TableCell>
@@ -126,7 +141,12 @@ export function AuditLogTable({ entries, locale }: AuditLogTableProps) {
               {entry.ipAddress ? ` · ${entry.ipAddress}` : ""}
             </Text>
             <div className="mt-2">
-              <ChangeSummary before={entry.before} after={entry.after} action={entry.action} locale={locale} />
+              <ChangeSummary
+                before={entry.before}
+                after={entry.after}
+                action={entry.action}
+                locale={locale}
+              />
             </div>
           </li>
         ))}

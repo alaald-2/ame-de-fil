@@ -1,5 +1,12 @@
 import { describe, expect, it, vi } from "vitest";
-import { OrderStatus, PaymentStatus, RefundStatus, TaskSource, TaskStatus, TaskType } from "@ame-de-fil/database";
+import {
+  OrderStatus,
+  PaymentStatus,
+  RefundStatus,
+  TaskSource,
+  TaskStatus,
+  TaskType,
+} from "@ame-de-fil/database";
 import { TaskAutomationService } from "./task-automation.service.ts";
 import type { PrismaService } from "../database/prisma.service.ts";
 import type { InventoryService } from "../inventory/inventory.service.ts";
@@ -24,7 +31,9 @@ function configStub(overrides: Partial<Env> = {}) {
 // chained mockResolvedValueOnce calls would be. Unmatched calls (every
 // step not under test) fall through to [] so their generate/close methods
 // short-circuit as no-ops.
-function whereRouter(routes: { match: (where: Record<string, unknown>) => boolean; result: unknown[] }[]) {
+function whereRouter(
+  routes: { match: (where: Record<string, unknown>) => boolean; result: unknown[] }[],
+) {
   return vi.fn().mockImplementation(({ where }: { where: Record<string, unknown> }) => {
     const route = routes.find((r) => r.match(where));
     return Promise.resolve(route ? route.result : []);
@@ -34,19 +43,31 @@ function whereRouter(routes: { match: (where: Record<string, unknown>) => boolea
 function baseMock() {
   return {
     order: { findMany: whereRouter([]) },
-    task: { findMany: whereRouter([]), createMany: vi.fn().mockResolvedValue({ count: 0 }), updateMany: vi.fn().mockResolvedValue({ count: 0 }) },
+    task: {
+      findMany: whereRouter([]),
+      createMany: vi.fn().mockResolvedValue({ count: 0 }),
+      updateMany: vi.fn().mockResolvedValue({ count: 0 }),
+    },
     refund: { findMany: whereRouter([]) },
     payment: { findMany: whereRouter([]) },
   };
 }
 
-function makeService(overrides: Record<string, unknown> = {}, inventoryOverrides: Partial<InventoryService> = {}, env?: Partial<Env>) {
+function makeService(
+  overrides: Record<string, unknown> = {},
+  inventoryOverrides: Partial<InventoryService> = {},
+  env?: Partial<Env>,
+) {
   const prisma = { ...baseMock(), ...overrides } as unknown as PrismaService;
   const inventory = {
     listLowStock: vi.fn().mockResolvedValue({ items: [], page: 1, pageSize: 1000, total: 0 }),
     ...inventoryOverrides,
   } as unknown as InventoryService;
-  return { service: new TaskAutomationService(prisma, inventory, configStub(env)), prisma, inventory };
+  return {
+    service: new TaskAutomationService(prisma, inventory, configStub(env)),
+    prisma,
+    inventory,
+  };
 }
 
 describe("TaskAutomationService — production checklist", () => {
@@ -73,10 +94,16 @@ describe("TaskAutomationService — production checklist", () => {
 
     const createCalls = (prisma.task.createMany as ReturnType<typeof vi.fn>).mock.calls;
     const checklistCall = createCalls.find((call) =>
-      (call[0].data as { dedupeKey: string }[]).some((row) => row.dedupeKey === "order:order-1:START_PRODUCTION"),
+      (call[0].data as { dedupeKey: string }[]).some(
+        (row) => row.dedupeKey === "order:order-1:START_PRODUCTION",
+      ),
     );
     expect(checklistCall).toBeDefined();
-    const rows = checklistCall![0].data as { type: string; dedupeKey: string; dueAt: Date | null }[];
+    const rows = checklistCall![0].data as {
+      type: string;
+      dedupeKey: string;
+      dueAt: Date | null;
+    }[];
     expect(rows.map((r) => r.type)).toEqual([
       TaskType.START_PRODUCTION,
       TaskType.FINISH_PRODUCTION,
@@ -103,7 +130,9 @@ describe("TaskAutomationService — production checklist", () => {
 
     const updateCalls = (prisma.task.updateMany as ReturnType<typeof vi.fn>).mock.calls;
     const closeCall = updateCalls.find(
-      (call) => call[0].where.orderId?.in?.includes("order-1") && call[0].where.type?.in?.includes(TaskType.PACK_ORDER),
+      (call) =>
+        call[0].where.orderId?.in?.includes("order-1") &&
+        call[0].where.type?.in?.includes(TaskType.PACK_ORDER),
     );
     expect(closeCall).toBeDefined();
     expect(closeCall![0].data).toMatchObject({ status: TaskStatus.DONE });
@@ -129,9 +158,15 @@ describe("TaskAutomationService — restock", () => {
     expect(inventory.listLowStock).toHaveBeenCalled();
     const createCalls = (prisma.task.createMany as ReturnType<typeof vi.fn>).mock.calls;
     const restockCall = createCalls.find((call) =>
-      (call[0].data as { dedupeKey: string }[]).some((row) => row.dedupeKey === "variant:var-1:RESTOCK"),
+      (call[0].data as { dedupeKey: string }[]).some(
+        (row) => row.dedupeKey === "variant:var-1:RESTOCK",
+      ),
     );
-    expect(restockCall![0].data[0]).toMatchObject({ type: TaskType.RESTOCK, source: TaskSource.AUTOMATED, productVariantId: "var-1" });
+    expect(restockCall![0].data[0]).toMatchObject({
+      type: TaskType.RESTOCK,
+      source: TaskSource.AUTOMATED,
+      productVariantId: "var-1",
+    });
   });
 });
 
@@ -142,7 +177,12 @@ describe("TaskAutomationService — refunds", () => {
         findMany: whereRouter([
           {
             match: (w) => w["status"] === RefundStatus.PENDING && "createdAt" in w,
-            result: [{ id: "refund-1", payment: { orderId: "order-1", order: { orderNumber: "AF-1001" } } }],
+            result: [
+              {
+                id: "refund-1",
+                payment: { orderId: "order-1", order: { orderNumber: "AF-1001" } },
+              },
+            ],
           },
         ]),
       },
@@ -152,7 +192,9 @@ describe("TaskAutomationService — refunds", () => {
 
     const createCalls = (prisma.task.createMany as ReturnType<typeof vi.fn>).mock.calls;
     const pendingCall = createCalls.find((call) =>
-      (call[0].data as { dedupeKey: string }[]).some((row) => row.dedupeKey === "refund:refund-1:FOLLOW_UP_PENDING_REFUND"),
+      (call[0].data as { dedupeKey: string }[]).some(
+        (row) => row.dedupeKey === "refund:refund-1:FOLLOW_UP_PENDING_REFUND",
+      ),
     );
     expect(pendingCall).toBeDefined();
   });
@@ -161,14 +203,19 @@ describe("TaskAutomationService — refunds", () => {
     const { service, prisma } = makeService({
       task: {
         findMany: whereRouter([
-          { match: (w) => w["type"] === TaskType.FOLLOW_UP_PENDING_REFUND, result: [{ id: "task-1", dedupeKey: "refund:refund-1:FOLLOW_UP_PENDING_REFUND" }] },
+          {
+            match: (w) => w["type"] === TaskType.FOLLOW_UP_PENDING_REFUND,
+            result: [{ id: "task-1", dedupeKey: "refund:refund-1:FOLLOW_UP_PENDING_REFUND" }],
+          },
         ]),
         createMany: vi.fn().mockResolvedValue({ count: 0 }),
         updateMany: vi.fn().mockResolvedValue({ count: 1 }),
       },
       refund: {
         // The "still pending?" check finds nothing — the refund already resolved.
-        findMany: whereRouter([{ match: (w) => Array.isArray((w["id"] as { in?: string[] })?.in), result: [] }]),
+        findMany: whereRouter([
+          { match: (w) => Array.isArray((w["id"] as { in?: string[] })?.in), result: [] },
+        ]),
       },
     });
 
@@ -185,7 +232,10 @@ describe("TaskAutomationService — disputes", () => {
     const { service, prisma } = makeService({
       payment: {
         findMany: whereRouter([
-          { match: (w) => w["status"] === PaymentStatus.DISPUTED, result: [{ id: "pay-1", orderId: "order-1", order: { orderNumber: "AF-1001" } }] },
+          {
+            match: (w) => w["status"] === PaymentStatus.DISPUTED,
+            result: [{ id: "pay-1", orderId: "order-1", order: { orderNumber: "AF-1001" } }],
+          },
         ]),
       },
     });
@@ -194,7 +244,9 @@ describe("TaskAutomationService — disputes", () => {
 
     const createCalls = (prisma.task.createMany as ReturnType<typeof vi.fn>).mock.calls;
     const disputeCall = createCalls.find((call) =>
-      (call[0].data as { dedupeKey: string }[]).some((row) => row.dedupeKey === "payment:pay-1:REVIEW_DISPUTE"),
+      (call[0].data as { dedupeKey: string }[]).some(
+        (row) => row.dedupeKey === "payment:pay-1:REVIEW_DISPUTE",
+      ),
     );
     expect(disputeCall![0].data[0].dueAt).toBeUndefined();
   });

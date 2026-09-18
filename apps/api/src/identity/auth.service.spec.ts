@@ -96,7 +96,10 @@ function makePasswordsMock(verifyResult = true) {
   return {
     hash: vi.fn().mockResolvedValue("dummy-hash"),
     verify: vi.fn().mockResolvedValue(verifyResult),
-  } as unknown as PasswordService & { hash: ReturnType<typeof vi.fn>; verify: ReturnType<typeof vi.fn> };
+  } as unknown as PasswordService & {
+    hash: ReturnType<typeof vi.fn>;
+    verify: ReturnType<typeof vi.fn>;
+  };
 }
 
 function makeSessionsMock() {
@@ -133,12 +136,14 @@ function makeConfigMock(): ConfigService<Env, true> {
   return { get: (key: string) => TTL_HOURS[key] } as unknown as ConfigService<Env, true>;
 }
 
-function makeService(overrides: {
-  prisma?: ReturnType<typeof makePrismaMock>;
-  passwords?: ReturnType<typeof makePasswordsMock>;
-  sessions?: ReturnType<typeof makeSessionsMock>;
-  notifications?: ReturnType<typeof makeNotificationsMock>;
-} = {}) {
+function makeService(
+  overrides: {
+    prisma?: ReturnType<typeof makePrismaMock>;
+    passwords?: ReturnType<typeof makePasswordsMock>;
+    sessions?: ReturnType<typeof makeSessionsMock>;
+    notifications?: ReturnType<typeof makeNotificationsMock>;
+  } = {},
+) {
   return new AuthService(
     overrides.prisma ?? makePrismaMock(),
     overrides.passwords ?? makePasswordsMock(),
@@ -245,9 +250,9 @@ describe("AuthService.login", () => {
   it("still calls passwords.verify against a real (dummy) hash for a nonexistent email — timing-safe, not short-circuited", async () => {
     prisma.user.findUnique.mockResolvedValue(null);
 
-    await expect(service.login({ email: "nobody@example.com", password: "anything" }, {})).rejects.toThrow(
-      UnauthorizedException,
-    );
+    await expect(
+      service.login({ email: "nobody@example.com", password: "anything" }, {}),
+    ).rejects.toThrow(UnauthorizedException);
 
     expect(passwords.hash).toHaveBeenCalled(); // the dummy hash was actually generated
     expect(passwords.verify).toHaveBeenCalledWith("dummy-hash", "anything");
@@ -274,7 +279,10 @@ describe("AuthService.login", () => {
   it("never grants elevated permissions beyond what the session's real role/permission resolution returns", async () => {
     sessions.validateSession.mockResolvedValue({ ...AUTH_CONTEXT, permissions: [] });
 
-    const result = await service.login({ email: "customer@example.com", password: "correct-password" }, {});
+    const result = await service.login(
+      { email: "customer@example.com", password: "correct-password" },
+      {},
+    );
 
     expect(result.user.permissions).toEqual([]);
   });
@@ -331,7 +339,9 @@ describe("AuthService.loginWithGoogle", () => {
   });
 
   it("rejects an unverified Google email, without ever touching the database", async () => {
-    await expect(service.loginWithGoogle({ ...GOOGLE_PROFILE, emailVerified: false }, {})).rejects.toMatchObject({
+    await expect(
+      service.loginWithGoogle({ ...GOOGLE_PROFILE, emailVerified: false }, {}),
+    ).rejects.toMatchObject({
       response: { error: "EmailNotVerified" },
     });
     expect(prisma.oAuthAccount.findUnique).not.toHaveBeenCalled();
@@ -361,7 +371,9 @@ describe("AuthService.loginWithGoogle", () => {
       expect.objectContaining({ data: expect.objectContaining({ passwordHash: null }) }),
     );
     expect(prisma.oAuthAccount.upsert).toHaveBeenCalledWith({
-      where: { provider_providerAccountId: { provider: "google", providerAccountId: "google-sub-1" } },
+      where: {
+        provider_providerAccountId: { provider: "google", providerAccountId: "google-sub-1" },
+      },
       create: { userId: "user-1", provider: "google", providerAccountId: "google-sub-1" },
       update: {},
     });
@@ -374,7 +386,11 @@ describe("AuthService.loginWithGoogle", () => {
   it("nulls the password and revokes sessions of an existing UNVERIFIED User matched by email", async () => {
     prisma.oAuthAccount.findUnique.mockResolvedValue(null);
     prisma.user.findUnique.mockResolvedValue({ ...USER, emailVerifiedAt: null });
-    prisma.user.update.mockResolvedValue({ ...USER, passwordHash: null, emailVerifiedAt: new Date() });
+    prisma.user.update.mockResolvedValue({
+      ...USER,
+      passwordHash: null,
+      emailVerifiedAt: new Date(),
+    });
 
     await service.loginWithGoogle(GOOGLE_PROFILE, {});
 
@@ -403,13 +419,19 @@ describe("AuthService.loginWithGoogle", () => {
       },
     });
     expect(prisma.oAuthAccount.upsert).toHaveBeenCalledWith(
-      expect.objectContaining({ create: { userId: "user-new", provider: "google", providerAccountId: "google-sub-1" } }),
+      expect.objectContaining({
+        create: { userId: "user-new", provider: "google", providerAccountId: "google-sub-1" },
+      }),
     );
-    expect(sessions.createSession).toHaveBeenCalledWith(expect.objectContaining({ userId: "user-new" }));
+    expect(sessions.createSession).toHaveBeenCalledWith(
+      expect.objectContaining({ userId: "user-new" }),
+    );
   });
 
   it("rejects a DISABLED account reached via an existing Google link, with the same generic error as password login", async () => {
-    prisma.oAuthAccount.findUnique.mockResolvedValue({ user: { ...USER, status: UserStatus.DISABLED } });
+    prisma.oAuthAccount.findUnique.mockResolvedValue({
+      user: { ...USER, status: UserStatus.DISABLED },
+    });
 
     await expect(service.loginWithGoogle(GOOGLE_PROFILE, {})).rejects.toMatchObject({
       response: { error: "InvalidCredentials" },
@@ -441,17 +463,30 @@ describe("AuthService.register", () => {
     });
 
     expect(prisma.user.create).toHaveBeenCalledWith({
-      data: { email: "new@example.com", passwordHash: "dummy-hash", firstName: "Ada", lastName: "Lovelace" },
+      data: {
+        email: "new@example.com",
+        passwordHash: "dummy-hash",
+        firstName: "Ada",
+        lastName: "Lovelace",
+      },
     });
     expect(prisma.accountActionToken.create).toHaveBeenCalledWith(
-      expect.objectContaining({ data: expect.objectContaining({ purpose: AccountActionTokenPurpose.EMAIL_VERIFICATION }) }),
+      expect.objectContaining({
+        data: expect.objectContaining({ purpose: AccountActionTokenPurpose.EMAIL_VERIFICATION }),
+      }),
     );
-    expect(notifications.sendVerificationEmail).toHaveBeenCalledWith("user-new", expect.any(String));
+    expect(notifications.sendVerificationEmail).toHaveBeenCalledWith(
+      "user-new",
+      expect.any(String),
+    );
     expect(result).toEqual({ message: expect.any(String) });
   });
 
   it("never returns a session/token — registration never auto-logs-in", async () => {
-    const result = await service.register({ email: "new@example.com", password: "a-strong-password" });
+    const result = await service.register({
+      email: "new@example.com",
+      password: "a-strong-password",
+    });
 
     expect(result).not.toHaveProperty("token");
     expect(result).not.toHaveProperty("user");
@@ -460,7 +495,10 @@ describe("AuthService.register", () => {
   it("is enumeration-safe: an existing email creates nothing and sends nothing, but returns the identical response", async () => {
     prisma.user.findUnique.mockResolvedValue(USER);
 
-    const result = await service.register({ email: "customer@example.com", password: "a-strong-password" });
+    const result = await service.register({
+      email: "customer@example.com",
+      password: "a-strong-password",
+    });
 
     expect(prisma.user.create).not.toHaveBeenCalled();
     expect(prisma.accountActionToken.create).not.toHaveBeenCalled();
@@ -485,7 +523,10 @@ describe("AuthService.register", () => {
     );
     prisma.user.create.mockRejectedValue(emailUniqueViolation);
 
-    const result = await service.register({ email: "new@example.com", password: "a-strong-password" });
+    const result = await service.register({
+      email: "new@example.com",
+      password: "a-strong-password",
+    });
 
     expect(result).toEqual({ message: expect.any(String) });
     expect(notifications.sendVerificationEmail).not.toHaveBeenCalled();
@@ -545,7 +586,9 @@ describe("AuthService.verifyEmail", () => {
     await expect(service.verifyEmail({ token: "bad-token" })).rejects.toMatchObject({
       response: { error: "InvalidOrExpiredToken" },
     });
-    await expect(service.verifyEmail({ token: "bad-token" })).rejects.toBeInstanceOf(BadRequestException);
+    await expect(service.verifyEmail({ token: "bad-token" })).rejects.toBeInstanceOf(
+      BadRequestException,
+    );
     expect(prisma.user.update).not.toHaveBeenCalled();
   });
 });
@@ -567,17 +610,20 @@ describe("AuthService.resendVerification", () => {
     ["a nonexistent email", null],
     ["an already-verified account", { ...USER, emailVerifiedAt: new Date() }],
     ["a DISABLED account", { ...USER, status: UserStatus.DISABLED }],
-  ])("is enumeration-safe and sends nothing for %s, returning the identical response", async (_label, userRow) => {
-    const prisma = makePrismaMock();
-    prisma.user.findUnique.mockResolvedValue(userRow);
-    const notifications = makeNotificationsMock();
-    const service = makeService({ prisma, notifications });
+  ])(
+    "is enumeration-safe and sends nothing for %s, returning the identical response",
+    async (_label, userRow) => {
+      const prisma = makePrismaMock();
+      prisma.user.findUnique.mockResolvedValue(userRow);
+      const notifications = makeNotificationsMock();
+      const service = makeService({ prisma, notifications });
 
-    const result = await service.resendVerification({ email: "customer@example.com" });
+      const result = await service.resendVerification({ email: "customer@example.com" });
 
-    expect(notifications.sendVerificationEmail).not.toHaveBeenCalled();
-    expect(result).toEqual({ message: expect.any(String) });
-  });
+      expect(notifications.sendVerificationEmail).not.toHaveBeenCalled();
+      expect(result).toEqual({ message: expect.any(String) });
+    },
+  );
 });
 
 describe("AuthService.requestPasswordReset", () => {
@@ -589,7 +635,9 @@ describe("AuthService.requestPasswordReset", () => {
     const result = await service.requestPasswordReset({ email: "customer@example.com" });
 
     expect(prisma.accountActionToken.create).toHaveBeenCalledWith(
-      expect.objectContaining({ data: expect.objectContaining({ purpose: AccountActionTokenPurpose.PASSWORD_RESET }) }),
+      expect.objectContaining({
+        data: expect.objectContaining({ purpose: AccountActionTokenPurpose.PASSWORD_RESET }),
+      }),
     );
     expect(notifications.sendPasswordResetEmail).toHaveBeenCalledWith("user-1", expect.any(String));
     expect(result).toEqual({ message: expect.any(String) });
@@ -599,17 +647,20 @@ describe("AuthService.requestPasswordReset", () => {
     ["a nonexistent email", null],
     ["a Google-only account (no password to reset)", { ...USER, passwordHash: null }],
     ["a DISABLED account", { ...USER, status: UserStatus.DISABLED }],
-  ])("is enumeration-safe and sends nothing for %s, returning the identical response", async (_label, userRow) => {
-    const prisma = makePrismaMock();
-    prisma.user.findUnique.mockResolvedValue(userRow);
-    const notifications = makeNotificationsMock();
-    const service = makeService({ prisma, notifications });
+  ])(
+    "is enumeration-safe and sends nothing for %s, returning the identical response",
+    async (_label, userRow) => {
+      const prisma = makePrismaMock();
+      prisma.user.findUnique.mockResolvedValue(userRow);
+      const notifications = makeNotificationsMock();
+      const service = makeService({ prisma, notifications });
 
-    const result = await service.requestPasswordReset({ email: "customer@example.com" });
+      const result = await service.requestPasswordReset({ email: "customer@example.com" });
 
-    expect(notifications.sendPasswordResetEmail).not.toHaveBeenCalled();
-    expect(result).toEqual({ message: expect.any(String) });
-  });
+      expect(notifications.sendPasswordResetEmail).not.toHaveBeenCalled();
+      expect(result).toEqual({ message: expect.any(String) });
+    },
+  );
 });
 
 describe("AuthService.resetPassword", () => {
@@ -620,7 +671,10 @@ describe("AuthService.resetPassword", () => {
     const sessions = makeSessionsMock();
     const service = makeService({ prisma, passwords, sessions });
 
-    const result = await service.resetPassword({ token: "a-valid-token", password: "a-new-strong-password" });
+    const result = await service.resetPassword({
+      token: "a-valid-token",
+      password: "a-new-strong-password",
+    });
 
     expect(passwords.hash).toHaveBeenCalledWith("a-new-strong-password");
     expect(prisma.user.update).toHaveBeenCalledWith({
@@ -661,7 +715,7 @@ describe("AuthService.resetPassword", () => {
 });
 
 describe("AuthService.getLoginMethod", () => {
-  it("returns \"password\" for an account with a password set", async () => {
+  it('returns "password" for an account with a password set', async () => {
     const prisma = makePrismaMock();
     prisma.user.findUnique.mockResolvedValue({ passwordHash: "real-hash" });
     const service = makeService({ prisma });
@@ -674,12 +728,14 @@ describe("AuthService.getLoginMethod", () => {
   it.each([
     ["a Google-only account", { passwordHash: null }],
     ["a nonexistent email", null],
-  ])("returns \"otp\" for %s — the two are never distinguished here", async (_label, userRow) => {
+  ])('returns "otp" for %s — the two are never distinguished here', async (_label, userRow) => {
     const prisma = makePrismaMock();
     prisma.user.findUnique.mockResolvedValue(userRow);
     const service = makeService({ prisma });
 
-    await expect(service.getLoginMethod({ email: "customer@example.com" })).resolves.toEqual({ method: "otp" });
+    await expect(service.getLoginMethod({ email: "customer@example.com" })).resolves.toEqual({
+      method: "otp",
+    });
   });
 
   it("has no side effects — no token issued, no email sent", async () => {
@@ -709,7 +765,10 @@ describe("AuthService.requestLoginOtp", () => {
     expect(prisma.loginOtp.create).toHaveBeenCalledWith({
       data: { userId: "user-1", codeHash: expect.any(String), expiresAt: expect.any(Date) },
     });
-    expect(notifications.sendLoginOtpEmail).toHaveBeenCalledWith("user-1", expect.stringMatching(/^\d{6}$/));
+    expect(notifications.sendLoginOtpEmail).toHaveBeenCalledWith(
+      "user-1",
+      expect.stringMatching(/^\d{6}$/),
+    );
     expect(result).toEqual({ message: expect.any(String) });
   });
 
@@ -727,17 +786,20 @@ describe("AuthService.requestLoginOtp", () => {
   it.each([
     ["a nonexistent email", null],
     ["a DISABLED account", { ...USER, status: UserStatus.DISABLED }],
-  ])("is enumeration-safe and sends nothing for %s, returning the identical response", async (_label, userRow) => {
-    const prisma = makePrismaMock();
-    prisma.user.findUnique.mockResolvedValue(userRow);
-    const notifications = makeNotificationsMock();
-    const service = makeService({ prisma, notifications });
+  ])(
+    "is enumeration-safe and sends nothing for %s, returning the identical response",
+    async (_label, userRow) => {
+      const prisma = makePrismaMock();
+      prisma.user.findUnique.mockResolvedValue(userRow);
+      const notifications = makeNotificationsMock();
+      const service = makeService({ prisma, notifications });
 
-    const result = await service.requestLoginOtp({ email: "customer@example.com" });
+      const result = await service.requestLoginOtp({ email: "customer@example.com" });
 
-    expect(notifications.sendLoginOtpEmail).not.toHaveBeenCalled();
-    expect(result).toEqual({ message: expect.any(String) });
-  });
+      expect(notifications.sendLoginOtpEmail).not.toHaveBeenCalled();
+      expect(result).toEqual({ message: expect.any(String) });
+    },
+  );
 
   it("silently no-ops (no second email) when a code was already issued within the resend cooldown, but returns the identical response", async () => {
     const prisma = makePrismaMock();
@@ -758,7 +820,11 @@ describe("AuthService.loginWithOtp", () => {
 
   it("issues a session on a correct, current code", async () => {
     const prisma = makePrismaMock();
-    prisma.loginOtp.findFirst.mockResolvedValue({ id: "otp-1", attempts: 0, codeHash: hashLoginOtpCode(CODE) });
+    prisma.loginOtp.findFirst.mockResolvedValue({
+      id: "otp-1",
+      attempts: 0,
+      codeHash: hashLoginOtpCode(CODE),
+    });
     const sessions = makeSessionsMock();
     const service = makeService({ prisma, sessions });
 
@@ -768,7 +834,9 @@ describe("AuthService.loginWithOtp", () => {
       where: { id: "otp-1", consumedAt: null },
       data: { consumedAt: expect.any(Date) },
     });
-    expect(sessions.createSession).toHaveBeenCalledWith(expect.objectContaining({ userId: "user-1" }));
+    expect(sessions.createSession).toHaveBeenCalledWith(
+      expect.objectContaining({ userId: "user-1" }),
+    );
     expect(result.user.email).toBe("customer@example.com");
   });
 
@@ -783,7 +851,11 @@ describe("AuthService.loginWithOtp", () => {
     // response reported emailVerifiedAt: null in the very call that just
     // set it).
     prisma.user.update.mockResolvedValue({ ...USER, emailVerifiedAt: verifiedAt });
-    prisma.loginOtp.findFirst.mockResolvedValue({ id: "otp-1", attempts: 0, codeHash: hashLoginOtpCode(CODE) });
+    prisma.loginOtp.findFirst.mockResolvedValue({
+      id: "otp-1",
+      attempts: 0,
+      codeHash: hashLoginOtpCode(CODE),
+    });
     const service = makeService({ prisma });
 
     const result = await service.loginWithOtp({ email: "customer@example.com", code: CODE }, {});
@@ -799,7 +871,11 @@ describe("AuthService.loginWithOtp", () => {
     const verifiedAt = new Date("2026-01-01T00:00:00.000Z");
     const prisma = makePrismaMock();
     prisma.user.findUnique.mockResolvedValue({ ...USER, emailVerifiedAt: verifiedAt });
-    prisma.loginOtp.findFirst.mockResolvedValue({ id: "otp-1", attempts: 0, codeHash: hashLoginOtpCode(CODE) });
+    prisma.loginOtp.findFirst.mockResolvedValue({
+      id: "otp-1",
+      attempts: 0,
+      codeHash: hashLoginOtpCode(CODE),
+    });
     const service = makeService({ prisma });
 
     const result = await service.loginWithOtp({ email: "customer@example.com", code: CODE }, {});
@@ -808,14 +884,20 @@ describe("AuthService.loginWithOtp", () => {
     // emailVerifiedAt backfill itself must be skipped for an
     // already-verified account.
     expect(prisma.user.update).not.toHaveBeenCalledWith(
-      expect.objectContaining({ data: expect.objectContaining({ emailVerifiedAt: expect.anything() }) }),
+      expect.objectContaining({
+        data: expect.objectContaining({ emailVerifiedAt: expect.anything() }),
+      }),
     );
     expect(result.user.emailVerifiedAt).toBe(verifiedAt.toISOString());
   });
 
   it("rejects a wrong code with a generic 400, incrementing the attempt counter, without issuing a session", async () => {
     const prisma = makePrismaMock();
-    prisma.loginOtp.findFirst.mockResolvedValue({ id: "otp-1", attempts: 0, codeHash: hashLoginOtpCode(CODE) });
+    prisma.loginOtp.findFirst.mockResolvedValue({
+      id: "otp-1",
+      attempts: 0,
+      codeHash: hashLoginOtpCode(CODE),
+    });
     const sessions = makeSessionsMock();
     const service = makeService({ prisma, sessions });
 
@@ -832,7 +914,11 @@ describe("AuthService.loginWithOtp", () => {
 
   it("kills the code (consumes it) once the max-attempts threshold is reached", async () => {
     const prisma = makePrismaMock();
-    prisma.loginOtp.findFirst.mockResolvedValue({ id: "otp-1", attempts: 4, codeHash: hashLoginOtpCode(CODE) });
+    prisma.loginOtp.findFirst.mockResolvedValue({
+      id: "otp-1",
+      attempts: 4,
+      codeHash: hashLoginOtpCode(CODE),
+    });
     prisma.loginOtp.update.mockResolvedValue({ attempts: 5 });
     const service = makeService({ prisma });
 
@@ -878,7 +964,11 @@ describe("AuthService.loginWithOtp", () => {
 
   it("is race-safe: loses the consumption race when another request already consumed the same correct code", async () => {
     const prisma = makePrismaMock();
-    prisma.loginOtp.findFirst.mockResolvedValue({ id: "otp-1", attempts: 0, codeHash: hashLoginOtpCode(CODE) });
+    prisma.loginOtp.findFirst.mockResolvedValue({
+      id: "otp-1",
+      attempts: 0,
+      codeHash: hashLoginOtpCode(CODE),
+    });
     prisma.loginOtp.updateMany.mockResolvedValue({ count: 0 }); // someone else won
     const sessions = makeSessionsMock();
     const service = makeService({ prisma, sessions });

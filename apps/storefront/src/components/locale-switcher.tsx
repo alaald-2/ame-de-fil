@@ -1,6 +1,7 @@
 "use client";
 
 import { useParams } from "next/navigation";
+import { useTranslations } from "next-intl";
 import { usePathname, Link } from "../i18n/navigation";
 import { routing } from "../i18n/routing";
 
@@ -14,11 +15,12 @@ export function LocaleSwitcher() {
   // dynamic route; useParams() supplies the actual values — next-intl's
   // typed Link needs both together to rebuild the correct localized URL
   // (a raw template string alone isn't a valid href with pathnames configured).
+  const t = useTranslations("Common");
   const pathname = usePathname();
   const params = useParams();
 
   return (
-    <div className="flex gap-3 font-sans text-sm text-neutral-600" aria-label="Language">
+    <div className="flex gap-3 font-sans text-sm text-neutral-600" aria-label={t("language")}>
       {routing.locales.map((locale, index) => (
         <span key={locale} className="flex items-center gap-3">
           {index > 0 ? <span aria-hidden="true">/</span> : null}

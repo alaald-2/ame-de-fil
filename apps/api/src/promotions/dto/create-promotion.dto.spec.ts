@@ -35,7 +35,9 @@ describe("createPromotionSchema", () => {
   });
 
   it("rejects NaN/non-numeric percentage input", () => {
-    expect(createPromotionSchema.safeParse({ ...BASE, percentage: Number.NaN }).success).toBe(false);
+    expect(createPromotionSchema.safeParse({ ...BASE, percentage: Number.NaN }).success).toBe(
+      false,
+    );
     expect(createPromotionSchema.safeParse({ ...BASE, percentage: "20" }).success).toBe(false);
   });
 

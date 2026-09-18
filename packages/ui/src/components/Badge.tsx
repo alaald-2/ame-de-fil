@@ -1,7 +1,7 @@
 import { type ComponentPropsWithoutRef } from "react";
 import { cn } from "../utils/cn";
 
-type BadgeTone = "success" | "neutral" | "danger";
+export type BadgeTone = "success" | "neutral" | "danger";
 
 interface BadgeProps extends ComponentPropsWithoutRef<"span"> {
   tone?: BadgeTone;

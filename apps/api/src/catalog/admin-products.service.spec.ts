@@ -80,7 +80,11 @@ describe("AdminProductsService.createProduct", () => {
   it("rejects a variant selecting an option value that wasn't declared in options[]", async () => {
     const tx = makeTxMock();
     const prisma = makePrismaMock(tx);
-    const service = new AdminProductsService(prisma, new AuditService(prisma), makeImageStorageMock());
+    const service = new AdminProductsService(
+      prisma,
+      new AuditService(prisma),
+      makeImageStorageMock(),
+    );
 
     const input: CreateProductInput = {
       ...validInput,
@@ -94,7 +98,11 @@ describe("AdminProductsService.createProduct", () => {
   it("rejects duplicate SKUs within the same product", async () => {
     const tx = makeTxMock();
     const prisma = makePrismaMock(tx);
-    const service = new AdminProductsService(prisma, new AuditService(prisma), makeImageStorageMock());
+    const service = new AdminProductsService(
+      prisma,
+      new AuditService(prisma),
+      makeImageStorageMock(),
+    );
 
     const input: CreateProductInput = {
       ...validInput,
@@ -108,25 +116,42 @@ describe("AdminProductsService.createProduct", () => {
     const tx = makeTxMock();
     const prisma = makePrismaMock(tx);
     vi.mocked(prisma.taxClass.findMany).mockResolvedValue([]);
-    const service = new AdminProductsService(prisma, new AuditService(prisma), makeImageStorageMock());
+    const service = new AdminProductsService(
+      prisma,
+      new AuditService(prisma),
+      makeImageStorageMock(),
+    );
 
-    await expect(service.createProduct(validInput, ACTOR_USER_ID)).rejects.toThrow(BadRequestException);
+    await expect(service.createProduct(validInput, ACTOR_USER_ID)).rejects.toThrow(
+      BadRequestException,
+    );
   });
 
   it("rejects an unknown categoryId", async () => {
     const tx = makeTxMock();
     const prisma = makePrismaMock(tx);
-    const service = new AdminProductsService(prisma, new AuditService(prisma), makeImageStorageMock());
+    const service = new AdminProductsService(
+      prisma,
+      new AuditService(prisma),
+      makeImageStorageMock(),
+    );
 
     await expect(
-      service.createProduct({ ...validInput, categoryIds: ["nonexistent-category"] }, ACTOR_USER_ID),
+      service.createProduct(
+        { ...validInput, categoryIds: ["nonexistent-category"] },
+        ACTOR_USER_ID,
+      ),
     ).rejects.toThrow(BadRequestException);
   });
 
   it("creates the product, translations, options, variants, and inventory in one transaction on valid input", async () => {
     const tx = makeTxMock();
     const prisma = makePrismaMock(tx);
-    const service = new AdminProductsService(prisma, new AuditService(prisma), makeImageStorageMock());
+    const service = new AdminProductsService(
+      prisma,
+      new AuditService(prisma),
+      makeImageStorageMock(),
+    );
 
     const result = await service.createProduct(validInput, ACTOR_USER_ID);
 
@@ -151,7 +176,11 @@ describe("AdminProductsService.createProduct", () => {
     const prisma = makePrismaMock(tx);
     vi.mocked(prisma.category.findMany).mockResolvedValue([{ id: "cat-1" }] as never);
     vi.mocked(prisma.collection.findMany).mockResolvedValue([{ id: "col-1" }] as never);
-    const service = new AdminProductsService(prisma, new AuditService(prisma), makeImageStorageMock());
+    const service = new AdminProductsService(
+      prisma,
+      new AuditService(prisma),
+      makeImageStorageMock(),
+    );
 
     await service.createProduct(
       {
@@ -179,7 +208,17 @@ function makeAdminProductRow(overrides: Partial<Record<string, unknown>> = {}) {
     createdAt: new Date("2026-01-01T00:00:00.000Z"),
     updatedAt: new Date("2026-01-02T00:00:00.000Z"),
     translations: [
-      { locale: "sv_SE", name: "Virkad tröja", slug: "virkad-troja", description: null, story: null, careInstructions: null, materials: null, metaTitle: null, metaDescription: null },
+      {
+        locale: "sv_SE",
+        name: "Virkad tröja",
+        slug: "virkad-troja",
+        description: null,
+        story: null,
+        careInstructions: null,
+        materials: null,
+        metaTitle: null,
+        metaDescription: null,
+      },
     ],
     images: [],
     options: [],
@@ -193,7 +232,13 @@ function makeAdminProductRow(overrides: Partial<Record<string, unknown>> = {}) {
         weightGrams: null,
         isActive: true,
         optionValues: [],
-        inventoryItem: { onHand: 5, reserved: 0, tracksStock: true, isLimitedEdition: false, productionTimeDays: null },
+        inventoryItem: {
+          onHand: 5,
+          reserved: 0,
+          tracksStock: true,
+          isLimitedEdition: false,
+          productionTimeDays: null,
+        },
         taxClass: { id: "tax-1", code: "STANDARD" },
       },
     ],
@@ -204,8 +249,14 @@ function makeAdminProductRow(overrides: Partial<Record<string, unknown>> = {}) {
 function makeUpdateTxMock() {
   return {
     productTranslation: { upsert: vi.fn().mockResolvedValue({}) },
-    productCategory: { deleteMany: vi.fn().mockResolvedValue({ count: 0 }), createMany: vi.fn().mockResolvedValue({ count: 0 }) },
-    productCollection: { deleteMany: vi.fn().mockResolvedValue({ count: 0 }), createMany: vi.fn().mockResolvedValue({ count: 0 }) },
+    productCategory: {
+      deleteMany: vi.fn().mockResolvedValue({ count: 0 }),
+      createMany: vi.fn().mockResolvedValue({ count: 0 }),
+    },
+    productCollection: {
+      deleteMany: vi.fn().mockResolvedValue({ count: 0 }),
+      createMany: vi.fn().mockResolvedValue({ count: 0 }),
+    },
     productVariant: { update: vi.fn().mockResolvedValue({}) },
     inventoryItem: { update: vi.fn().mockResolvedValue({}) },
     product: { update: vi.fn().mockResolvedValue({}) },
@@ -223,7 +274,11 @@ describe("AdminProductsService.list/getOne", () => {
       promotionVariant: { findMany: vi.fn().mockResolvedValue([]) },
       $transaction: vi.fn(),
     } as unknown as PrismaService;
-    const service = new AdminProductsService(prisma, new AuditService(prisma), makeImageStorageMock());
+    const service = new AdminProductsService(
+      prisma,
+      new AuditService(prisma),
+      makeImageStorageMock(),
+    );
 
     const result = await service.list(1, 20);
 
@@ -260,13 +315,24 @@ describe("AdminProductsService.list/getOne", () => {
         findMany: vi.fn().mockResolvedValue([
           {
             productVariantId: "var-1",
-            promotion: { id: "promo-1", name: "Autumn Sale", percentage: 25, active: true, startsAt: null, endsAt: null },
+            promotion: {
+              id: "promo-1",
+              name: "Autumn Sale",
+              percentage: 25,
+              active: true,
+              startsAt: null,
+              endsAt: null,
+            },
           },
         ]),
       },
       $transaction: vi.fn(),
     } as unknown as PrismaService;
-    const service = new AdminProductsService(prisma, new AuditService(prisma), makeImageStorageMock());
+    const service = new AdminProductsService(
+      prisma,
+      new AuditService(prisma),
+      makeImageStorageMock(),
+    );
 
     const result = await service.list(1, 20);
 
@@ -292,7 +358,11 @@ describe("AdminProductsService.list/getOne", () => {
         $queryRaw: queryRaw,
         $transaction: vi.fn(),
       } as unknown as PrismaService;
-      const service = new AdminProductsService(prisma, new AuditService(prisma), makeImageStorageMock());
+      const service = new AdminProductsService(
+        prisma,
+        new AuditService(prisma),
+        makeImageStorageMock(),
+      );
 
       await service.list(1, 20, undefined, "mössa");
 
@@ -325,7 +395,11 @@ describe("AdminProductsService.list/getOne", () => {
         $queryRaw: queryRaw,
         $transaction: vi.fn(),
       } as unknown as PrismaService;
-      const service = new AdminProductsService(prisma, new AuditService(prisma), makeImageStorageMock());
+      const service = new AdminProductsService(
+        prisma,
+        new AuditService(prisma),
+        makeImageStorageMock(),
+      );
 
       await service.list(1, 20, undefined, "100042");
 
@@ -343,7 +417,11 @@ describe("AdminProductsService.list/getOne", () => {
         $queryRaw: queryRaw,
         $transaction: vi.fn(),
       } as unknown as PrismaService;
-      const service = new AdminProductsService(prisma, new AuditService(prisma), makeImageStorageMock());
+      const service = new AdminProductsService(
+        prisma,
+        new AuditService(prisma),
+        makeImageStorageMock(),
+      );
 
       await service.list(1, 20, undefined, "SKU-1");
 
@@ -360,7 +438,11 @@ describe("AdminProductsService.list/getOne", () => {
       },
       $transaction: vi.fn(),
     } as unknown as PrismaService;
-    const service = new AdminProductsService(prisma, new AuditService(prisma), makeImageStorageMock());
+    const service = new AdminProductsService(
+      prisma,
+      new AuditService(prisma),
+      makeImageStorageMock(),
+    );
 
     await service.list(1, 20, "ARCHIVED");
 
@@ -375,7 +457,11 @@ describe("AdminProductsService.list/getOne", () => {
       product: { findUnique: vi.fn().mockResolvedValue(null) },
       $transaction: vi.fn(),
     } as unknown as PrismaService;
-    const service = new AdminProductsService(prisma, new AuditService(prisma), makeImageStorageMock());
+    const service = new AdminProductsService(
+      prisma,
+      new AuditService(prisma),
+      makeImageStorageMock(),
+    );
 
     await expect(service.getOne("missing")).rejects.toThrow(NotFoundException);
   });
@@ -383,8 +469,28 @@ describe("AdminProductsService.list/getOne", () => {
   it("getOne returns every locale's translation content, not resolved to one", async () => {
     const row = makeAdminProductRow({
       translations: [
-        { locale: "sv_SE", name: "Virkad tröja", slug: "virkad-troja", description: null, story: null, careInstructions: null, materials: null, metaTitle: null, metaDescription: null },
-        { locale: "en", name: "Crocheted sweater", slug: "crocheted-sweater", description: null, story: null, careInstructions: null, materials: null, metaTitle: null, metaDescription: null },
+        {
+          locale: "sv_SE",
+          name: "Virkad tröja",
+          slug: "virkad-troja",
+          description: null,
+          story: null,
+          careInstructions: null,
+          materials: null,
+          metaTitle: null,
+          metaDescription: null,
+        },
+        {
+          locale: "en",
+          name: "Crocheted sweater",
+          slug: "crocheted-sweater",
+          description: null,
+          story: null,
+          careInstructions: null,
+          materials: null,
+          metaTitle: null,
+          metaDescription: null,
+        },
       ],
     });
     const prisma = {
@@ -392,7 +498,11 @@ describe("AdminProductsService.list/getOne", () => {
       promotionVariant: { findMany: vi.fn().mockResolvedValue([]) },
       $transaction: vi.fn(),
     } as unknown as PrismaService;
-    const service = new AdminProductsService(prisma, new AuditService(prisma), makeImageStorageMock());
+    const service = new AdminProductsService(
+      prisma,
+      new AuditService(prisma),
+      makeImageStorageMock(),
+    );
 
     const result = await service.getOne("prod-1");
 
@@ -407,7 +517,11 @@ describe("AdminProductsService.update", () => {
       product: { findUnique: vi.fn().mockResolvedValue(null) },
       $transaction: vi.fn(),
     } as unknown as PrismaService;
-    const service = new AdminProductsService(prisma, new AuditService(prisma), makeImageStorageMock());
+    const service = new AdminProductsService(
+      prisma,
+      new AuditService(prisma),
+      makeImageStorageMock(),
+    );
 
     await expect(service.update("missing", {}, ACTOR_USER_ID)).rejects.toThrow(NotFoundException);
   });
@@ -419,7 +533,11 @@ describe("AdminProductsService.update", () => {
       },
       $transaction: vi.fn(),
     } as unknown as PrismaService;
-    const service = new AdminProductsService(prisma, new AuditService(prisma), makeImageStorageMock());
+    const service = new AdminProductsService(
+      prisma,
+      new AuditService(prisma),
+      makeImageStorageMock(),
+    );
 
     await expect(
       service.update("prod-1", { status: "DRAFT" } as UpdateProductInput, ACTOR_USER_ID),
@@ -437,14 +555,26 @@ describe("AdminProductsService.update", () => {
           .mockResolvedValueOnce(finalRow),
       },
       promotionVariant: { findMany: vi.fn().mockResolvedValue([]) },
-      $transaction: vi.fn().mockImplementation((callback: (tx: unknown) => unknown) => callback(tx)),
+      $transaction: vi
+        .fn()
+        .mockImplementation((callback: (tx: unknown) => unknown) => callback(tx)),
     } as unknown as PrismaService;
-    const service = new AdminProductsService(prisma, new AuditService(prisma), makeImageStorageMock());
+    const service = new AdminProductsService(
+      prisma,
+      new AuditService(prisma),
+      makeImageStorageMock(),
+    );
 
-    const result = await service.update("prod-1", { status: "PUBLISHED" } as UpdateProductInput, ACTOR_USER_ID);
+    const result = await service.update(
+      "prod-1",
+      { status: "PUBLISHED" } as UpdateProductInput,
+      ACTOR_USER_ID,
+    );
 
     expect(tx.product.update).toHaveBeenCalledWith(
-      expect.objectContaining({ data: expect.objectContaining({ status: "PUBLISHED", publishedAt: expect.any(Date) }) }),
+      expect.objectContaining({
+        data: expect.objectContaining({ status: "PUBLISHED", publishedAt: expect.any(Date) }),
+      }),
     );
     expect(result.status).toBe("PUBLISHED");
   });
@@ -456,7 +586,11 @@ describe("AdminProductsService.update", () => {
       },
       $transaction: vi.fn(),
     } as unknown as PrismaService;
-    const service = new AdminProductsService(prisma, new AuditService(prisma), makeImageStorageMock());
+    const service = new AdminProductsService(
+      prisma,
+      new AuditService(prisma),
+      makeImageStorageMock(),
+    );
 
     await expect(
       service.update("prod-1", { status: "DRAFT" } as UpdateProductInput, ACTOR_USER_ID),
@@ -474,11 +608,21 @@ describe("AdminProductsService.update", () => {
           .mockResolvedValueOnce(finalRow),
       },
       promotionVariant: { findMany: vi.fn().mockResolvedValue([]) },
-      $transaction: vi.fn().mockImplementation((callback: (tx: unknown) => unknown) => callback(tx)),
+      $transaction: vi
+        .fn()
+        .mockImplementation((callback: (tx: unknown) => unknown) => callback(tx)),
     } as unknown as PrismaService;
-    const service = new AdminProductsService(prisma, new AuditService(prisma), makeImageStorageMock());
+    const service = new AdminProductsService(
+      prisma,
+      new AuditService(prisma),
+      makeImageStorageMock(),
+    );
 
-    const result = await service.update("prod-1", { status: "PUBLISHED" } as UpdateProductInput, ACTOR_USER_ID);
+    const result = await service.update(
+      "prod-1",
+      { status: "PUBLISHED" } as UpdateProductInput,
+      ACTOR_USER_ID,
+    );
 
     expect(tx.product.update).toHaveBeenCalledWith(
       expect.objectContaining({ data: { status: "PUBLISHED" } }),
@@ -489,11 +633,17 @@ describe("AdminProductsService.update", () => {
   it("rejects a variant id that doesn't belong to this product", async () => {
     const prisma = {
       product: {
-        findUnique: vi.fn().mockResolvedValue({ id: "prod-1", status: "DRAFT", variants: [{ id: "var-1" }] }),
+        findUnique: vi
+          .fn()
+          .mockResolvedValue({ id: "prod-1", status: "DRAFT", variants: [{ id: "var-1" }] }),
       },
       $transaction: vi.fn(),
     } as unknown as PrismaService;
-    const service = new AdminProductsService(prisma, new AuditService(prisma), makeImageStorageMock());
+    const service = new AdminProductsService(
+      prisma,
+      new AuditService(prisma),
+      makeImageStorageMock(),
+    );
 
     await expect(
       service.update(
@@ -516,9 +666,15 @@ describe("AdminProductsService.update", () => {
       category: { findMany: vi.fn().mockResolvedValue([{ id: "cat-1" }]) },
       collection: { findMany: vi.fn().mockResolvedValue([{ id: "col-1" }]) },
       promotionVariant: { findMany: vi.fn().mockResolvedValue([]) },
-      $transaction: vi.fn().mockImplementation((callback: (tx: unknown) => unknown) => callback(tx)),
+      $transaction: vi
+        .fn()
+        .mockImplementation((callback: (tx: unknown) => unknown) => callback(tx)),
     } as unknown as PrismaService;
-    const service = new AdminProductsService(prisma, new AuditService(prisma), makeImageStorageMock());
+    const service = new AdminProductsService(
+      prisma,
+      new AuditService(prisma),
+      makeImageStorageMock(),
+    );
 
     await service.update(
       "prod-1",
@@ -558,9 +714,15 @@ describe("AdminProductsService.update", () => {
       product: {
         findUnique: vi.fn().mockResolvedValueOnce({ id: "prod-1", status: "DRAFT", variants: [] }),
       },
-      $transaction: vi.fn().mockImplementation((callback: (tx: unknown) => unknown) => callback(tx)),
+      $transaction: vi
+        .fn()
+        .mockImplementation((callback: (tx: unknown) => unknown) => callback(tx)),
     } as unknown as PrismaService;
-    const service = new AdminProductsService(prisma, new AuditService(prisma), makeImageStorageMock());
+    const service = new AdminProductsService(
+      prisma,
+      new AuditService(prisma),
+      makeImageStorageMock(),
+    );
 
     await expect(
       service.update(
@@ -582,7 +744,11 @@ describe("AdminProductsService.listTaxClasses", () => {
       },
       $transaction: vi.fn(),
     } as unknown as PrismaService;
-    const service = new AdminProductsService(prisma, new AuditService(prisma), makeImageStorageMock());
+    const service = new AdminProductsService(
+      prisma,
+      new AuditService(prisma),
+      makeImageStorageMock(),
+    );
 
     const result = await service.listTaxClasses();
 
@@ -597,7 +763,11 @@ describe("AdminProductsService.listTaxClasses", () => {
       taxClass: { findMany: vi.fn().mockResolvedValue([]) },
       $transaction: vi.fn(),
     } as unknown as PrismaService;
-    const service = new AdminProductsService(prisma, new AuditService(prisma), makeImageStorageMock());
+    const service = new AdminProductsService(
+      prisma,
+      new AuditService(prisma),
+      makeImageStorageMock(),
+    );
 
     expect(await service.listTaxClasses()).toEqual([]);
   });
@@ -632,10 +802,19 @@ describe("AdminProductsService.uploadImage", () => {
       product: { findUnique: vi.fn().mockResolvedValue(null) },
       $transaction: vi.fn(),
     } as unknown as PrismaService;
-    const service = new AdminProductsService(prisma, new AuditService(prisma), makeImageStorageMock());
+    const service = new AdminProductsService(
+      prisma,
+      new AuditService(prisma),
+      makeImageStorageMock(),
+    );
 
     await expect(
-      service.uploadImage("missing", { buffer: Buffer.from("x"), mimetype: "image/jpeg" }, {}, ACTOR_USER_ID),
+      service.uploadImage(
+        "missing",
+        { buffer: Buffer.from("x"), mimetype: "image/jpeg" },
+        {},
+        ACTOR_USER_ID,
+      ),
     ).rejects.toThrow(NotFoundException);
   });
 
@@ -683,7 +862,9 @@ describe("AdminProductsService.uploadImage", () => {
     const prisma = {
       product: { findUnique: vi.fn().mockResolvedValue({ id: "prod-1" }) },
       productImage: { aggregate: vi.fn().mockResolvedValue({ _max: { position: 2 } }) },
-      $transaction: vi.fn().mockImplementation((callback: (tx: unknown) => unknown) => callback(tx)),
+      $transaction: vi
+        .fn()
+        .mockImplementation((callback: (tx: unknown) => unknown) => callback(tx)),
     } as unknown as PrismaService;
     const service = new AdminProductsService(prisma, new AuditService(prisma), imageStorage);
 
@@ -694,7 +875,9 @@ describe("AdminProductsService.uploadImage", () => {
       ACTOR_USER_ID,
     );
 
-    expect(imageStorage.upload).toHaveBeenCalledWith(expect.any(Buffer), { folder: "products/prod-1" });
+    expect(imageStorage.upload).toHaveBeenCalledWith(expect.any(Buffer), {
+      folder: "products/prod-1",
+    });
     expect(tx.productImage.create).toHaveBeenCalledWith(
       expect.objectContaining({
         data: expect.objectContaining({
@@ -722,7 +905,11 @@ describe("AdminProductsService.updateImage", () => {
       productImage: { findFirst: vi.fn().mockResolvedValue(null) },
       $transaction: vi.fn(),
     } as unknown as PrismaService;
-    const service = new AdminProductsService(prisma, new AuditService(prisma), makeImageStorageMock());
+    const service = new AdminProductsService(
+      prisma,
+      new AuditService(prisma),
+      makeImageStorageMock(),
+    );
 
     await expect(
       service.updateImage("prod-1", "img-1", { altTextSv: "X" }, ACTOR_USER_ID),
@@ -735,13 +922,29 @@ describe("AdminProductsService.updateImage", () => {
       productImage: {
         findFirst: vi
           .fn()
-          .mockResolvedValue({ id: "img-1", productId: "prod-1", altTextSv: null, altTextEn: null }),
+          .mockResolvedValue({
+            id: "img-1",
+            productId: "prod-1",
+            altTextSv: null,
+            altTextEn: null,
+          }),
       },
-      $transaction: vi.fn().mockImplementation((callback: (tx: unknown) => unknown) => callback(tx)),
+      $transaction: vi
+        .fn()
+        .mockImplementation((callback: (tx: unknown) => unknown) => callback(tx)),
     } as unknown as PrismaService;
-    const service = new AdminProductsService(prisma, new AuditService(prisma), makeImageStorageMock());
+    const service = new AdminProductsService(
+      prisma,
+      new AuditService(prisma),
+      makeImageStorageMock(),
+    );
 
-    const result = await service.updateImage("prod-1", "img-1", { altTextSv: "En tröja" }, ACTOR_USER_ID);
+    const result = await service.updateImage(
+      "prod-1",
+      "img-1",
+      { altTextSv: "En tröja" },
+      ACTOR_USER_ID,
+    );
 
     expect(tx.productImage.update).toHaveBeenCalledWith({
       where: { id: "img-1" },
@@ -757,7 +960,11 @@ describe("AdminProductsService.reorderImages", () => {
       product: { findUnique: vi.fn().mockResolvedValue(null) },
       $transaction: vi.fn(),
     } as unknown as PrismaService;
-    const service = new AdminProductsService(prisma, new AuditService(prisma), makeImageStorageMock());
+    const service = new AdminProductsService(
+      prisma,
+      new AuditService(prisma),
+      makeImageStorageMock(),
+    );
 
     await expect(service.reorderImages("prod-1", ["img-1"], ACTOR_USER_ID)).rejects.toThrow(
       NotFoundException,
@@ -774,7 +981,11 @@ describe("AdminProductsService.reorderImages", () => {
       },
       $transaction: vi.fn(),
     } as unknown as PrismaService;
-    const service = new AdminProductsService(prisma, new AuditService(prisma), makeImageStorageMock());
+    const service = new AdminProductsService(
+      prisma,
+      new AuditService(prisma),
+      makeImageStorageMock(),
+    );
 
     await expect(service.reorderImages("prod-1", ["img-1"], ACTOR_USER_ID)).rejects.toThrow(
       BadRequestException,
@@ -791,7 +1002,11 @@ describe("AdminProductsService.reorderImages", () => {
       },
       $transaction: vi.fn(),
     } as unknown as PrismaService;
-    const service = new AdminProductsService(prisma, new AuditService(prisma), makeImageStorageMock());
+    const service = new AdminProductsService(
+      prisma,
+      new AuditService(prisma),
+      makeImageStorageMock(),
+    );
 
     await expect(
       service.reorderImages("prod-1", ["img-1", "img-1"], ACTOR_USER_ID),
@@ -808,7 +1023,11 @@ describe("AdminProductsService.reorderImages", () => {
       },
       $transaction: vi.fn(),
     } as unknown as PrismaService;
-    const service = new AdminProductsService(prisma, new AuditService(prisma), makeImageStorageMock());
+    const service = new AdminProductsService(
+      prisma,
+      new AuditService(prisma),
+      makeImageStorageMock(),
+    );
 
     await expect(
       service.reorderImages("prod-1", ["img-1", "img-from-elsewhere"], ACTOR_USER_ID),
@@ -818,8 +1037,20 @@ describe("AdminProductsService.reorderImages", () => {
   it("assigns position from the given order and returns the re-sorted list", async () => {
     const update = vi.fn().mockResolvedValue({});
     const findMany = vi.fn().mockResolvedValue([
-      { id: "img-2", url: "https://res.cloudinary.com/x/b.jpg", altTextSv: null, altTextEn: null, position: 0 },
-      { id: "img-1", url: "https://res.cloudinary.com/x/a.jpg", altTextSv: null, altTextEn: null, position: 1 },
+      {
+        id: "img-2",
+        url: "https://res.cloudinary.com/x/b.jpg",
+        altTextSv: null,
+        altTextEn: null,
+        position: 0,
+      },
+      {
+        id: "img-1",
+        url: "https://res.cloudinary.com/x/a.jpg",
+        altTextSv: null,
+        altTextEn: null,
+        position: 1,
+      },
     ]);
     const auditCreate = vi.fn().mockResolvedValue({});
     const tx = { productImage: { update, findMany }, auditLog: { create: auditCreate } };
@@ -830,9 +1061,15 @@ describe("AdminProductsService.reorderImages", () => {
           images: [{ id: "img-1" }, { id: "img-2" }],
         }),
       },
-      $transaction: vi.fn().mockImplementation((callback: (tx: unknown) => unknown) => callback(tx)),
+      $transaction: vi
+        .fn()
+        .mockImplementation((callback: (tx: unknown) => unknown) => callback(tx)),
     } as unknown as PrismaService;
-    const service = new AdminProductsService(prisma, new AuditService(prisma), makeImageStorageMock());
+    const service = new AdminProductsService(
+      prisma,
+      new AuditService(prisma),
+      makeImageStorageMock(),
+    );
 
     const result = await service.reorderImages("prod-1", ["img-2", "img-1"], ACTOR_USER_ID);
 
@@ -848,9 +1085,15 @@ describe("AdminProductsService.deleteImage", () => {
       productImage: { findFirst: vi.fn().mockResolvedValue(null) },
       $transaction: vi.fn(),
     } as unknown as PrismaService;
-    const service = new AdminProductsService(prisma, new AuditService(prisma), makeImageStorageMock());
+    const service = new AdminProductsService(
+      prisma,
+      new AuditService(prisma),
+      makeImageStorageMock(),
+    );
 
-    await expect(service.deleteImage("prod-1", "img-1", ACTOR_USER_ID)).rejects.toThrow(NotFoundException);
+    await expect(service.deleteImage("prod-1", "img-1", ACTOR_USER_ID)).rejects.toThrow(
+      NotFoundException,
+    );
   });
 
   it("deletes the Cloudinary asset before the DB row", async () => {
@@ -865,7 +1108,9 @@ describe("AdminProductsService.deleteImage", () => {
           cloudinaryPublicId: "y",
         }),
       },
-      $transaction: vi.fn().mockImplementation((callback: (tx: unknown) => unknown) => callback(tx)),
+      $transaction: vi
+        .fn()
+        .mockImplementation((callback: (tx: unknown) => unknown) => callback(tx)),
     } as unknown as PrismaService;
     const service = new AdminProductsService(prisma, new AuditService(prisma), imageStorage);
 
@@ -887,7 +1132,9 @@ describe("AdminProductsService.deleteImage", () => {
           cloudinaryPublicId: null,
         }),
       },
-      $transaction: vi.fn().mockImplementation((callback: (tx: unknown) => unknown) => callback(tx)),
+      $transaction: vi
+        .fn()
+        .mockImplementation((callback: (tx: unknown) => unknown) => callback(tx)),
     } as unknown as PrismaService;
     const service = new AdminProductsService(prisma, new AuditService(prisma), imageStorage);
 
@@ -903,9 +1150,15 @@ describe("AdminProductsService.deleteProduct", () => {
     const prisma = {
       product: { findUnique: vi.fn().mockResolvedValue(null) },
     } as unknown as PrismaService;
-    const service = new AdminProductsService(prisma, new AuditService(prisma), makeImageStorageMock());
+    const service = new AdminProductsService(
+      prisma,
+      new AuditService(prisma),
+      makeImageStorageMock(),
+    );
 
-    await expect(service.deleteProduct("missing", ACTOR_USER_ID)).rejects.toThrow(NotFoundException);
+    await expect(service.deleteProduct("missing", ACTOR_USER_ID)).rejects.toThrow(
+      NotFoundException,
+    );
   });
 
   it("rejects deletion when a variant has an existing order", async () => {
@@ -921,7 +1174,11 @@ describe("AdminProductsService.deleteProduct", () => {
       orderItem: { count: vi.fn().mockResolvedValue(1) },
       cartItem: { count: vi.fn().mockResolvedValue(0) },
     } as unknown as PrismaService;
-    const service = new AdminProductsService(prisma, new AuditService(prisma), makeImageStorageMock());
+    const service = new AdminProductsService(
+      prisma,
+      new AuditService(prisma),
+      makeImageStorageMock(),
+    );
 
     await expect(service.deleteProduct("prod-1", ACTOR_USER_ID)).rejects.toThrow(ConflictException);
   });
@@ -939,7 +1196,11 @@ describe("AdminProductsService.deleteProduct", () => {
       orderItem: { count: vi.fn().mockResolvedValue(0) },
       cartItem: { count: vi.fn().mockResolvedValue(1) },
     } as unknown as PrismaService;
-    const service = new AdminProductsService(prisma, new AuditService(prisma), makeImageStorageMock());
+    const service = new AdminProductsService(
+      prisma,
+      new AuditService(prisma),
+      makeImageStorageMock(),
+    );
 
     await expect(service.deleteProduct("prod-1", ACTOR_USER_ID)).rejects.toThrow(ConflictException);
   });
@@ -962,7 +1223,9 @@ describe("AdminProductsService.deleteProduct", () => {
       },
       orderItem: { count: vi.fn().mockResolvedValue(0) },
       cartItem: { count: vi.fn().mockResolvedValue(0) },
-      $transaction: vi.fn().mockImplementation((callback: (tx: unknown) => unknown) => callback(tx)),
+      $transaction: vi
+        .fn()
+        .mockImplementation((callback: (tx: unknown) => unknown) => callback(tx)),
     } as unknown as PrismaService;
     const service = new AdminProductsService(prisma, new AuditService(prisma), imageStorage);
 
@@ -983,13 +1246,21 @@ describe("AdminProductsService.deleteProduct", () => {
     const cartItemCount = vi.fn();
     const prisma = {
       product: {
-        findUnique: vi.fn().mockResolvedValue({ id: "prod-1", status: "DRAFT", variants: [], images: [] }),
+        findUnique: vi
+          .fn()
+          .mockResolvedValue({ id: "prod-1", status: "DRAFT", variants: [], images: [] }),
       },
       orderItem: { count: orderItemCount },
       cartItem: { count: cartItemCount },
-      $transaction: vi.fn().mockImplementation((callback: (tx: unknown) => unknown) => callback(tx)),
+      $transaction: vi
+        .fn()
+        .mockImplementation((callback: (tx: unknown) => unknown) => callback(tx)),
     } as unknown as PrismaService;
-    const service = new AdminProductsService(prisma, new AuditService(prisma), makeImageStorageMock());
+    const service = new AdminProductsService(
+      prisma,
+      new AuditService(prisma),
+      makeImageStorageMock(),
+    );
 
     await service.deleteProduct("prod-1", ACTOR_USER_ID);
 

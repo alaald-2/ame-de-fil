@@ -6,13 +6,10 @@ import { getServerApiClient } from "../../../../../lib/server-api";
 import { userStatusTone } from "../../../../../lib/user-status";
 import { UserStatusAction } from "../../../../../components/user-status-action";
 import { UserRoleManager } from "../../../../../components/user-role-manager";
+import { formatDateTime } from "../../../../../lib/format-date";
 
 interface UserDetailPageProps {
   params: Promise<{ id: string }>;
-}
-
-function formatDateTime(iso: string, locale: string): string {
-  return new Intl.DateTimeFormat(locale, { dateStyle: "medium", timeStyle: "short" }).format(new Date(iso));
 }
 
 // Real GET /admin/users/:id data — staff-scoped (a non-staff user id 404s
@@ -29,7 +26,11 @@ export default async function UserDetailPage({ params }: UserDetailPageProps) {
   const client = await getServerApiClient();
   const permissions = session.user.permissions;
 
-  const { data: user, error, response } = await client.GET("/api/v1/admin/users/{id}", {
+  const {
+    data: user,
+    error,
+    response,
+  } = await client.GET("/api/v1/admin/users/{id}", {
     params: { path: { id } },
   });
 
@@ -39,7 +40,9 @@ export default async function UserDetailPage({ params }: UserDetailPageProps) {
       <ErrorState
         className="mt-6"
         title={response.status === 403 ? t("forbiddenTitle") : td("detailErrorTitle")}
-        description={response.status === 403 ? t("forbiddenDescription") : td("detailErrorDescription")}
+        description={
+          response.status === 403 ? t("forbiddenDescription") : td("detailErrorDescription")
+        }
       />
     );
   }
@@ -59,7 +62,9 @@ export default async function UserDetailPage({ params }: UserDetailPageProps) {
         const heldRoleIds = new Set(user.roles.map((role) => role.id));
         return rolesResult.data
           .filter(
-            (role) => !heldRoleIds.has(role.id) && role.permissions.every((key) => permissions.includes(key)),
+            (role) =>
+              !heldRoleIds.has(role.id) &&
+              role.permissions.every((key) => permissions.includes(key)),
           )
           .map((role) => ({ id: role.id, name: role.name }));
       })()
@@ -88,7 +93,11 @@ export default async function UserDetailPage({ params }: UserDetailPageProps) {
         // user, and a bare dash as the sole content of its own line reads
         // as a rendering error, not "no data" the way it does inline in a
         // table cell.
-        return fullName ? <Text tone="muted" className="mt-1">{fullName}</Text> : null;
+        return fullName ? (
+          <Text tone="muted" className="mt-1">
+            {fullName}
+          </Text>
+        ) : null;
       })()}
 
       <div className="mt-8 grid gap-8 lg:grid-cols-[1fr_320px]">
@@ -96,7 +105,11 @@ export default async function UserDetailPage({ params }: UserDetailPageProps) {
           <Heading level={2} className="mb-3">
             {td("roles")}
           </Heading>
-          <UserRoleManager userId={user.id} currentRoles={user.roles} assignableRoles={assignableRoles} />
+          <UserRoleManager
+            userId={user.id}
+            currentRoles={user.roles}
+            assignableRoles={assignableRoles}
+          />
 
           <Heading level={2} className="mt-8 mb-3">
             {td("effectivePermissions")}

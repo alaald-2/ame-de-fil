@@ -8,7 +8,11 @@ import { randomUUID } from "node:crypto";
 import { NotFoundException } from "@nestjs/common";
 import { Currency, Locale, OrderStatus } from "@ame-de-fil/database";
 import { OrdersService } from "./orders.service.ts";
-import { startTestDatabase, stopTestDatabase, type TestDatabase } from "../test/testcontainers-postgres.ts";
+import {
+  startTestDatabase,
+  stopTestDatabase,
+  type TestDatabase,
+} from "../test/testcontainers-postgres.ts";
 import { seedShopFixture, seedUserWithPermissions, type ShopFixture } from "../test/fixtures.ts";
 import type { PrismaService } from "../database/prisma.service.ts";
 
@@ -69,7 +73,9 @@ describe("OrdersService — my own orders, real Postgres", () => {
     const other = await seedUserWithPermissions(db.prisma, []);
     const order = await seedConfirmedOrder(db.prisma, shop, owner.userId);
 
-    await expect(service.getMyOrderDetail(other.userId, order.id)).rejects.toThrow(NotFoundException);
+    await expect(service.getMyOrderDetail(other.userId, order.id)).rejects.toThrow(
+      NotFoundException,
+    );
   });
 
   it("getMyOrderDetail returns full detail for the order's real owner", async () => {

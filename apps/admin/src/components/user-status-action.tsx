@@ -29,7 +29,10 @@ export function UserStatusAction({ userId, status }: UserStatusActionProps) {
     setErrorKind(null);
     setIsSubmitting(true);
 
-    const path = status === "ACTIVE" ? "/api/v1/admin/users/{id}/deactivate" : "/api/v1/admin/users/{id}/activate";
+    const path =
+      status === "ACTIVE"
+        ? "/api/v1/admin/users/{id}/deactivate"
+        : "/api/v1/admin/users/{id}/activate";
     const { error, response } = await api.POST(path, {
       params: { path: { id: userId } },
       headers: { "x-csrf-token": readCsrfCookie() },
@@ -60,7 +63,11 @@ export function UserStatusAction({ userId, status }: UserStatusActionProps) {
               : t("genericError")}
         </Alert>
       ) : null}
-      <Button variant={status === "ACTIVE" ? "secondary" : "primary"} onClick={handleClick} disabled={isSubmitting}>
+      <Button
+        variant={status === "ACTIVE" ? "secondary" : "primary"}
+        onClick={handleClick}
+        disabled={isSubmitting}
+      >
         {isSubmitting ? (
           <>
             <Spinner className="h-4 w-4" /> {t("working")}

@@ -21,7 +21,9 @@ export class DashboardController {
 
   @Get()
   @RequirePermissions("dashboard.view")
-  @ApiOperation({ summary: "Admin dashboard overview — revenue, orders, payments, refunds, customers, alerts" })
+  @ApiOperation({
+    summary: "Admin dashboard overview — revenue, orders, payments, refunds, customers, alerts",
+  })
   @ApiZodQuery(dashboardQuerySchema)
   @ApiOkResponse({ schema: toOpenApiSchema(dashboardOverviewResponseSchema) })
   @ApiErrorResponses(400, 401, 403)

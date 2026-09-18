@@ -2,7 +2,10 @@ import { describe, expect, it, vi } from "vitest";
 import { NotFoundException } from "@nestjs/common";
 import { Currency, Locale, OrderStatus, UserStatus } from "@ame-de-fil/database";
 import { AdminCustomersService } from "./admin-customers.service.ts";
-import { ADMIN_CUSTOMER_DETAIL_SELECT, ADMIN_CUSTOMER_LIST_SELECT } from "./mappers/admin-customer.mapper.ts";
+import {
+  ADMIN_CUSTOMER_DETAIL_SELECT,
+  ADMIN_CUSTOMER_LIST_SELECT,
+} from "./mappers/admin-customer.mapper.ts";
 import type { PrismaService } from "../database/prisma.service.ts";
 
 function makePrisma(overrides: Record<string, unknown> = {}) {
@@ -188,8 +191,8 @@ describe("AdminCustomersService.getDetail", () => {
 
   it("queries with the exact admin-safe select", async () => {
     const { prisma } = makePrisma({ user: { findUnique: vi.fn().mockResolvedValue(DETAIL_ROW) } });
-    const findUnique = (prisma as unknown as { user: { findUnique: ReturnType<typeof vi.fn> } }).user
-      .findUnique;
+    const findUnique = (prisma as unknown as { user: { findUnique: ReturnType<typeof vi.fn> } })
+      .user.findUnique;
     const service = new AdminCustomersService(prisma);
 
     await service.getDetail("user-1");

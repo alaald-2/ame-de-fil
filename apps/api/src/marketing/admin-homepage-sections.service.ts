@@ -2,10 +2,16 @@ import { BadRequestException, Inject, Injectable } from "@nestjs/common";
 import { HomepageSectionKey } from "@ame-de-fil/database";
 import { PrismaService } from "../database/prisma.service.ts";
 import { AuditService } from "../audit/audit.service.ts";
-import { IMAGE_STORAGE_PROVIDER, type ImageStorageProvider } from "../images/image-storage.provider.ts";
+import {
+  IMAGE_STORAGE_PROVIDER,
+  type ImageStorageProvider,
+} from "../images/image-storage.provider.ts";
 import { mapAdminHomepageSection } from "./mappers/homepage-section.mapper.ts";
 import type { AdminHomepageSectionResponse } from "./dto/responses.ts";
-import { toPrismaHomepageSectionKey, type HomepageSectionSlug } from "./dto/homepage-section-key.param.ts";
+import {
+  toPrismaHomepageSectionKey,
+  type HomepageSectionSlug,
+} from "./dto/homepage-section-key.param.ts";
 import type { HomepageSectionContentInput } from "./dto/homepage-section-content.dto.ts";
 
 const ALL_KEYS = [
@@ -39,7 +45,9 @@ export class AdminHomepageSectionsService {
   async list(): Promise<AdminHomepageSectionResponse[]> {
     const rows = await this.prisma.homepageSection.findMany();
     const byKey = new Map(rows.map((row) => [row.key, row]));
-    return ALL_KEYS.map((key) => mapAdminHomepageSection(byKey.get(key) ?? { key, imageUrl: null }));
+    return ALL_KEYS.map((key) =>
+      mapAdminHomepageSection(byKey.get(key) ?? { key, imageUrl: null }),
+    );
   }
 
   async uploadImage(
@@ -100,7 +108,11 @@ export class AdminHomepageSectionsService {
     return mapAdminHomepageSection(section);
   }
 
-  async deleteImage(slug: HomepageSectionSlug, actorUserId: string, ipAddress?: string): Promise<AdminHomepageSectionResponse> {
+  async deleteImage(
+    slug: HomepageSectionSlug,
+    actorUserId: string,
+    ipAddress?: string,
+  ): Promise<AdminHomepageSectionResponse> {
     const key = toPrismaHomepageSectionKey(slug);
     const existing = await this.prisma.homepageSection.findUnique({ where: { key } });
 

@@ -4,25 +4,17 @@ import { getTranslations } from "next-intl/server";
 import { Container, Heading, Text, Pagination } from "@ame-de-fil/ui";
 import { api } from "../../../../lib/api-client";
 import { ProductCard } from "../../../../components/product-card";
-import { getPathname } from "../../../../i18n/navigation";
+import { buildCategoryHref } from "../../../../lib/pagination-href";
+import { unwrapOrNotFound } from "../../../../lib/fetch-or-not-found";
 import type { AppLocale } from "../../../../lib/locale";
 
 type PageParams = { locale: AppLocale; slug: string };
 
-function buildCategoryHref(locale: AppLocale, slug: string, page: number): string {
-  return getPathname({
-    href: { pathname: "/categories/[slug]", params: { slug }, query: page > 1 ? { page } : {} },
-    locale,
-  });
-}
-
 async function loadCategory(slug: string, locale: AppLocale, page: number) {
-  const { data, error, response } = await api.GET("/api/v1/categories/{slug}", {
+  const result = await api.GET("/api/v1/categories/{slug}", {
     params: { path: { slug }, query: { locale, page, pageSize: 24 } },
   });
-  if (response.status === 404) return null;
-  if (error || !data) throw new Error("Failed to load category");
-  return data;
+  return unwrapOrNotFound(result, "Failed to load category");
 }
 
 export async function generateMetadata({
@@ -84,7 +76,9 @@ export default async function CategoryPage({
               makeHref={(targetPage) => buildCategoryHref(locale, slug, targetPage)}
               previousLabel={tPagination("previousPage")}
               nextLabel={tPagination("nextPage")}
-              pageLabel={(current, total) => tPagination("pageLabel", { page: current, totalPages: total })}
+              pageLabel={(current, total) =>
+                tPagination("pageLabel", { page: current, totalPages: total })
+              }
             />
           ) : null}
         </>

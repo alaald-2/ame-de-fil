@@ -3,7 +3,10 @@ import type { Prisma } from "@ame-de-fil/database";
 import { resolveTranslation } from "./translation.mapper.ts";
 import { fromPrismaLocale } from "../../common/locale.ts";
 import { computeAvailability } from "../../common/inventory-availability.ts";
-import { resolveEffectivePrice, type ActivePromotionSummary } from "../../promotions/effective-price.ts";
+import {
+  resolveEffectivePrice,
+  type ActivePromotionSummary,
+} from "../../promotions/effective-price.ts";
 
 // Single source of truth for "the shape a product query needs" — used as
 // the literal `include` clause by every service that queries products
@@ -80,7 +83,10 @@ export function mapProductVariant(
   const inventory = variant.inventoryItem;
   const { available } = inventory ? computeAvailability(inventory) : { available: false };
 
-  const effective = resolveEffectivePrice(variant.priceMinor, promotionsByVariantId.get(variant.id));
+  const effective = resolveEffectivePrice(
+    variant.priceMinor,
+    promotionsByVariantId.get(variant.id),
+  );
 
   return {
     id: variant.id,
@@ -158,6 +164,8 @@ export function mapProduct(
       })),
     categories,
     collections,
-    variants: product.variants.map((v) => mapProductVariant(v, resolvedLocale, promotionsByVariantId)),
+    variants: product.variants.map((v) =>
+      mapProductVariant(v, resolvedLocale, promotionsByVariantId),
+    ),
   };
 }

@@ -22,7 +22,11 @@ export default async function CategoryDetailPage({ params }: CategoryDetailPageP
   const client = await getServerApiClient();
   const permissions = session.user.permissions;
 
-  const { data: category, error, response } = await client.GET("/api/v1/admin/categories/{id}", {
+  const {
+    data: category,
+    error,
+    response,
+  } = await client.GET("/api/v1/admin/categories/{id}", {
     params: { path: { id } },
   });
 
@@ -32,13 +36,18 @@ export default async function CategoryDetailPage({ params }: CategoryDetailPageP
       <ErrorState
         className="mt-6"
         title={response.status === 403 ? t("forbiddenTitle") : td("detailErrorTitle")}
-        description={response.status === 403 ? t("forbiddenDescription") : td("detailErrorDescription")}
+        description={
+          response.status === 403 ? t("forbiddenDescription") : td("detailErrorDescription")
+        }
       />
     );
   }
 
   const canManage = permissions.includes("categories.manage");
-  const displayName = category.translations.find((tr) => tr.locale === "sv-SE")?.name ?? category.translations[0]?.name ?? category.id;
+  const displayName =
+    category.translations.find((tr) => tr.locale === "sv-SE")?.name ??
+    category.translations[0]?.name ??
+    category.id;
 
   return (
     <div>

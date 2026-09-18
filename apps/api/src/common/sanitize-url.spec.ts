@@ -3,12 +3,16 @@ import { redactSensitiveQueryParams } from "./sanitize-url.ts";
 
 describe("redactSensitiveQueryParams", () => {
   it("replaces a code query parameter's value, keeping the path and other params intact", () => {
-    const result = redactSensitiveQueryParams("/api/v1/auth/google/callback?code=SECRET123&state=abc");
+    const result = redactSensitiveQueryParams(
+      "/api/v1/auth/google/callback?code=SECRET123&state=abc",
+    );
     expect(result).toBe("/api/v1/auth/google/callback?code=[REDACTED]&state=abc");
   });
 
   it("redacts code regardless of its position in the query string", () => {
-    expect(redactSensitiveQueryParams("/x?state=abc&code=SECRET123")).toBe("/x?state=abc&code=[REDACTED]");
+    expect(redactSensitiveQueryParams("/x?state=abc&code=SECRET123")).toBe(
+      "/x?state=abc&code=[REDACTED]",
+    );
   });
 
   it("is case-insensitive on the parameter name", () => {

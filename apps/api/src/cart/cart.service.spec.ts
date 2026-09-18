@@ -121,11 +121,11 @@ describe("CartService.getCart", () => {
   it("sums real variant weightGrams into estimatedWeightGrams when set", async () => {
     const prisma = makePrisma({
       cart: {
-        findUnique: vi.fn().mockResolvedValue(
-          cartWithItems([
-            itemRow({ variant: { ...itemRow().variant, weightGrams: 150 } }),
-          ]),
-        ),
+        findUnique: vi
+          .fn()
+          .mockResolvedValue(
+            cartWithItems([itemRow({ variant: { ...itemRow().variant, weightGrams: 150 } })]),
+          ),
         upsert: vi.fn(),
         findUniqueOrThrow: vi.fn(),
       },
@@ -157,8 +157,18 @@ describe("CartService.getCart", () => {
                 product: {
                   translations: [{ locale: Locale.sv_SE, name: "Halsduk" }],
                   images: [
-                    { url: "https://example.test/b.jpg", position: 1, altTextSv: "B", altTextEn: "B-en" },
-                    { url: "https://example.test/a.jpg", position: 0, altTextSv: "A", altTextEn: "A-en" },
+                    {
+                      url: "https://example.test/b.jpg",
+                      position: 1,
+                      altTextSv: "B",
+                      altTextEn: "B-en",
+                    },
+                    {
+                      url: "https://example.test/a.jpg",
+                      position: 0,
+                      altTextSv: "A",
+                      altTextEn: "A-en",
+                    },
                   ],
                 },
                 optionValues: [

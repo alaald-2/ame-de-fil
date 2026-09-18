@@ -245,7 +245,12 @@ describe("POST /admin/inventory/:variantId/adjustments — authorization", () =>
       .send(VALID_BODY);
 
     expect(response.status).toBe(201);
-    expect(booted.adjustStock).toHaveBeenCalledWith("var-1", VALID_BODY, "user-1", expect.any(String));
+    expect(booted.adjustStock).toHaveBeenCalledWith(
+      "var-1",
+      VALID_BODY,
+      "user-1",
+      expect.any(String),
+    );
   });
 
   it("returns 400 for a zero delta, before the service is ever called", async () => {

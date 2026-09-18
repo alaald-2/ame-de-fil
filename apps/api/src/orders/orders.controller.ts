@@ -11,7 +11,10 @@ import type { AuthContext } from "../common/types/auth-context.ts";
 import { OrdersService } from "./orders.service.ts";
 import { orderIdParamSchema, type OrderIdParam } from "./dto/order-id.param.ts";
 import { orderStatusResponseSchema } from "./dto/order-status-response.ts";
-import { listMyOrdersResponseSchema, myOrderDetailResponseSchema } from "./dto/my-order-responses.ts";
+import {
+  listMyOrdersResponseSchema,
+  myOrderDetailResponseSchema,
+} from "./dto/my-order-responses.ts";
 
 const ORDER_STATUS_TOKEN_HEADER = "x-order-status-token";
 

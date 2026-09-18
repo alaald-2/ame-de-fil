@@ -33,7 +33,9 @@ describe("updatePromotionSchema", () => {
   it("does not reject a single-sided date change — that's the service's job once merged with the existing value", () => {
     // Only the service (promotions.service.ts's update()) knows the
     // existing stored value for the side not included here.
-    expect(updatePromotionSchema.safeParse({ endsAt: "2020-01-01T00:00:00.000Z" }).success).toBe(true);
+    expect(updatePromotionSchema.safeParse({ endsAt: "2020-01-01T00:00:00.000Z" }).success).toBe(
+      true,
+    );
   });
 
   it("rejects an empty variantIds array when provided", () => {

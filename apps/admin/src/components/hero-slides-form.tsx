@@ -38,6 +38,7 @@ import {
 } from "@ame-de-fil/ui";
 import { api } from "../lib/api-client";
 import { readCsrfCookie } from "../lib/csrf";
+import { ALLOWED_IMAGE_TYPES, MAX_IMAGE_BYTES } from "../lib/image-upload";
 import { ImageEditor, type ImageEditorHandle } from "./image-editor";
 
 interface HeroSlide {
@@ -137,7 +138,10 @@ export function HeroSlidesForm({ slides, canManage }: HeroSlidesFormProps) {
           collisionDetection={closestCenter}
           onDragEnd={handleDragEnd}
         >
-          <SortableContext items={orderedSlides.map((slide) => slide.id)} strategy={rectSortingStrategy}>
+          <SortableContext
+            items={orderedSlides.map((slide) => slide.id)}
+            strategy={rectSortingStrategy}
+          >
             <div className="grid grid-cols-1 gap-4 sm:grid-cols-2" aria-busy={isSavingOrder}>
               {orderedSlides.map((slide) => (
                 <SortableSlideCard key={slide.id} slide={slide} canManage />
@@ -251,9 +255,7 @@ function SlideCard({
   }
 
   return (
-    <Card
-      className={cn("animate-fade-in", isDragging ? "relative z-10 opacity-70" : "relative")}
-    >
+    <Card className={cn("animate-fade-in", isDragging ? "relative z-10 opacity-70" : "relative")}>
       <div className="flex flex-col gap-3">
         <div className="relative overflow-hidden rounded-sm border border-neutral-200">
           {/* Plain <img>, not next/image — same idiom as product-images-form.tsx. */}
@@ -284,12 +286,20 @@ function SlideCard({
             </label>
             <FormField label={t("ctaLabelSvLabel")}>
               {(fieldProps) => (
-                <Input {...fieldProps} value={ctaLabelSv} onChange={(e) => setCtaLabelSv(e.target.value)} />
+                <Input
+                  {...fieldProps}
+                  value={ctaLabelSv}
+                  onChange={(e) => setCtaLabelSv(e.target.value)}
+                />
               )}
             </FormField>
             <FormField label={t("ctaLabelEnLabel")}>
               {(fieldProps) => (
-                <Input {...fieldProps} value={ctaLabelEn} onChange={(e) => setCtaLabelEn(e.target.value)} />
+                <Input
+                  {...fieldProps}
+                  value={ctaLabelEn}
+                  onChange={(e) => setCtaLabelEn(e.target.value)}
+                />
               )}
             </FormField>
             <FormField label={t("ctaHrefLabel")} hint={t("ctaHrefHint")}>
@@ -320,7 +330,12 @@ function SlideCard({
                 >
                   {deleteErrorKind ? <Alert tone="danger">{t("genericError")}</Alert> : null}
                   <div className="mt-6 flex justify-end gap-3">
-                    <Button type="button" variant="danger" onClick={handleDelete} disabled={isDeleting}>
+                    <Button
+                      type="button"
+                      variant="danger"
+                      onClick={handleDelete}
+                      disabled={isDeleting}
+                    >
                       {isDeleting ? <Spinner className="h-4 w-4" /> : null} {t("deleteButton")}
                     </Button>
                   </div>
@@ -334,10 +349,6 @@ function SlideCard({
   );
 }
 
-// Mirrors admin-hero-slides.service.ts's own upload validation exactly.
-const ALLOWED_IMAGE_TYPES = new Set(["image/jpeg", "image/png", "image/webp"]);
-const MAX_IMAGE_BYTES = 5 * 1024 * 1024;
-
 function UploadSlideDialog() {
   const t = useTranslations("Content.hero");
   const router = useRouter();
@@ -349,7 +360,9 @@ function UploadSlideDialog() {
   const [ctaHref, setCtaHref] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isDraggingOver, setIsDraggingOver] = useState(false);
-  const [errorKind, setErrorKind] = useState<"missingFile" | "invalidFile" | "generic" | null>(null);
+  const [errorKind, setErrorKind] = useState<"missingFile" | "invalidFile" | "generic" | null>(
+    null,
+  );
   const editorRef = useRef<ImageEditorHandle>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -409,7 +422,12 @@ function UploadSlideDialog() {
     // unchanged, but the generated type describes the decoded fields.
     const { error } = await api.POST("/api/v1/admin/hero-slides", {
       headers: { "x-csrf-token": readCsrfCookie() },
-      body: formData as unknown as { file: string; ctaLabelSv?: string; ctaLabelEn?: string; ctaHref?: string },
+      body: formData as unknown as {
+        file: string;
+        ctaLabelSv?: string;
+        ctaLabelEn?: string;
+        ctaHref?: string;
+      },
     });
 
     if (error) {
@@ -451,8 +469,12 @@ function UploadSlideDialog() {
       >
         <form onSubmit={handleSubmit}>
           <div className="flex flex-col gap-4">
-            {errorKind === "missingFile" ? <Alert tone="danger">{t("missingFileError")}</Alert> : null}
-            {errorKind === "invalidFile" ? <Alert tone="danger">{t("invalidFileError")}</Alert> : null}
+            {errorKind === "missingFile" ? (
+              <Alert tone="danger">{t("missingFileError")}</Alert>
+            ) : null}
+            {errorKind === "invalidFile" ? (
+              <Alert tone="danger">{t("invalidFileError")}</Alert>
+            ) : null}
             {errorKind === "generic" ? <Alert tone="danger">{t("genericError")}</Alert> : null}
             {!currentFile ? (
               <FormField label={t("fileLabel")} required>
@@ -501,24 +523,42 @@ function UploadSlideDialog() {
                   file={currentFile}
                   defaultAspect="16:9"
                 />
-                <Button type="button" variant="ghost" className="w-fit" onClick={() => setQueue([])}>
+                <Button
+                  type="button"
+                  variant="ghost"
+                  className="w-fit"
+                  onClick={() => setQueue([])}
+                >
                   {t("chooseDifferentFile")}
                 </Button>
               </>
             )}
             <FormField label={t("ctaLabelSvLabel")}>
               {(fieldProps) => (
-                <Input {...fieldProps} value={ctaLabelSv} onChange={(e) => setCtaLabelSv(e.target.value)} />
+                <Input
+                  {...fieldProps}
+                  value={ctaLabelSv}
+                  onChange={(e) => setCtaLabelSv(e.target.value)}
+                />
               )}
             </FormField>
             <FormField label={t("ctaLabelEnLabel")}>
               {(fieldProps) => (
-                <Input {...fieldProps} value={ctaLabelEn} onChange={(e) => setCtaLabelEn(e.target.value)} />
+                <Input
+                  {...fieldProps}
+                  value={ctaLabelEn}
+                  onChange={(e) => setCtaLabelEn(e.target.value)}
+                />
               )}
             </FormField>
             <FormField label={t("ctaHrefLabel")} hint={t("ctaHrefHint")}>
               {(fieldProps) => (
-                <Input {...fieldProps} value={ctaHref} onChange={(e) => setCtaHref(e.target.value)} placeholder="/shop" />
+                <Input
+                  {...fieldProps}
+                  value={ctaHref}
+                  onChange={(e) => setCtaHref(e.target.value)}
+                  placeholder="/shop"
+                />
               )}
             </FormField>
           </div>

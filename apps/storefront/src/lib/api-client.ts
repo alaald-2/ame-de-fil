@@ -1,6 +1,5 @@
 import { createApiClient } from "@ame-de-fil/types";
-
-const API_URL = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:3000";
+import { API_URL } from "./env";
 
 // The only door to apps/api (ARCHITECTURE.md §1) — this app never imports
 // @ame-de-fil/database or talks to PostgreSQL directly. baseUrl is the bare

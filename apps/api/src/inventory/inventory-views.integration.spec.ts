@@ -9,7 +9,11 @@ import { BadRequestException } from "@nestjs/common";
 import { InventoryMovementType, StockReservationStatus } from "@ame-de-fil/database";
 import { InventoryService } from "./inventory.service.ts";
 import { AuditService } from "../audit/audit.service.ts";
-import { startTestDatabase, stopTestDatabase, type TestDatabase } from "../test/testcontainers-postgres.ts";
+import {
+  startTestDatabase,
+  stopTestDatabase,
+  type TestDatabase,
+} from "../test/testcontainers-postgres.ts";
 import {
   seedPendingOrder,
   seedShopFixture,
@@ -74,7 +78,11 @@ describe("InventoryService reservations/movements views — real Postgres", () =
         data: { status: StockReservationStatus.CONSUMED },
       });
 
-      const defaultView = await service.listReservations({ page: 1, pageSize: 50, status: "PENDING" });
+      const defaultView = await service.listReservations({
+        page: 1,
+        pageSize: 50,
+        status: "PENDING",
+      });
       expect(defaultView.items.map((i) => i.id)).toContain(pending.stockReservationId);
       expect(defaultView.items.map((i) => i.id)).not.toContain(consumed.stockReservationId);
 
@@ -89,7 +97,9 @@ describe("InventoryService reservations/movements views — real Postgres", () =
       const forA = await seedPendingOrder(db.prisma, shop, variantA, {
         reservationExpiresAt: new Date(Date.now() + 60_000),
       });
-      await seedPendingOrder(db.prisma, shop, variantB, { reservationExpiresAt: new Date(Date.now() + 60_000) });
+      await seedPendingOrder(db.prisma, shop, variantB, {
+        reservationExpiresAt: new Date(Date.now() + 60_000),
+      });
 
       const result = await service.listReservations({
         page: 1,
@@ -134,8 +144,14 @@ describe("InventoryService reservations/movements views — real Postgres", () =
 
     it("orders most-recent-first across items", async () => {
       const variant = await seedVariant(db.prisma, shop.taxClassId);
-      const older = await seedMovement({ inventoryItemId: variant.inventoryItemId, createdAt: new Date("2027-01-01T00:00:00.000Z") });
-      const newer = await seedMovement({ inventoryItemId: variant.inventoryItemId, createdAt: new Date("2027-01-02T00:00:00.000Z") });
+      const older = await seedMovement({
+        inventoryItemId: variant.inventoryItemId,
+        createdAt: new Date("2027-01-01T00:00:00.000Z"),
+      });
+      const newer = await seedMovement({
+        inventoryItemId: variant.inventoryItemId,
+        createdAt: new Date("2027-01-02T00:00:00.000Z"),
+      });
 
       const result = await service.listMovements({ page: 1, pageSize: 50 });
 
@@ -168,7 +184,11 @@ describe("InventoryService reservations/movements views — real Postgres", () =
       expect(byType.items.map((i) => i.id)).toContain(restock.id);
       expect(byType.items.map((i) => i.id)).not.toContain(adjustment.id);
 
-      const byVariant = await service.listMovements({ page: 1, pageSize: 50, variantId: variantA.variantId });
+      const byVariant = await service.listMovements({
+        page: 1,
+        pageSize: 50,
+        variantId: variantA.variantId,
+      });
       expect(byVariant.items.every((i) => i.variantId === variantA.variantId)).toBe(true);
       expect(byVariant.items.map((i) => i.id).sort()).toEqual([restock.id, adjustment.id].sort());
     });
@@ -177,7 +197,10 @@ describe("InventoryService reservations/movements views — real Postgres", () =
       const variant = await seedVariant(db.prisma, shop.taxClassId);
       const from = new Date("2027-03-10T00:00:00.000Z");
       const to = new Date("2027-03-20T00:00:00.000Z");
-      const atFrom = await seedMovement({ inventoryItemId: variant.inventoryItemId, createdAt: from });
+      const atFrom = await seedMovement({
+        inventoryItemId: variant.inventoryItemId,
+        createdAt: from,
+      });
       const atTo = await seedMovement({ inventoryItemId: variant.inventoryItemId, createdAt: to });
 
       const result = await service.listMovements({
@@ -191,7 +214,12 @@ describe("InventoryService reservations/movements views — real Postgres", () =
       expect(result.items.map((i) => i.id)).not.toContain(atTo.id);
 
       await expect(
-        service.listMovements({ page: 1, pageSize: 50, from: to.toISOString(), to: from.toISOString() }),
+        service.listMovements({
+          page: 1,
+          pageSize: 50,
+          from: to.toISOString(),
+          to: from.toISOString(),
+        }),
       ).rejects.toThrow(BadRequestException);
     });
 
@@ -249,12 +277,18 @@ describe("InventoryService reservations/movements views — real Postgres", () =
       await db.prisma.orderItem.delete({ where: { id: seeded.orderItemId } });
 
       const after = await service.listMovements({ page: 1, pageSize: 50 });
-      expect(after.items.find((i) => i.id === movement.id)).toMatchObject({ orderId: null, orderNumber: null });
+      expect(after.items.find((i) => i.id === movement.id)).toMatchObject({
+        orderId: null,
+        orderNumber: null,
+      });
     });
 
     it("computes pagination consistently with the other inventory list endpoints", async () => {
       const variant = await seedVariant(db.prisma, shop.taxClassId);
-      await seedMovement({ inventoryItemId: variant.inventoryItemId, createdAt: new Date("2027-06-01T00:00:00.000Z") });
+      await seedMovement({
+        inventoryItemId: variant.inventoryItemId,
+        createdAt: new Date("2027-06-01T00:00:00.000Z"),
+      });
 
       const result = await service.listMovements({ page: 2, pageSize: 1 });
 

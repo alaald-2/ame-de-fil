@@ -10,10 +10,12 @@ const AUTH: AuthContext = { userId: "user-1", sessionId: "s1", csrfToken: "csrf"
 const RAW_TOKEN = "correct-token-value";
 const TOKEN_HASH = hashOrderStatusToken(RAW_TOKEN);
 
-function makePrismaMock(overrides: {
-  order?: unknown;
-  tokenRecord?: unknown;
-} = {}) {
+function makePrismaMock(
+  overrides: {
+    order?: unknown;
+    tokenRecord?: unknown;
+  } = {},
+) {
   return {
     order: { findUnique: vi.fn().mockResolvedValue(overrides.order ?? null) },
     orderStatusToken: { findUnique: vi.fn().mockResolvedValue(overrides.tokenRecord ?? null) },
@@ -37,9 +39,7 @@ describe("OrdersService.getStatus", () => {
     const prisma = makePrismaMock({ order: null });
     const service = new OrdersService(prisma);
 
-    await expect(service.getStatus("order-1", undefined, AUTH)).rejects.toThrow(
-      NotFoundException,
-    );
+    await expect(service.getStatus("order-1", undefined, AUTH)).rejects.toThrow(NotFoundException);
   });
 
   describe("authenticated caller — object-level ownership, token never consulted", () => {
@@ -50,7 +50,10 @@ describe("OrdersService.getStatus", () => {
       const result = await service.getStatus("order-1", undefined, AUTH);
 
       expect(result).toEqual({ status: OrderStatus.CONFIRMED, payment: { status: "PAID" } });
-      expect((prisma as unknown as { orderStatusToken: { findUnique: unknown } }).orderStatusToken.findUnique).not.toHaveBeenCalled();
+      expect(
+        (prisma as unknown as { orderStatusToken: { findUnique: unknown } }).orderStatusToken
+          .findUnique,
+      ).not.toHaveBeenCalled();
     });
 
     it("returns 404 for a caller who is not the order's owner, even with a valid token", async () => {
@@ -265,8 +268,15 @@ describe("OrdersService.listMyOrders", () => {
       pageSize: 20,
       total: 1,
     });
-    expect((prisma as unknown as { order: { findMany: ReturnType<typeof vi.fn> } }).order.findMany).toHaveBeenCalledWith(
-      expect.objectContaining({ where: { userId: "user-1" }, orderBy: { createdAt: "desc" }, skip: 0, take: 20 }),
+    expect(
+      (prisma as unknown as { order: { findMany: ReturnType<typeof vi.fn> } }).order.findMany,
+    ).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: { userId: "user-1" },
+        orderBy: { createdAt: "desc" },
+        skip: 0,
+        take: 20,
+      }),
     );
   });
 });

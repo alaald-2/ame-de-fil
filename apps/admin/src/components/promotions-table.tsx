@@ -12,6 +12,7 @@ import {
   Text,
 } from "@ame-de-fil/ui";
 import type { AdminLocale } from "../i18n/config";
+import { formatDate as formatDateValue } from "../lib/format-date";
 
 export interface AdminPromotionListItem {
   id: string;
@@ -31,7 +32,7 @@ interface PromotionsTableProps {
 }
 
 function formatDate(iso: string | null, locale: string): string {
-  return iso ? new Intl.DateTimeFormat(locale, { dateStyle: "medium" }).format(new Date(iso)) : "—";
+  return iso ? formatDateValue(iso, locale) : "—";
 }
 
 // Same "whole row is a link" pattern as admin-products-table.tsx — see that
@@ -61,7 +62,9 @@ export function PromotionsTable({ promotions, locale }: PromotionsTableProps) {
                 </TableRowLink>
                 {promotion.name}
               </TableCell>
-              <TableCell numeric>{t("percentageValue", { percentage: promotion.percentage })}</TableCell>
+              <TableCell numeric>
+                {t("percentageValue", { percentage: promotion.percentage })}
+              </TableCell>
               <TableCell numeric>{promotion.variantCount}</TableCell>
               <TableCell>{formatDate(promotion.startsAt, locale)}</TableCell>
               <TableCell>{formatDate(promotion.endsAt, locale)}</TableCell>

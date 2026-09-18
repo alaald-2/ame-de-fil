@@ -17,6 +17,7 @@ import {
 import { requireSession } from "../../../../lib/dal";
 import { getServerApiClient } from "../../../../lib/server-api";
 import { formatMoney } from "../../../../lib/format-money";
+import { formatDateTime as formatDate } from "../../../../lib/format-date";
 import {
   orderStatusTone,
   paymentStatusTone,
@@ -31,12 +32,6 @@ import type { AdminLocale } from "../../../../i18n/config";
 
 interface OrderDetailPageProps {
   params: Promise<{ orderId: string }>;
-}
-
-function formatDate(iso: string, locale: string): string {
-  return new Intl.DateTimeFormat(locale, { dateStyle: "medium", timeStyle: "short" }).format(
-    new Date(iso),
-  );
 }
 
 export default async function OrderDetailPage({ params }: OrderDetailPageProps) {

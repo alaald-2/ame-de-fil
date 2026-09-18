@@ -1,4 +1,9 @@
-import { BadRequestException, ConflictException, Injectable, NotFoundException } from "@nestjs/common";
+import {
+  BadRequestException,
+  ConflictException,
+  Injectable,
+  NotFoundException,
+} from "@nestjs/common";
 import { Prisma, TaskSource, TaskStatus, TaskType, UserStatus } from "@ame-de-fil/database";
 import { PrismaService } from "../database/prisma.service.ts";
 import { AuditService } from "../audit/audit.service.ts";
@@ -8,13 +13,18 @@ import type { ListTasksQuery } from "./dto/list-tasks-query.dto.ts";
 import type { CreateTaskInput } from "./dto/create-task.dto.ts";
 import type { UpdateTaskInput } from "./dto/update-task.dto.ts";
 
-const TASK_NOT_FOUND = () => new NotFoundException({ error: "TaskNotFound", message: "Task not found" });
+const TASK_NOT_FOUND = () =>
+  new NotFoundException({ error: "TaskNotFound", message: "Task not found" });
 const ASSIGNEE_NOT_FOUND = () =>
-  new BadRequestException({ error: "AssigneeNotFound", message: "assignedToUserId does not match an existing user" });
+  new BadRequestException({
+    error: "AssigneeNotFound",
+    message: "assignedToUserId does not match an existing user",
+  });
 const LINKED_ENTITY_NOT_FOUND = () =>
   new BadRequestException({
     error: "LinkedEntityNotFound",
-    message: "One of orderId/orderItemId/productVariantId/customerUserId does not match an existing row",
+    message:
+      "One of orderId/orderItemId/productVariantId/customerUserId does not match an existing row",
   });
 
 const P2003_FOREIGN_KEY_VIOLATION = "P2003";
@@ -116,7 +126,11 @@ export class AdminTasksService {
       action: "task.created",
       entityType: "Task",
       entityId: created.id,
-      after: { type: created.type, title: created.title, assignedToUserId: created.assignedTo?.id ?? null },
+      after: {
+        type: created.type,
+        title: created.title,
+        assignedToUserId: created.assignedTo?.id ?? null,
+      },
       ipAddress,
     });
 
@@ -149,19 +163,34 @@ export class AdminTasksService {
     return mapTask(updated);
   }
 
-  async assign(id: string, assignedToUserId: string | null, actor: AuthContext, ipAddress?: string) {
-    const existing = await this.prisma.task.findUnique({ where: { id }, select: { id: true, assignedToUserId: true } });
+  async assign(
+    id: string,
+    assignedToUserId: string | null,
+    actor: AuthContext,
+    ipAddress?: string,
+  ) {
+    const existing = await this.prisma.task.findUnique({
+      where: { id },
+      select: { id: true, assignedToUserId: true },
+    });
     if (!existing) throw TASK_NOT_FOUND();
 
     if (assignedToUserId === existing.assignedToUserId) return this.getOne(id);
 
     if (assignedToUserId) {
-      const assignee = await this.prisma.user.findUnique({ where: { id: assignedToUserId }, select: { id: true } });
+      const assignee = await this.prisma.user.findUnique({
+        where: { id: assignedToUserId },
+        select: { id: true },
+      });
       if (!assignee) throw ASSIGNEE_NOT_FOUND();
     }
 
     const action =
-      existing.assignedToUserId === null ? "task.assigned" : assignedToUserId === null ? "task.unassigned" : "task.reassigned";
+      existing.assignedToUserId === null
+        ? "task.assigned"
+        : assignedToUserId === null
+          ? "task.unassigned"
+          : "task.reassigned";
 
     const updated = await this.prisma.task.update({
       where: { id },
@@ -183,7 +212,14 @@ export class AdminTasksService {
   }
 
   async complete(id: string, actor: AuthContext, ipAddress?: string) {
-    return this.transition(id, [TaskStatus.OPEN], { status: TaskStatus.DONE, completedAt: new Date() }, "task.completed", actor, ipAddress);
+    return this.transition(
+      id,
+      [TaskStatus.OPEN],
+      { status: TaskStatus.DONE, completedAt: new Date() },
+      "task.completed",
+      actor,
+      ipAddress,
+    );
   }
 
   async reopen(id: string, actor: AuthContext, ipAddress?: string) {
@@ -198,7 +234,14 @@ export class AdminTasksService {
   }
 
   async cancel(id: string, actor: AuthContext, ipAddress?: string) {
-    return this.transition(id, [TaskStatus.OPEN], { status: TaskStatus.CANCELED }, "task.canceled", actor, ipAddress);
+    return this.transition(
+      id,
+      [TaskStatus.OPEN],
+      { status: TaskStatus.CANCELED },
+      "task.canceled",
+      actor,
+      ipAddress,
+    );
   }
 
   // Guarded status transition — same "updateMany with a WHERE on the
@@ -214,7 +257,10 @@ export class AdminTasksService {
     actor: AuthContext,
     ipAddress?: string,
   ) {
-    const existing = await this.prisma.task.findUnique({ where: { id }, select: { id: true, status: true } });
+    const existing = await this.prisma.task.findUnique({
+      where: { id },
+      select: { id: true, status: true },
+    });
     if (!existing) throw TASK_NOT_FOUND();
 
     const result = await this.prisma.task.updateMany({
@@ -241,6 +287,9 @@ export class AdminTasksService {
   }
 
   private isForeignKeyViolation(error: unknown): boolean {
-    return error instanceof Prisma.PrismaClientKnownRequestError && error.code === P2003_FOREIGN_KEY_VIOLATION;
+    return (
+      error instanceof Prisma.PrismaClientKnownRequestError &&
+      error.code === P2003_FOREIGN_KEY_VIOLATION
+    );
   }
 }

@@ -28,8 +28,14 @@ import type { AuthContext } from "../common/types/auth-context.ts";
 import { InventoryService } from "./inventory.service.ts";
 import { adjustStockSchema, type AdjustStockInput } from "./dto/adjust-stock.dto.ts";
 import { variantIdParamSchema, type VariantIdParam } from "./dto/variant-id.param.ts";
-import { listInventoryQuerySchema, type ListInventoryQuery } from "./dto/list-inventory-query.dto.ts";
-import { listReservationsQuerySchema, type ListReservationsQuery } from "./dto/list-reservations.dto.ts";
+import {
+  listInventoryQuerySchema,
+  type ListInventoryQuery,
+} from "./dto/list-inventory-query.dto.ts";
+import {
+  listReservationsQuerySchema,
+  type ListReservationsQuery,
+} from "./dto/list-reservations.dto.ts";
 import { listMovementsQuerySchema, type ListMovementsQuery } from "./dto/list-movements.dto.ts";
 import {
   inventoryDetailResponseSchema,
@@ -79,11 +85,15 @@ export class InventoryController {
   // declared before @Get(":variantId").
   @Get("reservations")
   @RequirePermissions("inventory.view")
-  @ApiOperation({ summary: "List stock reservations, soonest-to-expire first (PENDING by default)" })
+  @ApiOperation({
+    summary: "List stock reservations, soonest-to-expire first (PENDING by default)",
+  })
   @ApiZodQuery(listReservationsQuerySchema)
   @ApiOkResponse({ schema: toOpenApiSchema(listReservationsResponseSchema) })
   @ApiErrorResponses(400, 401, 403)
-  async listReservations(@Query(new ZodValidationPipe(listReservationsQuerySchema)) query: ListReservationsQuery) {
+  async listReservations(
+    @Query(new ZodValidationPipe(listReservationsQuerySchema)) query: ListReservationsQuery,
+  ) {
     return this.inventory.listReservations(query);
   }
 
@@ -94,7 +104,9 @@ export class InventoryController {
   @ApiZodQuery(listMovementsQuerySchema)
   @ApiOkResponse({ schema: toOpenApiSchema(listMovementsResponseSchema) })
   @ApiErrorResponses(400, 401, 403)
-  async listMovements(@Query(new ZodValidationPipe(listMovementsQuerySchema)) query: ListMovementsQuery) {
+  async listMovements(
+    @Query(new ZodValidationPipe(listMovementsQuerySchema)) query: ListMovementsQuery,
+  ) {
     return this.inventory.listMovements(query);
   }
 

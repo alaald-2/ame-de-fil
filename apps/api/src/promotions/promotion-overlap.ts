@@ -18,8 +18,7 @@ export function isExclusionConstraintViolation(error: unknown, constraintName: s
   if (error.code !== "P2039") return false;
 
   const driverAdapterError = error.meta?.["driverAdapterError"] as
-    | { cause?: { code?: unknown; originalCode?: unknown; message?: unknown } }
-    | undefined;
+    { cause?: { code?: unknown; originalCode?: unknown; message?: unknown } } | undefined;
   const cause = driverAdapterError?.cause;
   if (cause?.code !== "23P01" && cause?.originalCode !== "23P01") return false;
 

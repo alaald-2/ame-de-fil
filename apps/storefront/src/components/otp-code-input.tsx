@@ -1,6 +1,7 @@
 "use client";
 
 import { useRef, type ClipboardEvent, type KeyboardEvent } from "react";
+import { useTranslations } from "next-intl";
 import { Input } from "@ame-de-fil/ui";
 
 const DIGIT_COUNT = 6;
@@ -21,7 +22,14 @@ interface OtpCodeInputProps {
 // entry, auto-retreats on backspace into an empty box, and a paste of a
 // full 6-digit code anywhere in the group fills every box at once — the
 // common case when a code is copied whole from the email.
-export function OtpCodeInput({ value, onChange, onComplete, disabled, invalid }: OtpCodeInputProps) {
+export function OtpCodeInput({
+  value,
+  onChange,
+  onComplete,
+  disabled,
+  invalid,
+}: OtpCodeInputProps) {
+  const t = useTranslations("Login");
   const inputRefs = useRef<Array<HTMLInputElement | null>>([]);
   const digits = Array.from({ length: DIGIT_COUNT }, (_, i) => value[i] ?? "");
 
@@ -75,7 +83,7 @@ export function OtpCodeInput({ value, onChange, onComplete, disabled, invalid }:
   }
 
   return (
-    <div className="flex justify-center gap-2" role="group" aria-label="Verification code">
+    <div className="flex justify-center gap-2" role="group" aria-label={t("otpGroupLabel")}>
       {digits.map((digit, index) => (
         <Input
           key={index}
@@ -85,7 +93,7 @@ export function OtpCodeInput({ value, onChange, onComplete, disabled, invalid }:
           type="text"
           inputMode="numeric"
           autoComplete="one-time-code"
-          aria-label={`Digit ${index + 1} of ${DIGIT_COUNT}`}
+          aria-label={t("otpDigitLabel", { index: index + 1, count: DIGIT_COUNT })}
           aria-invalid={invalid || undefined}
           maxLength={1}
           autoFocus={index === 0}

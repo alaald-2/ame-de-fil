@@ -16,7 +16,13 @@ interface SalePriceProps {
 // effective, already-discounted price; originalPrice/promotion are only
 // ever non-null when product.mapper.ts found a currently-effective
 // promotion). Nothing here recomputes a discount client-side.
-export function SalePrice({ price, originalPrice, promotion, locale, size = "sm" }: SalePriceProps) {
+export function SalePrice({
+  price,
+  originalPrice,
+  promotion,
+  locale,
+  size = "sm",
+}: SalePriceProps) {
   const t = useTranslations("Shop");
 
   if (!originalPrice || !promotion) {

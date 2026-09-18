@@ -1,5 +1,22 @@
-import { Body, Controller, Delete, Get, HttpCode, HttpStatus, Param, Patch, Post } from "@nestjs/common";
-import { ApiBody, ApiCookieAuth, ApiOkResponse, ApiOperation, ApiTags } from "@nestjs/swagger";
+import {
+  Body,
+  Controller,
+  Delete,
+  Get,
+  HttpCode,
+  HttpStatus,
+  Param,
+  Patch,
+  Post,
+} from "@nestjs/common";
+import {
+  ApiBody,
+  ApiCookieAuth,
+  ApiCreatedResponse,
+  ApiOkResponse,
+  ApiOperation,
+  ApiTags,
+} from "@nestjs/swagger";
 import { CurrentUser } from "../common/decorators/current-user.decorator.ts";
 import { ZodValidationPipe } from "../common/pipes/zod-validation.pipe.ts";
 import { ApiErrorResponses } from "../common/api-error-responses.ts";
@@ -44,7 +61,7 @@ export class AddressesController {
   @Post()
   @ApiOperation({ summary: "Save a new address" })
   @ApiBody({ schema: toOpenApiSchema(createAddressSchema) })
-  @ApiOkResponse({ schema: toOpenApiSchema(addressResponseSchema) })
+  @ApiCreatedResponse({ schema: toOpenApiSchema(addressResponseSchema) })
   @ApiErrorResponses(400, 401, 422)
   async create(
     @Body(new ZodValidationPipe(createAddressSchema)) body: CreateAddressInput,

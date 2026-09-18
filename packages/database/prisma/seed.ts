@@ -238,7 +238,9 @@ async function seedShippingMethods(prisma: PrismaClient): Promise<void> {
 }
 
 async function main(): Promise<void> {
-  const prisma = new PrismaClient({ adapter: new PrismaPg({ connectionString: requireDatabaseUrl() }) });
+  const prisma = new PrismaClient({
+    adapter: new PrismaPg({ connectionString: requireDatabaseUrl() }),
+  });
   try {
     await seedPermissionsAndAdminRole(prisma);
     await seedBootstrapAdminIfConfigured(prisma);

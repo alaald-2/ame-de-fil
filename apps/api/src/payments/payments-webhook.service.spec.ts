@@ -100,16 +100,19 @@ describe("PaymentsWebhookService.handle", () => {
   // returned false, so this fell through to `throw error` instead of
   // no-opping).
   it("no-ops on a duplicate webhook event ID (real @prisma/adapter-pg P2002 shape) without opening a transaction", async () => {
-    const p2002 = new Prisma.PrismaClientKnownRequestError("duplicate key value violates unique constraint", {
-      code: "P2002",
-      clientVersion: "7.10.0",
-      meta: {
-        modelName: "WebhookEvent",
-        driverAdapterError: {
-          cause: { constraint: { index: "WebhookEvent_pkey" }, table: "WebhookEvent" },
+    const p2002 = new Prisma.PrismaClientKnownRequestError(
+      "duplicate key value violates unique constraint",
+      {
+        code: "P2002",
+        clientVersion: "7.10.0",
+        meta: {
+          modelName: "WebhookEvent",
+          driverAdapterError: {
+            cause: { constraint: { index: "WebhookEvent_pkey" }, table: "WebhookEvent" },
+          },
         },
       },
-    });
+    );
     prisma.webhookEvent.create.mockRejectedValue(p2002);
 
     await service.handle(SUCCEEDED);
@@ -224,7 +227,8 @@ describe("PaymentsWebhookService.handle", () => {
       expect(notifications.sendOrderConfirmation).toHaveBeenCalledWith("order-1");
       // Dispatched only after the transaction has committed (DECISIONS.md
       // ADR-031), never from inside it.
-      const transactionOrder = (prisma.$transaction as ReturnType<typeof vi.fn>).mock.invocationCallOrder[0];
+      const transactionOrder = (prisma.$transaction as ReturnType<typeof vi.fn>).mock
+        .invocationCallOrder[0];
       const notifyOrder = notifications.sendOrderConfirmation.mock.invocationCallOrder[0];
       expect(transactionOrder).toBeDefined();
       expect(notifyOrder).toBeDefined();
@@ -282,7 +286,10 @@ describe("PaymentsWebhookService.handle", () => {
       // leaving Payment PAID but Order stuck CANCELED forever (confirmed
       // live against a real database before this fix).
       expect(tx.order.updateMany).toHaveBeenCalledWith({
-        where: { id: "order-1", status: { in: [OrderStatus.PENDING_PAYMENT, OrderStatus.CANCELED] } },
+        where: {
+          id: "order-1",
+          status: { in: [OrderStatus.PENDING_PAYMENT, OrderStatus.CANCELED] },
+        },
         data: { status: OrderStatus.PAYMENT_SUCCEEDED_STOCK_LOST, canceledAt: null },
       });
       // Stock-lost needs manual admin resolution, not a customer-facing

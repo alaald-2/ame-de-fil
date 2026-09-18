@@ -5,18 +5,11 @@ import { requireSession } from "../../../../lib/dal";
 import { getServerApiClient } from "../../../../lib/server-api";
 import { orderStatusTone } from "../../../../lib/order-status";
 import { formatMoney } from "../../../../lib/format-money";
+import { formatDate, formatDateTime } from "../../../../lib/format-date";
 import type { AdminLocale } from "../../../../i18n/config";
 
 interface CustomerDetailPageProps {
   params: Promise<{ id: string }>;
-}
-
-function formatDate(iso: string, locale: string): string {
-  return new Intl.DateTimeFormat(locale, { dateStyle: "medium" }).format(new Date(iso));
-}
-
-function formatDateTime(iso: string, locale: string): string {
-  return new Intl.DateTimeFormat(locale, { dateStyle: "medium", timeStyle: "short" }).format(new Date(iso));
 }
 
 // Real GET /admin/customers/:id data — view-only, matching exactly what the
@@ -36,7 +29,11 @@ export default async function CustomerDetailPage({ params }: CustomerDetailPageP
   const locale = (await getLocale()) as AdminLocale;
   const client = await getServerApiClient();
 
-  const { data: customer, error, response } = await client.GET("/api/v1/admin/customers/{id}", {
+  const {
+    data: customer,
+    error,
+    response,
+  } = await client.GET("/api/v1/admin/customers/{id}", {
     params: { path: { id } },
   });
 
@@ -46,7 +43,9 @@ export default async function CustomerDetailPage({ params }: CustomerDetailPageP
       <ErrorState
         className="mt-6"
         title={response.status === 403 ? t("forbiddenTitle") : td("detailErrorTitle")}
-        description={response.status === 403 ? t("forbiddenDescription") : td("detailErrorDescription")}
+        description={
+          response.status === 403 ? t("forbiddenDescription") : td("detailErrorDescription")
+        }
       />
     );
   }
@@ -69,7 +68,11 @@ export default async function CustomerDetailPage({ params }: CustomerDetailPageP
         // Omitted entirely when neither name is set, rather than falling
         // back to a lone "-" — same reasoning as the Administration user
         // detail page's own identical pattern.
-        return fullName ? <Text tone="muted" className="mt-1">{fullName}</Text> : null;
+        return fullName ? (
+          <Text tone="muted" className="mt-1">
+            {fullName}
+          </Text>
+        ) : null;
       })()}
 
       <div className="mt-8 grid gap-8 lg:grid-cols-[1fr_320px]">
@@ -84,12 +87,17 @@ export default async function CustomerDetailPage({ params }: CustomerDetailPageP
           ) : (
             <ul className="flex flex-col divide-y divide-neutral-200">
               {customer.recentOrders.map((order) => (
-                <li key={order.orderId} className="flex flex-wrap items-center justify-between gap-3 py-3">
+                <li
+                  key={order.orderId}
+                  className="flex flex-wrap items-center justify-between gap-3 py-3"
+                >
                   <Link href={`/orders/${order.orderId}`} className="font-medium">
                     {order.orderNumber}
                   </Link>
                   <div className="flex items-center gap-4">
-                    <Badge tone={orderStatusTone(order.status)}>{tOrders(`status.${order.status}`)}</Badge>
+                    <Badge tone={orderStatusTone(order.status)}>
+                      {tOrders(`status.${order.status}`)}
+                    </Badge>
                     <Text size="sm" className="tabular-nums">
                       {formatMoney(order.total.amountMinor, locale)}
                     </Text>
@@ -112,14 +120,26 @@ export default async function CustomerDetailPage({ params }: CustomerDetailPageP
             <InfoRow label={td("localeLabel")} value={customer.locale} />
             <InfoRow
               label={td("emailVerifiedLabel")}
-              value={customer.emailVerifiedAt ? formatDate(customer.emailVerifiedAt, locale) : td("notVerified")}
+              value={
+                customer.emailVerifiedAt
+                  ? formatDate(customer.emailVerifiedAt, locale)
+                  : td("notVerified")
+              }
             />
             <InfoRow label={td("orderCountLabel")} value={String(customer.orderCount)} />
-            <InfoRow label={td("createdLabel")} value={formatDateTime(customer.createdAt, locale)} />
-            <InfoRow label={td("updatedLabel")} value={formatDateTime(customer.updatedAt, locale)} />
+            <InfoRow
+              label={td("createdLabel")}
+              value={formatDateTime(customer.createdAt, locale)}
+            />
+            <InfoRow
+              label={td("updatedLabel")}
+              value={formatDateTime(customer.updatedAt, locale)}
+            />
             <InfoRow
               label={td("lastLoginLabel")}
-              value={customer.lastLoginAt ? formatDateTime(customer.lastLoginAt, locale) : t("never")}
+              value={
+                customer.lastLoginAt ? formatDateTime(customer.lastLoginAt, locale) : t("never")
+              }
             />
           </div>
         </Card>

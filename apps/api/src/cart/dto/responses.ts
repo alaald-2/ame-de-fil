@@ -25,7 +25,9 @@ export const cartItemResponseSchema = z.object({
   // Only set when a promotion is currently discounting this line — the
   // base price to show crossed out, same convention as the storefront
   // catalog's own ProductVariantResponse.
-  originalUnitPrice: z.object({ amountMinor: z.number().int(), currency: z.literal("SEK") }).nullable(),
+  originalUnitPrice: z
+    .object({ amountMinor: z.number().int(), currency: z.literal("SEK") })
+    .nullable(),
   promotion: promotionSummaryResponseSchema.nullable(),
   lineTotal: z.object({ amountMinor: z.number().int(), currency: z.literal("SEK") }),
   available: z.boolean(),

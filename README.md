@@ -22,17 +22,17 @@ Premium handmade crochet e-commerce platform. Scandinavian-atelier brand — ele
 
 ## Stack
 
-| Layer              | Choice                                           | Why (see `docs/DECISIONS.md`)                                                 |
-| ------------------ | ------------------------------------------------ | ----------------------------------------------------------------------------- |
-| Monorepo           | pnpm + Turborepo                                 | Fast, disk-efficient, minimal-config task caching                             |
-| Storefront / Admin | Next.js 16 (App Router), React 19, TypeScript    | SSR/RSC for SEO, `next-intl` for `sv-SE`/`en` (Sweden-only market, confirmed) |
-| Styling / UI       | Tailwind CSS v4, shadcn/ui (code-owned), Motion  | Fully overridable — no generic-template look                                  |
-| API                | NestJS 12                                        | Single source of truth for prices, stock, orders, payments                    |
-| Database           | PostgreSQL 18 + Prisma ORM 7 (Rust-free)         | Transactional integrity for money/stock; smaller, native-binary-free deploys  |
-| Payments           | Stripe (card, Klarna; Swish code-ready, pending Stripe activation) | Unified PSP behind a provider-agnostic interface — ADR-014, live-verified     |
-| Shipping           | `ShippingProvider` abstraction — Manual (fallback), Shipmondo (DHL Freight, live), PostNord (Mypack Collect, built, pending sandbox) | Carrier-agnostic by design — ADR-022/037/038/039/040             |
-| Testing            | Vitest, Playwright, Testcontainers               | Unit → integration (real Postgres) → API → E2E                                |
-| CI/CD              | GitHub Actions + Turborepo remote cache          | Lint → typecheck → test → build → E2E → security scan → deploy                |
+| Layer              | Choice                                                                                                                               | Why (see `docs/DECISIONS.md`)                                                 |
+| ------------------ | ------------------------------------------------------------------------------------------------------------------------------------ | ----------------------------------------------------------------------------- |
+| Monorepo           | pnpm + Turborepo                                                                                                                     | Fast, disk-efficient, minimal-config task caching                             |
+| Storefront / Admin | Next.js 16 (App Router), React 19, TypeScript                                                                                        | SSR/RSC for SEO, `next-intl` for `sv-SE`/`en` (Sweden-only market, confirmed) |
+| Styling / UI       | Tailwind CSS v4, shadcn/ui (code-owned), Motion                                                                                      | Fully overridable — no generic-template look                                  |
+| API                | NestJS 12                                                                                                                            | Single source of truth for prices, stock, orders, payments                    |
+| Database           | PostgreSQL 18 + Prisma ORM 7 (Rust-free)                                                                                             | Transactional integrity for money/stock; smaller, native-binary-free deploys  |
+| Payments           | Stripe (card, Klarna; Swish code-ready, pending Stripe activation)                                                                   | Unified PSP behind a provider-agnostic interface — ADR-014, live-verified     |
+| Shipping           | `ShippingProvider` abstraction — Manual (fallback), Shipmondo (DHL Freight, live), PostNord (Mypack Collect, built, pending sandbox) | Carrier-agnostic by design — ADR-022/037/038/039/040                          |
+| Testing            | Vitest, Playwright, Testcontainers                                                                                                   | Unit → integration (real Postgres) → API → E2E                                |
+| CI/CD              | GitHub Actions + Turborepo remote cache                                                                                              | Lint → typecheck → test → build → E2E → security scan → deploy                |
 
 ## Repository structure (see `docs/ARCHITECTURE.md` §2)
 

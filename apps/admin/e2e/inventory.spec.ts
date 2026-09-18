@@ -33,7 +33,9 @@ test("inventory overview renders real data, and the tabs navigate between the fo
   // reservation eventually resolves to CONSUMED or EXPIRED), so this
   // asserts either real shape rather than assuming rows exist.
   await expect(
-    page.getByRole("columnheader", { name: "Order" }).or(page.getByText("Inga väntande reservationer")),
+    page
+      .getByRole("columnheader", { name: "Order" })
+      .or(page.getByText("Inga väntande reservationer")),
   ).toBeVisible();
 
   await tabs.getByRole("link", { name: "Rörelser" }).click();
@@ -47,7 +49,8 @@ test("inventory overview renders real data, and the tabs navigate between the fo
 test("a reservation's order number links to the real order detail page", async ({ page }) => {
   await page.goto("/inventory/reservations");
   const orderLink = page.locator("table a").first();
-  if ((await orderLink.count()) === 0) test.skip(true, "no pending reservations in this environment");
+  if ((await orderLink.count()) === 0)
+    test.skip(true, "no pending reservations in this environment");
   await orderLink.click();
   await expect(page).toHaveURL(/\/orders\/[^/]+$/);
 });
@@ -60,10 +63,17 @@ test("pagination query param renders a consistent page (including a deliberately
   await expect(page.getByText("Inga lagerartiklar ännu")).toBeVisible();
 });
 
-test("mobile viewport shows stacked records instead of the desktop table on every tab", async ({ page }) => {
+test("mobile viewport shows stacked records instead of the desktop table on every tab", async ({
+  page,
+}) => {
   await page.setViewportSize({ width: 390, height: 844 });
 
-  for (const path of ["/inventory", "/inventory/low-stock", "/inventory/reservations", "/inventory/movements"]) {
+  for (const path of [
+    "/inventory",
+    "/inventory/low-stock",
+    "/inventory/reservations",
+    "/inventory/movements",
+  ]) {
     await page.goto(path);
     await expect(page.locator("table")).toBeHidden();
   }

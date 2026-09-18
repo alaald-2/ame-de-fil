@@ -6,7 +6,12 @@ import { AuditService } from "../audit/audit.service.ts";
 import type { PrismaService } from "../database/prisma.service.ts";
 import type { AuthContext } from "../common/types/auth-context.ts";
 
-const ACTOR: AuthContext = { userId: "admin-1", sessionId: "s-1", csrfToken: "csrf", permissions: ["tasks.manage"] };
+const ACTOR: AuthContext = {
+  userId: "admin-1",
+  sessionId: "s-1",
+  csrfToken: "csrf",
+  permissions: ["tasks.manage"],
+};
 
 const BASE_TASK = {
   id: "task-1",
@@ -54,7 +59,10 @@ function makeService(prismaOverrides: Record<string, unknown> = {}) {
 describe("AdminTasksService.list", () => {
   it("defaults to OPEN status and resolves assignee=me against the caller's own id", async () => {
     const { service, prisma } = makeService();
-    await service.list({ page: 1, pageSize: 20, status: "OPEN", assignee: "me" } as never, "admin-1");
+    await service.list(
+      { page: 1, pageSize: 20, status: "OPEN", assignee: "me" } as never,
+      "admin-1",
+    );
 
     const where = (prisma.task.findMany as ReturnType<typeof vi.fn>).mock.calls[0]![0].where;
     expect(where.status).toBe(TaskStatus.OPEN);
@@ -63,7 +71,10 @@ describe("AdminTasksService.list", () => {
 
   it("treats assignee=unassigned as assignedToUserId IS NULL", async () => {
     const { service, prisma } = makeService();
-    await service.list({ page: 1, pageSize: 20, status: "ALL", assignee: "unassigned" } as never, "admin-1");
+    await service.list(
+      { page: 1, pageSize: 20, status: "ALL", assignee: "unassigned" } as never,
+      "admin-1",
+    );
 
     const where = (prisma.task.findMany as ReturnType<typeof vi.fn>).mock.calls[0]![0].where;
     expect(where.status).toBeUndefined();
@@ -83,26 +94,40 @@ describe("AdminTasksService.create", () => {
     const { service, prisma } = makeService();
     await service.create({ type: "GENERAL", title: "Call supplier" } as never, ACTOR);
 
-    expect((prisma.task.create as ReturnType<typeof vi.fn>).mock.calls[0]![0].data.source).toBe(TaskSource.MANUAL);
-    expect((prisma.auditLog.create as ReturnType<typeof vi.fn>).mock.calls[0]![0].data.action).toBe("task.created");
+    expect((prisma.task.create as ReturnType<typeof vi.fn>).mock.calls[0]![0].data.source).toBe(
+      TaskSource.MANUAL,
+    );
+    expect((prisma.auditLog.create as ReturnType<typeof vi.fn>).mock.calls[0]![0].data.action).toBe(
+      "task.created",
+    );
   });
 });
 
 describe("AdminTasksService.assign", () => {
   it("records task.assigned when moving from unassigned to a real user", async () => {
     const { service, prisma } = makeService({
-      task: { findUnique: vi.fn().mockResolvedValue({ id: "task-1", assignedToUserId: null }), update: vi.fn().mockResolvedValue(BASE_TASK) },
+      task: {
+        findUnique: vi.fn().mockResolvedValue({ id: "task-1", assignedToUserId: null }),
+        update: vi.fn().mockResolvedValue(BASE_TASK),
+      },
     });
     await service.assign("task-1", "user-2", ACTOR);
-    expect((prisma.auditLog.create as ReturnType<typeof vi.fn>).mock.calls[0]![0].data.action).toBe("task.assigned");
+    expect((prisma.auditLog.create as ReturnType<typeof vi.fn>).mock.calls[0]![0].data.action).toBe(
+      "task.assigned",
+    );
   });
 
   it("records task.unassigned when clearing an existing assignee", async () => {
     const { service, prisma } = makeService({
-      task: { findUnique: vi.fn().mockResolvedValue({ id: "task-1", assignedToUserId: "user-2" }), update: vi.fn().mockResolvedValue(BASE_TASK) },
+      task: {
+        findUnique: vi.fn().mockResolvedValue({ id: "task-1", assignedToUserId: "user-2" }),
+        update: vi.fn().mockResolvedValue(BASE_TASK),
+      },
     });
     await service.assign("task-1", null, ACTOR);
-    expect((prisma.auditLog.create as ReturnType<typeof vi.fn>).mock.calls[0]![0].data.action).toBe("task.unassigned");
+    expect((prisma.auditLog.create as ReturnType<typeof vi.fn>).mock.calls[0]![0].data.action).toBe(
+      "task.unassigned",
+    );
   });
 
   it("records task.reassigned when swapping between two different users", async () => {
@@ -114,7 +139,9 @@ describe("AdminTasksService.assign", () => {
       user: { findUnique: vi.fn().mockResolvedValue({ id: "user-3" }) },
     });
     await service.assign("task-1", "user-3", ACTOR);
-    expect((prisma.auditLog.create as ReturnType<typeof vi.fn>).mock.calls[0]![0].data.action).toBe("task.reassigned");
+    expect((prisma.auditLog.create as ReturnType<typeof vi.fn>).mock.calls[0]![0].data.action).toBe(
+      "task.reassigned",
+    );
   });
 
   it("is a no-op (no write, no audit entry) when the assignee is unchanged", async () => {
@@ -139,7 +166,9 @@ describe("AdminTasksService status transitions", () => {
       },
     });
     await service.complete("task-1", ACTOR);
-    expect((prisma.auditLog.create as ReturnType<typeof vi.fn>).mock.calls[0]![0].data.action).toBe("task.completed");
+    expect((prisma.auditLog.create as ReturnType<typeof vi.fn>).mock.calls[0]![0].data.action).toBe(
+      "task.completed",
+    );
   });
 
   it("complete() throws ConflictException when the task is already DONE", async () => {

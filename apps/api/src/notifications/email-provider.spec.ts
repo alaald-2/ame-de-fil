@@ -41,7 +41,12 @@ describe("SmtpEmailProvider", () => {
     sendMail.mockResolvedValue(undefined);
     const provider = new SmtpEmailProvider(makeConfig({ SMTP_HOST: "localhost", SMTP_PORT: 1025 }));
 
-    await provider.send({ to: "customer@example.com", subject: "Hi", html: "<p>Hi</p>", text: "Hi" });
+    await provider.send({
+      to: "customer@example.com",
+      subject: "Hi",
+      html: "<p>Hi</p>",
+      text: "Hi",
+    });
 
     expect(sendMail).toHaveBeenCalledWith({
       from: "no-reply@amedefil.se",
@@ -58,7 +63,12 @@ describe("SmtpEmailProvider", () => {
       makeConfig({ SMTP_HOST: "localhost", SMTP_PORT: 1025, SMTP_FROM: "orders@amedefil.se" }),
     );
 
-    await provider.send({ to: "customer@example.com", subject: "Hi", html: "<p>Hi</p>", text: "Hi" });
+    await provider.send({
+      to: "customer@example.com",
+      subject: "Hi",
+      html: "<p>Hi</p>",
+      text: "Hi",
+    });
 
     expect(sendMail).toHaveBeenCalledWith(expect.objectContaining({ from: "orders@amedefil.se" }));
   });

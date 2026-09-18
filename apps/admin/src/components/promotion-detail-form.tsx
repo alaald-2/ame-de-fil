@@ -142,7 +142,12 @@ export function PromotionDetailForm({
         <div className="grid gap-4 sm:grid-cols-2">
           <FormField label={t("nameLabel")} required>
             {(fieldProps) => (
-              <Input {...fieldProps} required value={name} onChange={(e) => setName(e.target.value)} />
+              <Input
+                {...fieldProps}
+                required
+                value={name}
+                onChange={(e) => setName(e.target.value)}
+              />
             )}
           </FormField>
           <FormField label={t("percentageLabel")} required>
